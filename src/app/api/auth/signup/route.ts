@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { signupSchema } from '@/lib/validations'
-import { hashPassword, generateRandomToken, generateToken } from '@/lib/auth'
-import { sendVerificationEmail } from '@/lib/email'
+import { hashPassword, generateToken } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,9 +30,6 @@ export async function POST(req: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(validatedData.password)
     
-    // Generate email verification token
-    const emailVerifyToken = generateRandomToken()
-    
     // Create user
     const user = await prisma.user.create({
       data: {
@@ -42,20 +38,15 @@ export async function POST(req: NextRequest) {
         password: hashedPassword,
         phoneNumber: validatedData.phoneNumber,
         role: validatedData.role,
-        emailVerifyToken,
       },
       select: {
         id: true,
         email: true,
         fullName: true,
         role: true,
-        emailVerified: true,
         phoneVerified: true,
       },
     })
-    
-    // Send verification email
-    await sendVerificationEmail(user.email, emailVerifyToken)
     
     // Generate JWT token
     const token = generateToken({
@@ -66,7 +57,7 @@ export async function POST(req: NextRequest) {
     
     return NextResponse.json(
       {
-        message: 'User created successfully. Please verify your email.',
+        message: 'User created successfully.',
         user,
         token,
       },

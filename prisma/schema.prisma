@@ -47,9 +47,7 @@ model User {
   fullName          String
   phoneNumber       String    @unique
   role              UserRole  @default(RENTER)
-  emailVerified     Boolean   @default(false)
   phoneVerified     Boolean   @default(false)
-  emailVerifyToken  String?
   resetToken        String?
   resetTokenExpiry  DateTime?
   createdAt         DateTime  @default(now())
@@ -131,7 +129,6 @@ model Booking {
   
   // Payment
   status            BookingStatus @default(PENDING)
-  stripePaymentId   String?
   paidAt            DateTime?
   
   createdAt         DateTime      @default(now())
