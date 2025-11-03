@@ -37,13 +37,12 @@ export default function SignupPage() {
       // Store token
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
+      
+      // Set cookie for middleware
+      document.cookie = `token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}` // 7 days
 
-      // Redirect based on role
-      if (data.user.role === 'HOST') {
-        router.push('/host/dashboard')
-      } else {
-        router.push('/')
-      }
+      // Redirect to home page - user can choose what to do
+      router.push('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -127,7 +126,7 @@ export default function SignupPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              I want to:
+              What brings you here?
             </label>
             <div className="space-y-2">
               <label className="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -140,7 +139,7 @@ export default function SignupPage() {
                   className="mr-3"
                 />
                 <div>
-                  <div className="font-medium">Find parking</div>
+                  <div className="font-medium">Looking for parking</div>
                   <div className="text-sm text-gray-500">I need a parking space</div>
                 </div>
               </label>
@@ -154,11 +153,14 @@ export default function SignupPage() {
                   className="mr-3"
                 />
                 <div>
-                  <div className="font-medium">Rent out my space</div>
-                  <div className="text-sm text-gray-500">I have parking to lease</div>
+                  <div className="font-medium">Want to lease my space</div>
+                  <div className="text-sm text-gray-500">I have parking to rent out</div>
                 </div>
               </label>
             </div>
+            <p className="text-xs text-gray-500 mt-2">
+              💡 Don't worry! You can both find parking AND list your space after signup.
+            </p>
           </div>
 
           <div className="flex items-start">

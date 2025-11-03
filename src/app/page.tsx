@@ -1,36 +1,61 @@
+'use client'
+
 import Link from 'next/link'
+import { useState } from 'react'
+import Header from '@/components/Header'
+
+const locationSuggestions = [
+  'Manhattan, NY 10001',
+  'Brooklyn, NY 11201',
+  'Queens, NY 11354',
+  'Bronx, NY 10451',
+  'Staten Island, NY 10301',
+  'Albany, NY 12201',
+  'Buffalo, NY 14201',
+  'Rochester, NY 14604',
+  'Syracuse, NY 13201',
+  'Yonkers, NY 10701',
+  'Newark, NJ 07102',
+  'Jersey City, NJ 07302',
+  'Paterson, NJ 07501',
+  'Elizabeth, NJ 07201',
+  'Trenton, NJ 08601',
+  'Camden, NJ 08101',
+  'Hoboken, NJ 07030',
+  'Princeton, NJ 08540',
+  'Atlantic City, NJ 08401',
+]
 
 export default function HomePage() {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setSearchQuery(value)
+
+    if (value.length > 0) {
+      const filtered = locationSuggestions.filter((location) =>
+        location.toLowerCase().includes(value.toLowerCase())
+      )
+      setFilteredSuggestions(filtered)
+      setShowSuggestions(true)
+    } else {
+      setFilteredSuggestions([])
+      setShowSuggestions(false)
+    }
+  }
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setSearchQuery(suggestion)
+    setShowSuggestions(false)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* Header */}
-      <header className="border-b bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold text-primary-600">
-            🅿️ Park-Connect
-          </Link>
-          <nav className="flex items-center gap-4">
-            <Link href="/how-it-works" className="text-gray-600 hover:text-primary-600">
-              How It Works
-            </Link>
-            <Link href="/login" className="text-gray-600 hover:text-primary-600">
-              Login
-            </Link>
-            <Link
-              href="/signup"
-              className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700"
-            >
-              Sign Up
-            </Link>
-            <Link
-              href="/host/list-space"
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-            >
-              Lease My Space
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <main className="container mx-auto px-4 py-16">
@@ -46,13 +71,33 @@ export default function HomePage() {
         {/* Search Bar */}
         <div className="max-w-3xl mx-auto mb-16">
           <form action="/search" method="GET" className="flex gap-2">
-            <input
-              type="text"
-              name="location"
-              placeholder="Enter street address, suburb, or city..."
-              className="flex-1 px-6 py-4 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              required
-            />
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                name="location"
+                placeholder="Enter address with ZIP... e.g., 123 Main St, NY 10001"
+                className="w-full px-6 py-4 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                required
+                value={searchQuery}
+                onChange={handleSearchChange}
+                onFocus={() => searchQuery && setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                autoComplete="off"
+              />
+              {showSuggestions && filteredSuggestions.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {filteredSuggestions.map((suggestion, index) => (
+                    <div
+                      key={index}
+                      className="px-6 py-3 hover:bg-primary-50 cursor-pointer text-gray-700"
+                      onMouseDown={() => handleSuggestionClick(suggestion)}
+                    >
+                      {suggestion}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               type="submit"
               className="bg-primary-600 text-white px-8 py-4 text-lg font-semibold rounded-lg hover:bg-primary-700"
@@ -60,6 +105,9 @@ export default function HomePage() {
               Search
             </button>
           </form>
+          <p className="text-sm text-gray-500 text-center mt-2">
+            💡 Start typing to see ZIP code suggestions
+          </p>
         </div>
 
         {/* Features */}

@@ -1,17 +1,27 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   })
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    // Show message if redirected from protected route
+    const msg = searchParams.get('message')
+    if (msg) {
+      setMessage(msg)
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,11 +44,16 @@ export default function LoginPage() {
       // Store token and user info
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
+      
+      // Set cookie for middleware
+      document.cookie = `token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}` // 7 days
 
-      // Redirect based on role
-      if (data.user.role === 'HOST') {
-        router.push('/host/dashboard')
+      // Redirect to original destination or default page
+      const redirect = searchParams.get('redirect')
+      if (redirect) {
+        router.push(redirect)
       } else {
+        // Go to home page where user can choose what to do
         router.push('/')
       }
     } catch (err) {
@@ -57,6 +72,12 @@ export default function LoginPage() {
           </Link>
           <h2 className="mt-4 text-2xl font-bold text-gray-900">Welcome back</h2>
         </div>
+
+        {message && (
+          <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 rounded">
+            {message}
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
