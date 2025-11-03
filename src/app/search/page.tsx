@@ -289,9 +289,12 @@ function SearchResults() {
                   </div>
 
                   {/* Actions */}
-                  <button className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold">
-                    View Details
-                  </button>
+                  <Link 
+                    href={`/listing/${listing.id}`}
+                    className="block w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold text-center"
+                  >
+                    View Details & Book
+                  </Link>
                 </div>
               </div>
             ))}

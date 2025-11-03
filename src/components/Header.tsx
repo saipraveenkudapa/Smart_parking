@@ -37,6 +37,12 @@ export default function Header() {
                 Hi, {user?.fullName?.split(' ')[0]}
               </span>
               <Link
+                href="/renter/bookings"
+                className="text-gray-600 hover:text-blue-600"
+              >
+                My Bookings
+              </Link>
+              <Link
                 href="/host/dashboard"
                 className="text-gray-600 hover:text-green-600"
               >
