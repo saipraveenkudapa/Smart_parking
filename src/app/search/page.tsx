@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Header from '@/components/Header'
 
 interface Listing {
@@ -26,7 +26,7 @@ interface Listing {
   }
 }
 
-export default function SearchPage() {
+function SearchResults() {
   const searchParams = useSearchParams()
   const locationParam = searchParams.get('location') || ''
   
@@ -305,5 +305,21 @@ export default function SearchPage() {
         </div>
       </footer>
     </div>
+  )
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="container mx-auto px-4 py-16 text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+          <p className="text-gray-600 mt-4">Loading search...</p>
+        </div>
+      </div>
+    }>
+      <SearchResults />
+    </Suspense>
   )
 }

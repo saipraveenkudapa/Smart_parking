@@ -5,29 +5,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { requireAuth, getUser } from '@/lib/clientAuth'
 import Header from '@/components/Header'
-
-const addressSuggestions = [
-  '123 Main St, New York, NY 10001',
-  '456 Broadway, New York, NY 10013',
-  '789 Park Ave, New York, NY 10021',
-  '321 5th Ave, New York, NY 10016',
-  '654 Madison Ave, New York, NY 10065',
-  '987 Lexington Ave, New York, NY 10075',
-  '147 Wall St, New York, NY 10005',
-  '258 Times Square, New York, NY 10036',
-  '369 Columbus Ave, New York, NY 10023',
-  '741 Amsterdam Ave, New York, NY 10025',
-  '852 Atlantic Ave, Brooklyn, NY 11238',
-  '963 Northern Blvd, Queens, NY 11372',
-  '159 Grand Concourse, Bronx, NY 10451',
-  '753 Victory Blvd, Staten Island, NY 10301',
-  '246 Washington St, Newark, NJ 07102',
-  '357 Grove St, Jersey City, NJ 07302',
-  '468 Market St, Paterson, NJ 07505',
-  '579 Broad St, Elizabeth, NJ 07201',
-  '680 State St, Trenton, NJ 08608',
-  '791 Hudson St, Hoboken, NJ 07030',
-]
+import AddressAutocomplete from '@/components/AddressAutocomplete'
 
 export default function ListSpacePage() {
   const router = useRouter()
@@ -37,6 +15,8 @@ export default function ListSpacePage() {
     city: '',
     state: '',
     zipCode: '',
+    latitude: undefined as number | undefined,
+    longitude: undefined as number | undefined,
     spaceType: 'DRIVEWAY',
     vehicleSize: 'STANDARD',
     monthlyPrice: '',
@@ -47,8 +27,6 @@ export default function ListSpacePage() {
     hasEVCharging: false,
   })
 
-  const [filteredAddresses, setFilteredAddresses] = useState<string[]>([])
-  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -59,25 +37,24 @@ export default function ListSpacePage() {
     }
   }, [router])
 
-  const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setFormData({ ...formData, address: value })
-
-    if (value.length > 0) {
-      const filtered = addressSuggestions.filter((addr) =>
-        addr.toLowerCase().includes(value.toLowerCase())
-      )
-      setFilteredAddresses(filtered)
-      setShowAddressSuggestions(true)
-    } else {
-      setFilteredAddresses([])
-      setShowAddressSuggestions(false)
-    }
-  }
-
-  const handleAddressSelect = (address: string) => {
-    setFormData({ ...formData, address })
-    setShowAddressSuggestions(false)
+  const handleAddressSelect = (addressComponents: {
+    fullAddress: string
+    streetAddress: string
+    city: string
+    state: string
+    zipCode: string
+    latitude?: number
+    longitude?: number
+  }) => {
+    setFormData({
+      ...formData,
+      address: addressComponents.streetAddress || addressComponents.fullAddress,
+      city: addressComponents.city,
+      state: addressComponents.state,
+      zipCode: addressComponents.zipCode,
+      latitude: addressComponents.latitude,
+      longitude: addressComponents.longitude,
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -100,6 +77,8 @@ export default function ListSpacePage() {
         city: formData.city,
         state: formData.state,
         zipCode: formData.zipCode,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
         spaceType: formData.spaceType,
         vehicleSize: formData.vehicleSize,
         monthlyPrice: parseFloat(formData.monthlyPrice),
@@ -171,36 +150,17 @@ export default function ListSpacePage() {
               {/* Location */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Street Address (with ZIP code) *
+                  Street Address *
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Start typing address... e.g., 123 Main St, New York, NY 10001"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                    value={formData.address}
-                    onChange={handleAddressChange}
-                    onFocus={() => formData.address && setShowAddressSuggestions(true)}
-                    onBlur={() => setTimeout(() => setShowAddressSuggestions(false), 200)}
-                    autoComplete="off"
-                  />
-                  {showAddressSuggestions && filteredAddresses.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {filteredAddresses.map((suggestion, index) => (
-                        <div
-                          key={index}
-                          className="px-4 py-2 hover:bg-green-50 cursor-pointer text-gray-700"
-                          onMouseDown={() => handleAddressSelect(suggestion)}
-                        >
-                          {suggestion}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <AddressAutocomplete
+                  onAddressSelect={handleAddressSelect}
+                  defaultValue={formData.address}
+                  placeholder="Start typing an address..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  required
+                />
                 <p className="text-xs text-gray-500 mt-1">
-                  Type to see suggestions with ZIP codes
+                  Start typing to see Google Maps address suggestions
                 </p>
               </div>
 
