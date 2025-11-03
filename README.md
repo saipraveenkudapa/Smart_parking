@@ -257,33 +257,6 @@ curl http://localhost:3000/api/auth/verify-email?token=YOUR_TOKEN
 
 ---
 
-## 🎓 For College Presentation
-
-### Key Points to Explain
-
-1. **Architecture:** Next.js App Router with server-side API routes
-2. **Database:** PostgreSQL with Prisma ORM (type-safe queries)
-3. **Authentication:** JWT tokens + bcrypt password hashing
-4. **Verification:** Email links + SMS OTP (console-based for demo)
-5. **UI/UX:** Tailwind CSS for responsive design
-
-### Demo Flow
-
-1. Show homepage with search bar
-2. Register a new Renter account
-3. Register a new Host account
-4. Show email verification in console/SMTP
-5. Login as Host
-6. Explain database schema in Prisma Studio
-
-### Future Enhancements
-
-- Complete search with map integration
-- Stripe payment gateway
-- Review/rating system
-- Admin dashboard
-- Push notifications
-- Mobile app (React Native)
 
 ---
 
