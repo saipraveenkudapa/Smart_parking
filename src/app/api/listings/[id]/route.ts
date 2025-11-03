@@ -5,7 +5,7 @@ import { verifyToken } from '@/lib/auth'
 // PATCH - Update listing (edit or toggle active status)
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = req.headers.get('authorization')
@@ -26,7 +26,7 @@ export async function PATCH(
       )
     }
 
-    const { id } = params
+    const { id } = await params
     const body = await req.json()
 
     // Check if listing exists and belongs to user
@@ -95,7 +95,7 @@ export async function PATCH(
 // DELETE - Delete listing
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = req.headers.get('authorization')
@@ -116,7 +116,7 @@ export async function DELETE(
       )
     }
 
-    const { id } = params
+    const { id } = await params
 
     // Check if listing exists and belongs to user
     const existingListing = await prisma.listing.findUnique({
@@ -157,10 +157,10 @@ export async function DELETE(
 // GET - Get single listing details
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
 
     const listing = await prisma.listing.findUnique({
       where: { id },

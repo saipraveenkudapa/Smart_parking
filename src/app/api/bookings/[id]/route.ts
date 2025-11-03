@@ -5,7 +5,7 @@ import { verifyToken } from '@/lib/auth'
 // PATCH - Update booking status (approve/reject/cancel)
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = req.headers.get('authorization')
@@ -26,7 +26,7 @@ export async function PATCH(
       )
     }
 
-    const { id } = params
+    const { id } = await params
     const body = await req.json()
     const { status } = body
 
