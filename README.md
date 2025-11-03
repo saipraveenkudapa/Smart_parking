@@ -4,7 +4,6 @@ A Next.js web application that connects individuals with unused parking spaces (
 
 ## 📚 Documentation
 
-- **[QUICKSTART.md](./QUICKSTART.md)** - Get running in 10 minutes (START HERE!)
 - **[SUPABASE_SETUP.md](./SUPABASE_SETUP.md)** - Detailed database setup guide
 - **[PROJECT_STATUS.md](./PROJECT_STATUS.md)** - Current implementation status
 - **[README.md](./README.md)** - Complete documentation (this file)
