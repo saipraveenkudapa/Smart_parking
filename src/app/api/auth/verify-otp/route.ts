@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
       const pendingUser = await prisma.pendingUser.findFirst({
         where: {
           phoneNumber,
-          otp,
-          otpExpiry: {
+          verificationToken: otp,
+          tokenExpiry: {
             gt: new Date(),
           },
         },
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
           password: pendingUser.password,
           phoneNumber: pendingUser.phoneNumber,
           role: pendingUser.role,
-          phoneVerified: true,
+          emailVerified: true,
         },
       })
 
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
             email: user.email,
             fullName: user.fullName,
             role: user.role,
-            phoneVerified: true,
+            emailVerified: true,
           },
           token,
         },
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
         password: pendingUser.password,
         phoneNumber: pendingUser.phoneNumber,
         role: pendingUser.role,
-        phoneVerified: true,
+        emailVerified: true,
       },
     })
 
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
           email: user.email,
           fullName: user.fullName,
           role: user.role,
-          phoneVerified: true,
+          emailVerified: true,
         },
         token,
       },
