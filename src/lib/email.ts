@@ -1,6 +1,7 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Initialize Resend only if API key is available
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 interface SendVerificationEmailParams {
   to: string
@@ -13,6 +14,14 @@ export async function sendVerificationEmail({
   name,
   verificationUrl,
 }: SendVerificationEmailParams) {
+  // If Resend is not configured, log the URL and return
+  if (!resend) {
+    console.log('⚠️ RESEND_API_KEY not configured')
+    console.log(`✉️ Verification link for ${to}:`)
+    console.log(verificationUrl)
+    return { success: false, error: 'Email service not configured' }
+  }
+
   try {
     const { data, error } = await resend.emails.send({
       from: 'Park Connect <onboarding@resend.dev>', // Use your verified domain once set up
