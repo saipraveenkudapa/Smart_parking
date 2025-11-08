@@ -168,7 +168,7 @@ export async function GET(req: NextRequest) {
               select: {
                 fullName: true,
                 phoneNumber: true,
-                phoneVerified: true,
+                emailVerified: true,
               },
             },
           },

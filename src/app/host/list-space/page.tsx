@@ -31,6 +31,8 @@ export default function ListSpacePage() {
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [savedListing, setSavedListing] = useState<any>(null)
 
   // Check authentication on mount
   useEffect(() => {
@@ -112,9 +114,14 @@ export default function ListSpacePage() {
         throw new Error(data.error || 'Failed to create listing')
       }
 
-      // Success - redirect to dashboard
-      alert(`Success! Your parking space "${data.listing.title}" is now listed.`)
-      router.push('/host/dashboard')
+      // Success - show modal
+      setSavedListing(data.listing)
+      setShowSuccessModal(true)
+      
+      // Redirect after 3 seconds
+      setTimeout(() => {
+        router.push('/host/dashboard')
+      }, 3000)
     } catch (err: any) {
       console.error('Submit error:', err)
       setError(err.message || 'Failed to create listing. Please try again.')
@@ -407,6 +414,64 @@ export default function ListSpacePage() {
           </div>
         </div>
       </main>
+
+      {/* Success Modal */}
+      {showSuccessModal && savedListing && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 animate-fade-in">
+            {/* Success Icon */}
+            <div className="flex justify-center mb-6">
+              <div className="bg-green-100 rounded-full p-4">
+                <svg className="w-16 h-16 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
+            
+            {/* Success Message */}
+            <h2 className="text-3xl font-bold text-center text-gray-900 mb-3">
+              Success! 🎉
+            </h2>
+            <p className="text-center text-gray-600 mb-6">
+              Your parking space has been listed successfully!
+            </p>
+            
+            {/* Listing Details */}
+            <div className="bg-green-50 rounded-lg p-4 mb-6">
+              <h3 className="font-semibold text-green-900 mb-2">{savedListing.title}</h3>
+              <p className="text-sm text-green-700">
+                📍 {savedListing.address}, {savedListing.city}, {savedListing.state}
+              </p>
+              <p className="text-sm text-green-700 mt-2">
+                💰 ${savedListing.monthlyPrice}/month
+              </p>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="space-y-3">
+              <button
+                onClick={() => router.push('/host/dashboard')}
+                className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold transition-colors"
+              >
+                Go to Dashboard
+              </button>
+              <button
+                onClick={() => {
+                  setShowSuccessModal(false)
+                  window.location.reload()
+                }}
+                className="w-full bg-gray-100 text-gray-700 py-3 rounded-lg hover:bg-gray-200 font-semibold transition-colors"
+              >
+                List Another Space
+              </button>
+            </div>
+            
+            <p className="text-xs text-gray-500 text-center mt-4">
+              Redirecting to dashboard in 3 seconds...
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-8 mt-16">

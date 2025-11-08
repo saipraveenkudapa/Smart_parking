@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
             fullName: true,
             email: true,
             phoneNumber: true,
-            phoneVerified: true,
+            emailVerified: true,
           },
         },
       },

@@ -22,6 +22,7 @@ interface Listing {
   isCovered: boolean
   hasEVCharging: boolean
   isActive: boolean
+  images: string[]
   createdAt: string
   updatedAt: string
 }
@@ -38,7 +39,7 @@ interface Booking {
     fullName: string
     email: string
     phoneNumber: string
-    phoneVerified: boolean
+    emailVerified: boolean
   }
   listing: {
     id: string
@@ -355,9 +356,19 @@ export default function HostDashboard() {
                   key={listing.id}
                   className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
                 >
-                  {/* Image Placeholder */}
-                  <div className="h-48 bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
-                    <span className="text-white text-6xl">🅿️</span>
+                  {/* Image */}
+                  <div className="h-48 bg-gray-200 relative overflow-hidden">
+                    {listing.images && listing.images.length > 0 ? (
+                      <img
+                        src={listing.images[0]}
+                        alt={listing.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-linear-to-br from-green-400 to-green-600 flex items-center justify-center">
+                        <span className="text-white text-6xl">🅿️</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Content */}
@@ -542,8 +553,8 @@ export default function HostDashboard() {
                               </div>
                               <div>
                                 <p className="font-medium">{booking.renter.fullName}</p>
-                                {booking.renter.phoneVerified && (
-                                  <p className="text-xs text-green-600">✓ Phone Verified</p>
+                                {booking.renter.emailVerified && (
+                                  <p className="text-xs text-green-600">✓ Email Verified</p>
                                 )}
                               </div>
                             </div>

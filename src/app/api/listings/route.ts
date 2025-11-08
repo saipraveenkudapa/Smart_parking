@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
           select: {
             id: true,
             fullName: true,
-            phoneVerified: true,
+            emailVerified: true,
           },
         },
       },
