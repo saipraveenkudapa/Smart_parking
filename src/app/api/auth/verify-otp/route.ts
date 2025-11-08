@@ -1,61 +1,146 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyOTP } from '@/lib/sms'
-import { verifyToken } from '@/lib/auth'
+import { generateToken } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const { otp } = await req.json()
-    
-    if (!otp) {
-      return NextResponse.json({ error: 'OTP is required' }, { status: 400 })
-    }
-    
-    // Get user from JWT token
-    const authHeader = req.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    const token = authHeader.substring(7)
-    const payload = verifyToken(token)
-    
-    if (!payload) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
-    }
-    
-    // Get user
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-    })
-    
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-    
-    // Verify OTP
-    const isValid = verifyOTP(user.phoneNumber, otp)
-    
-    if (!isValid) {
+    const { phoneNumber, otp } = await request.json()
+
+    if (!phoneNumber || !otp) {
       return NextResponse.json(
-        { error: 'Invalid or expired OTP' },
+        { error: 'Phone number and OTP are required' },
+        { status: 400 }
+      )
+    }
+
+    // First try to verify with Supabase Auth
+    const { data: supabaseData, error: supabaseError } = await supabase.auth.verifyOtp({
+      phone: phoneNumber,
+      token: otp,
+      type: 'sms',
+    })
+
+    // If Supabase verification fails, fall back to our pending user system
+    if (supabaseError) {
+      console.log('Supabase OTP verification failed, trying pending user fallback:', supabaseError.message)
+      
+      const pendingUser = await prisma.pendingUser.findFirst({
+        where: {
+          phoneNumber,
+          otp,
+          otpExpiry: {
+            gt: new Date(),
+          },
+        },
+      })
+
+      if (!pendingUser) {
+        return NextResponse.json(
+          { error: 'Invalid or expired OTP' },
+          { status: 400 }
+        )
+      }
+
+      // Create user from pending user
+      const user = await prisma.user.create({
+        data: {
+          fullName: pendingUser.fullName,
+          email: pendingUser.email,
+          password: pendingUser.password,
+          phoneNumber: pendingUser.phoneNumber,
+          role: pendingUser.role,
+          phoneVerified: true,
+        },
+      })
+
+      await prisma.pendingUser.delete({
+        where: { id: pendingUser.id },
+      })
+
+      const token = generateToken({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+      })
+
+      return NextResponse.json(
+        {
+          message: 'Phone verified successfully!',
+          user: {
+            id: user.id,
+            email: user.email,
+            fullName: user.fullName,
+            role: user.role,
+            phoneVerified: true,
+          },
+          token,
+        },
+        { status: 200 }
+      )
+    }
+
+    // Supabase verification succeeded - now create user in our database
+    const pendingUser = await prisma.pendingUser.findFirst({
+      where: {
+        phoneNumber,
+      },
+    })
+
+    if (!pendingUser) {
+      return NextResponse.json(
+        { error: 'No pending registration found for this phone number' },
+        { status: 400 }
+      )
+    }
+
+    const user = await prisma.user.create({
+      data: {
+        fullName: pendingUser.fullName,
+        email: pendingUser.email,
+        password: pendingUser.password,
+        phoneNumber: pendingUser.phoneNumber,
+        role: pendingUser.role,
+        phoneVerified: true,
+      },
+    })
+
+    await prisma.pendingUser.delete({
+      where: { id: pendingUser.id },
+    })
+
+    const token = generateToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    })
+
+    return NextResponse.json(
+      {
+        message: 'Phone verified successfully!',
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          role: user.role,
+          phoneVerified: true,
+        },
+        token,
+      },
+      { status: 200 }
+    )
+  } catch (error) {
+    console.error('OTP verification error:', error)
+    
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'User with this email or phone number already exists' },
         { status: 400 }
       )
     }
     
-    // Update user as phone verified
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { phoneVerified: true },
-    })
-    
-    return NextResponse.json({
-      message: 'Phone number verified successfully',
-    })
-  } catch (error) {
-    console.error('Verify OTP error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to verify OTP' },
       { status: 500 }
     )
   }

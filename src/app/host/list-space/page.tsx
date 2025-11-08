@@ -27,6 +27,8 @@ export default function ListSpacePage() {
     hasEVCharging: false,
   })
 
+  const [images, setImages] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -70,35 +72,38 @@ export default function ListSpacePage() {
         return
       }
 
-      // Prepare listing data
-      const listingData = {
-        title: formData.title,
-        address: formData.address,
-        city: formData.city,
-        state: formData.state,
-        zipCode: formData.zipCode,
-        latitude: formData.latitude,
-        longitude: formData.longitude,
-        spaceType: formData.spaceType,
-        vehicleSize: formData.vehicleSize,
-        monthlyPrice: parseFloat(formData.monthlyPrice),
-        description: formData.description,
-        features: {
-          isGated: formData.isGated,
-          hasCCTV: formData.hasCCTV,
-          isCovered: formData.isCovered,
-          hasEVCharging: formData.hasEVCharging,
-        },
-      }
+      // Create FormData to handle both text and file uploads
+      const formDataToSend = new FormData()
+      formDataToSend.append('title', formData.title)
+      formDataToSend.append('address', formData.address)
+      formDataToSend.append('city', formData.city)
+      formDataToSend.append('state', formData.state)
+      formDataToSend.append('zipCode', formData.zipCode)
+      
+      if (formData.latitude) formDataToSend.append('latitude', formData.latitude.toString())
+      if (formData.longitude) formDataToSend.append('longitude', formData.longitude.toString())
+      
+      formDataToSend.append('spaceType', formData.spaceType)
+      formDataToSend.append('vehicleSize', formData.vehicleSize)
+      formDataToSend.append('monthlyPrice', formData.monthlyPrice)
+      formDataToSend.append('description', formData.description)
+      formDataToSend.append('isGated', formData.isGated.toString())
+      formDataToSend.append('hasCCTV', formData.hasCCTV.toString())
+      formDataToSend.append('isCovered', formData.isCovered.toString())
+      formDataToSend.append('hasEVCharging', formData.hasEVCharging.toString())
+      
+      // Add images
+      images.forEach((image) => {
+        formDataToSend.append('images', image)
+      })
 
       // Submit to API
       const response = await fetch('/api/listings/create', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(listingData),
+        body: formDataToSend,
       })
 
       const data = await response.json()
@@ -119,7 +124,7 @@ export default function ListSpacePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-green-50 to-white">
       {/* Header */}
       <Header />
 
@@ -276,6 +281,66 @@ export default function ListSpacePage() {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
+              </div>
+
+              {/* Parking Space Images */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Parking Space Images (Upload 2 photos)
+                </label>
+                <p className="text-sm text-gray-500 mb-3">
+                  Add photos of your parking space to attract more renters
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || [])
+                    if (files.length > 2) {
+                      alert('Please select only 2 images')
+                      e.target.value = ''
+                      return
+                    }
+                    
+                    setImages(files)
+                    
+                    // Create preview URLs
+                    const previews = files.map(file => URL.createObjectURL(file))
+                    setImagePreviews(previews)
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                />
+                
+                {/* Image Previews */}
+                {imagePreviews.length > 0 && (
+                  <div className="mt-4 grid grid-cols-2 gap-4">
+                    {imagePreviews.map((preview, index) => (
+                      <div key={index} className="relative">
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-48 object-cover rounded-lg border border-gray-300"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newImages = images.filter((_, i) => i !== index)
+                            const newPreviews = imagePreviews.filter((_, i) => i !== index)
+                            setImages(newImages)
+                            setImagePreviews(newPreviews)
+                            URL.revokeObjectURL(preview)
+                          }}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Features */}

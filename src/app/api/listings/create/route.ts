@@ -24,33 +24,51 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const body = await req.json()
+    // Parse FormData
+    const formData = await req.formData()
+    
+    // Extract text fields
+    const title = formData.get('title') as string
+    const address = formData.get('address') as string
+    const city = formData.get('city') as string
+    const state = formData.get('state') as string
+    const zipCode = formData.get('zipCode') as string
+    const latitude = formData.get('latitude') as string | null
+    const longitude = formData.get('longitude') as string | null
+    const spaceType = formData.get('spaceType') as string
+    const vehicleSize = formData.get('vehicleSize') as string
+    const monthlyPrice = formData.get('monthlyPrice') as string
+    const description = formData.get('description') as string
+    const isGated = formData.get('isGated') === 'true'
+    const hasCCTV = formData.get('hasCCTV') === 'true'
+    const isCovered = formData.get('isCovered') === 'true'
+    const hasEVCharging = formData.get('hasEVCharging') === 'true'
 
     // Validate required fields
-    const {
-      title,
-      address,
-      city,
-      state,
-      zipCode,
-      latitude,
-      longitude,
-      spaceType,
-      vehicleSize,
-      monthlyPrice,
-      description,
-      isGated,
-      hasCCTV,
-      isCovered,
-      hasEVCharging,
-      availableFrom,
-    } = body
-
     if (!title || !address || !city || !state || !zipCode || !monthlyPrice || !description) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       )
+    }
+
+    // Process uploaded images (convert to base64 data URLs)
+    const imageFiles = formData.getAll('images') as File[]
+    const imageDataUrls: string[] = []
+    
+    for (const file of imageFiles) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit per image
+        return NextResponse.json(
+          { error: 'Image file size must be less than 5MB' },
+          { status: 400 }
+        )
+      }
+      
+      const bytes = await file.arrayBuffer()
+      const buffer = Buffer.from(bytes)
+      const base64 = buffer.toString('base64')
+      const dataUrl = `data:${file.type};base64,${base64}`
+      imageDataUrls.push(dataUrl)
     }
 
     // Create listing
@@ -68,14 +86,14 @@ export async function POST(req: NextRequest) {
         vehicleSize: vehicleSize || 'STANDARD',
         monthlyPrice: parseFloat(monthlyPrice),
         description,
-        isGated: isGated || false,
-        hasCCTV: hasCCTV || false,
-        isCovered: isCovered || false,
-        hasEVCharging: hasEVCharging || false,
-        availableFrom: availableFrom ? new Date(availableFrom) : new Date(),
-        images: [], // Empty for now, will add image upload later
-        accessInstructions: body.accessInstructions || description,
-        securityDeposit: body.securityDeposit || 0,
+        isGated,
+        hasCCTV,
+        isCovered,
+        hasEVCharging,
+        availableFrom: new Date(),
+        images: imageDataUrls,
+        accessInstructions: description,
+        securityDeposit: 0,
         isActive: true,
       },
     })
@@ -90,6 +108,7 @@ export async function POST(req: NextRequest) {
           city: listing.city,
           state: listing.state,
           monthlyPrice: listing.monthlyPrice,
+          images: listing.images,
         },
       },
       { status: 201 }

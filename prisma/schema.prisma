@@ -48,7 +48,7 @@ model User {
   fullName          String
   phoneNumber       String    @unique
   role              UserRole  @default(RENTER)
-  phoneVerified     Boolean   @default(false)
+  emailVerified     Boolean   @default(false)
   resetToken        String?
   resetTokenExpiry  DateTime?
   createdAt         DateTime  @default(now())
@@ -59,6 +59,20 @@ model User {
   bookings          Booking[]
   
   @@map("users")
+}
+
+model PendingUser {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  password          String
+  fullName          String
+  phoneNumber       String    @unique
+  role              UserRole  @default(RENTER)
+  verificationToken String
+  tokenExpiry       DateTime
+  createdAt         DateTime  @default(now())
+  
+  @@map("pending_users")
 }
 
 model Listing {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { loadGoogleMapsScript } from '@/lib/googleMaps'
 
 interface AddressComponents {
   fullAddress: string
@@ -46,21 +47,13 @@ export default function AddressAutocomplete({
       return
     }
 
-    // Load Google Maps script
-    const script = document.createElement('script')
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`
-    script.async = true
-    script.defer = true
-    script.onload = () => setIsLoaded(true)
-    script.onerror = () => setError('Failed to load Google Maps')
-    document.head.appendChild(script)
-
-    return () => {
-      // Cleanup script on unmount
-      if (script.parentNode) {
-        script.parentNode.removeChild(script)
-      }
-    }
+    // Load Google Maps script using global loader
+    loadGoogleMapsScript(apiKey)
+      .then(() => setIsLoaded(true))
+      .catch((err) => {
+        console.error('Failed to load Google Maps:', err)
+        setError('Failed to load Google Maps')
+      })
   }, [])
 
   useEffect(() => {

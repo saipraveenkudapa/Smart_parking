@@ -10,7 +10,7 @@ export const signupSchema = z.object({
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]/,
       'Password must include uppercase, lowercase, number, and symbol'
     ),
-  phoneNumber: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number'),
+  phoneNumber: z.string().min(10, 'Phone number is required').regex(/^\+?[1-9]\d{9,14}$/, 'Invalid phone number'),
   role: z.enum(['RENTER', 'HOST']),
 })
 
