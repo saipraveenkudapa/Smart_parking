@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { signupSchema } from '@/lib/validations'
 import { hashPassword } from '@/lib/auth'
-import { sendVerificationEmail } from '@/lib/email'
+import { supabase } from '@/lib/supabase'
 import crypto from 'crypto'
 
 export async function POST(req: NextRequest) {
@@ -80,23 +80,29 @@ export async function POST(req: NextRequest) {
       },
     })
     
-    // Create verification URL
-    // Use Vercel's automatic URL if available, fallback to env variable
+    // Create verification URL - Use Vercel's URL or production URL
     const baseUrl = process.env.VERCEL_URL 
       ? `https://${process.env.VERCEL_URL}` 
-      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      : (process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'https://smart-parking-delta.vercel.app')
     const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`
     
-    // Send verification email
-    const emailResult = await sendVerificationEmail({
-      to: validatedData.email,
-      name: validatedData.fullName,
-      verificationUrl,
+    // Send verification email via Supabase Auth
+    const { error: emailError } = await supabase.auth.signInWithOtp({
+      email: validatedData.email,
+      options: {
+        emailRedirectTo: verificationUrl,
+        data: {
+          name: validatedData.fullName,
+        },
+      },
     })
     
-    if (!emailResult.success) {
-      // Log the error but still return success since user is created
-      console.error('Failed to send email, but user created. Verification URL:', verificationUrl)
+    if (emailError) {
+      console.error('Failed to send verification email:', emailError)
+      // Still return success but log the verification URL
+      console.log('✉️ Manual verification URL:', verificationUrl)
+    } else {
+      console.log('✅ Verification email sent to:', validatedData.email)
     }
     
     return NextResponse.json(
