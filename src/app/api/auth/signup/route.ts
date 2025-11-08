@@ -86,30 +86,22 @@ export async function POST(req: NextRequest) {
       : (process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'https://smart-parking-delta.vercel.app')
     const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`
     
-    // Send magic link email using Supabase Auth
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: validatedData.email,
-        options: {
-          emailRedirectTo: verificationUrl,
-          shouldCreateUser: false, // Don't create Supabase user, just use email service
-        },
-      })
-      
-      if (error) {
-        console.error('Supabase email error:', error.message)
-      } else {
-        console.log('✉️ Verification email sent via Supabase to:', validatedData.email)
-      }
-    } catch (emailError) {
-      console.error('Failed to send email:', emailError)
-    }
+    // Use Supabase's Edge Function to send custom email with our token
+    // Note: For now, we'll use the manual verification approach since Supabase Auth
+    // sends its own magic links that don't include our custom token
+    
+    console.log('✉️ Verification URL for', validatedData.email, ':', verificationUrl)
+    
+    // TODO: To enable automatic emails, you need to:
+    // 1. Set up Supabase Edge Function for custom emails, OR
+    // 2. Use a custom SMTP service (Gmail, SendGrid, etc.), OR
+    // 3. Configure Resend with a verified domain
     
     return NextResponse.json(
       {
-        message: 'Account created successfully! Please check your email to verify your account.',
+        message: 'Account created successfully! Use the link below to verify your email.',
         email: pendingUser.email,
-        verificationUrl, // Include URL as fallback for manual verification
+        verificationUrl, // Return URL for manual/button click verification
       },
       { status: 201 }
     )
