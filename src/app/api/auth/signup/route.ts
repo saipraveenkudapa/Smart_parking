@@ -12,18 +12,52 @@ export async function POST(req: NextRequest) {
     // Validate input
     const validatedData = signupSchema.parse(body)
     
-    // Check if user already exists in main users table
+    // Check if user already exists in main users table (email or phone)
     const existingUser = await prisma.user.findFirst({
       where: {
-        email: validatedData.email,
+        OR: [
+          { email: validatedData.email },
+          { phoneNumber: validatedData.phoneNumber },
+        ],
       },
     })
     
     if (existingUser) {
-      return NextResponse.json(
-        { error: 'User with this email already exists' },
-        { status: 400 }
-      )
+      if (existingUser.email === validatedData.email) {
+        return NextResponse.json(
+          { error: 'User with this email already exists' },
+          { status: 400 }
+        )
+      } else {
+        return NextResponse.json(
+          { error: 'User with this phone number already exists' },
+          { status: 400 }
+        )
+      }
+    }
+    
+    // Check if email or phone exists in pending users table
+    const existingPendingUser = await prisma.pendingUser.findFirst({
+      where: {
+        OR: [
+          { email: validatedData.email },
+          { phoneNumber: validatedData.phoneNumber },
+        ],
+      },
+    })
+    
+    if (existingPendingUser) {
+      if (existingPendingUser.email === validatedData.email) {
+        return NextResponse.json(
+          { error: 'A verification email has already been sent to this email. Please check your inbox or try again later.' },
+          { status: 400 }
+        )
+      } else {
+        return NextResponse.json(
+          { error: 'This phone number is already registered with a pending account' },
+          { status: 400 }
+        )
+      }
     }
     
     // Hash password
@@ -32,13 +66,6 @@ export async function POST(req: NextRequest) {
     // Generate verification token
     const verificationToken = crypto.randomBytes(32).toString('hex')
     const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
-    
-    // Delete any existing pending user with same email (cleanup old attempts)
-    await prisma.pendingUser.deleteMany({
-      where: {
-        email: validatedData.email,
-      },
-    })
     
     // Create pending user (not in main users table yet)
     const pendingUser = await prisma.pendingUser.create({
