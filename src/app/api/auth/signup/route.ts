@@ -12,52 +12,52 @@ export async function POST(req: NextRequest) {
     // Validate input
     const validatedData = signupSchema.parse(body)
     
-    // Check if user already exists in main users table (email or phone)
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: validatedData.email },
-          { phoneNumber: validatedData.phoneNumber },
-        ],
-      },
+    // Check if email already exists in main users table
+    const existingUserByEmail = await prisma.user.findUnique({
+      where: { email: validatedData.email },
     })
     
-    if (existingUser) {
-      if (existingUser.email === validatedData.email) {
-        return NextResponse.json(
-          { error: 'User with this email already exists' },
-          { status: 400 }
-        )
-      } else {
-        return NextResponse.json(
-          { error: 'User with this phone number already exists' },
-          { status: 400 }
-        )
-      }
+    if (existingUserByEmail) {
+      return NextResponse.json(
+        { error: 'User with this email already exists' },
+        { status: 400 }
+      )
     }
     
-    // Check if email or phone exists in pending users table
-    const existingPendingUser = await prisma.pendingUser.findFirst({
-      where: {
-        OR: [
-          { email: validatedData.email },
-          { phoneNumber: validatedData.phoneNumber },
-        ],
-      },
+    // Check if phone number already exists in main users table
+    const existingUserByPhone = await prisma.user.findFirst({
+      where: { phoneNumber: validatedData.phoneNumber },
     })
     
-    if (existingPendingUser) {
-      if (existingPendingUser.email === validatedData.email) {
-        return NextResponse.json(
-          { error: 'A verification email has already been sent to this email. Please check your inbox or try again later.' },
-          { status: 400 }
-        )
-      } else {
-        return NextResponse.json(
-          { error: 'This phone number is already registered with a pending account' },
-          { status: 400 }
-        )
-      }
+    if (existingUserByPhone) {
+      return NextResponse.json(
+        { error: 'User with this phone number already exists' },
+        { status: 400 }
+      )
+    }
+    
+    // Check if email exists in pending users table
+    const existingPendingByEmail = await prisma.pendingUser.findFirst({
+      where: { email: validatedData.email },
+    })
+    
+    if (existingPendingByEmail) {
+      return NextResponse.json(
+        { error: 'A verification email has already been sent to this email. Please check your inbox or try again later.' },
+        { status: 400 }
+      )
+    }
+    
+    // Check if phone number exists in pending users table
+    const existingPendingByPhone = await prisma.pendingUser.findFirst({
+      where: { phoneNumber: validatedData.phoneNumber },
+    })
+    
+    if (existingPendingByPhone) {
+      return NextResponse.json(
+        { error: 'This phone number is already registered with a pending account. Please verify your email first.' },
+        { status: 400 }
+      )
     }
     
     // Hash password
