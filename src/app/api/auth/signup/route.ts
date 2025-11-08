@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { signupSchema } from '@/lib/validations'
 import { hashPassword } from '@/lib/auth'
-import { sendVerificationEmail } from '@/lib/email'
+import { supabase } from '@/lib/supabase'
 import crypto from 'crypto'
 
 export async function POST(req: NextRequest) {
@@ -86,22 +86,30 @@ export async function POST(req: NextRequest) {
       : (process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'https://smart-parking-delta.vercel.app')
     const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`
     
-    // Send verification email using Resend
-    const emailResult = await sendVerificationEmail({
-      to: validatedData.email,
-      name: validatedData.fullName,
-      verificationUrl,
-    })
-    
-    if (!emailResult.success) {
-      console.error('Failed to send email, but user account created')
+    // Send magic link email using Supabase Auth
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: validatedData.email,
+        options: {
+          emailRedirectTo: verificationUrl,
+          shouldCreateUser: false, // Don't create Supabase user, just use email service
+        },
+      })
+      
+      if (error) {
+        console.error('Supabase email error:', error.message)
+      } else {
+        console.log('✉️ Verification email sent via Supabase to:', validatedData.email)
+      }
+    } catch (emailError) {
+      console.error('Failed to send email:', emailError)
     }
     
     return NextResponse.json(
       {
         message: 'Account created successfully! Please check your email to verify your account.',
         email: pendingUser.email,
-        verificationUrl, // Include URL as fallback
+        verificationUrl, // Include URL as fallback for manual verification
       },
       { status: 201 }
     )
