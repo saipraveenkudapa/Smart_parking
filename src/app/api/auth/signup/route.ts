@@ -86,17 +86,37 @@ export async function POST(req: NextRequest) {
       : (process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'https://smart-parking-delta.vercel.app')
     const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`
     
+    // Send verification email using Supabase Auth
+    try {
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email: validatedData.email,
+        options: {
+          emailRedirectTo: verificationUrl,
+          data: {
+            full_name: validatedData.fullName,
+            verification_token: verificationToken,
+          },
+        },
+      })
+      
+      if (error) {
+        console.error('Supabase email error:', error)
+        // Continue even if email fails - return URL as fallback
+      } else {
+        console.log('✉️ Verification email sent to:', validatedData.email)
+      }
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError)
+    }
+    
     // Log verification URL (for development/testing)
     console.log('✉️ Verification URL for', validatedData.email, ':', verificationUrl)
     
-    // For college project: Return URL in response so user can verify manually
-    // In production, you would send this via email service
     return NextResponse.json(
       {
-        message: 'Account created successfully!',
+        message: 'Account created successfully! Please check your email to verify your account.',
         email: pendingUser.email,
-        verificationUrl, // Include URL for manual verification (remove in production)
-        note: 'For testing: Please copy the verification URL from the response or check server logs',
+        verificationUrl, // Include URL as fallback
       },
       { status: 201 }
     )
