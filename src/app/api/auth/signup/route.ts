@@ -54,7 +54,11 @@ export async function POST(req: NextRequest) {
     })
     
     // Create verification URL
-    const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/verify-email?token=${verificationToken}`
+    // Use Vercel's automatic URL if available, fallback to env variable
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`
     
     // Send verification email via Supabase Auth
     const { error: emailError } = await supabase.auth.signInWithOtp({
