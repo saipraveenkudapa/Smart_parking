@@ -87,20 +87,13 @@ export async function POST(req: NextRequest) {
       : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`
     
-    // Send verification email via Supabase Auth
-    const { error: emailError } = await supabase.auth.signInWithOtp({
-      email: validatedData.email,
-      options: {
-        emailRedirectTo: verificationUrl,
-      },
-    })
+    // Log verification link (we'll need to set up a proper email service later)
+    console.log(`✉️ Verification link for ${validatedData.email}:`)
+    console.log(verificationUrl)
+    console.log(`Token: ${verificationToken}`)
     
-    if (emailError) {
-      console.error('Failed to send verification email via Supabase:', emailError)
-      // Log verification link as fallback
-      console.log(`� Verification link for ${validatedData.email}:`)
-      console.log(verificationUrl)
-    }
+    // TODO: Send verification email via proper email service (SendGrid, Resend, etc.)
+    // For now, users need to check server logs or we manually send the link
     
     return NextResponse.json(
       {
