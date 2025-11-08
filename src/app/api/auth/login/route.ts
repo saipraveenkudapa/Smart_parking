@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
         email: user.email,
         fullName: user.fullName,
         role: user.role,
-        phoneVerified: user.phoneVerified,
+        emailVerified: user.emailVerified,
       },
       token,
     })
