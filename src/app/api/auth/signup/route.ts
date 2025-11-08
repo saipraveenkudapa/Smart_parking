@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { signupSchema } from '@/lib/validations'
 import { hashPassword } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
+import { sendVerificationEmail } from '@/lib/email'
 import crypto from 'crypto'
 
 export async function POST(req: NextRequest) {
@@ -87,17 +87,21 @@ export async function POST(req: NextRequest) {
       : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`
     
-    // Log verification link (we'll need to set up a proper email service later)
-    console.log(`✉️ Verification link for ${validatedData.email}:`)
-    console.log(verificationUrl)
-    console.log(`Token: ${verificationToken}`)
+    // Send verification email
+    const emailResult = await sendVerificationEmail({
+      to: validatedData.email,
+      name: validatedData.fullName,
+      verificationUrl,
+    })
     
-    // TODO: Send verification email via proper email service (SendGrid, Resend, etc.)
-    // For now, users need to check server logs or we manually send the link
+    if (!emailResult.success) {
+      // Log the error but still return success since user is created
+      console.error('Failed to send email, but user created. Verification URL:', verificationUrl)
+    }
     
     return NextResponse.json(
       {
-        message: 'Verification email sent! Please check your inbox.',
+        message: 'Verification email sent! Please check your inbox and spam folder.',
         email: pendingUser.email,
       },
       { status: 201 }
