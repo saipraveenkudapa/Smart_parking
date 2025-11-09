@@ -16,8 +16,6 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [verificationUrl, setVerificationUrl] = useState('')
-  const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,13 +36,6 @@ export default function SignupPage() {
         throw new Error(data.error || 'Signup failed')
       }
 
-      // If email was sent successfully, no need for manual URL
-      if (data.emailSent) {
-        setVerificationUrl('') // Clear URL
-      } else if (data.verificationUrl) {
-        // Show manual verification URL if email wasn't sent
-        setVerificationUrl(data.verificationUrl)
-      }
       setSuccess(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -53,82 +44,46 @@ export default function SignupPage() {
     }
   }
 
-  const handleCopyUrl = () => {
-    navigator.clipboard.writeText(verificationUrl)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
           <div className="text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Account Created!</h2>
-            <p className="text-gray-600 mb-4">
-              Please verify your email: <strong>{formData.email}</strong>
+            
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">Check Your Email! 📧</h2>
+            
+            <p className="text-gray-600 mb-6 text-lg">
+              We've sent a verification link to:<br/>
+              <strong className="text-gray-900">{formData.email}</strong>
             </p>
-            
-            {!verificationUrl && (
-              <div className="mb-6">
-                <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-4">
-                  <p className="text-sm text-green-800">
-                    <strong>✉️ Email Sent!</strong><br/>
-                    We've sent a verification link to your email. Please check your inbox (and spam folder) and click the link to activate your account.
-                  </p>
-                </div>
-              </div>
-            )}
-            
-            {verificationUrl && (
-              <div className="mb-6">
-                <p className="text-sm text-gray-600 mb-3">
-                  Click the button below to verify your account:
-                </p>
-                <div className="space-y-3">
-                  <a
-                    href={verificationUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors"
-                  >
-                    Verify Email Now
-                  </a>
-                  <button
-                    onClick={handleCopyUrl}
-                    className="w-full py-2 px-4 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-                  >
-                    {copied ? '✓ Copied!' : 'Copy Verification Link'}
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-3">
-                  Link expires in 24 hours
-                </p>
-              </div>
-            )}
 
-            <div className="space-y-3 pt-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  setSuccess(false)
-                  setVerificationUrl('')
-                }}
-                className="w-full py-2 px-4 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-              >
-                Sign Up with Different Email
-              </button>
-              <Link
-                href="/login"
-                className="block w-full py-2 px-4 text-sm text-center text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Already verified? Login here
-              </Link>
+            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 text-left">
+              <p className="text-sm text-blue-900">
+                <strong>What's next?</strong><br/>
+                1. Check your inbox (and spam folder)<br/>
+                2. Click the verification link in the email<br/>
+                3. Your account will be activated automatically<br/>
+                4. Login and start using Park-Connect!
+              </p>
             </div>
+
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <p className="text-xs text-gray-600">
+                ⏰ The verification link expires in 24 hours
+              </p>
+            </div>
+
+            <Link
+              href="/login"
+              className="block w-full py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Go to Login
+            </Link>
           </div>
         </div>
       </div>
