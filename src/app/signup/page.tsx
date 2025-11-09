@@ -38,7 +38,11 @@ export default function SignupPage() {
         throw new Error(data.error || 'Signup failed')
       }
 
-      if (data.verificationUrl) {
+      // If email was sent successfully, no need for manual URL
+      if (data.emailSent) {
+        setVerificationUrl('') // Clear URL
+      } else if (data.verificationUrl) {
+        // Show manual verification URL if email wasn't sent
         setVerificationUrl(data.verificationUrl)
       }
       setSuccess(true)
@@ -69,6 +73,17 @@ export default function SignupPage() {
             <p className="text-gray-600 mb-4">
               Please verify your email: <strong>{formData.email}</strong>
             </p>
+            
+            {!verificationUrl && (
+              <div className="mb-6">
+                <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-4">
+                  <p className="text-sm text-green-800">
+                    <strong>✉️ Email Sent!</strong><br/>
+                    We've sent a verification link to your email. Please check your inbox (and spam folder) and click the link to activate your account.
+                  </p>
+                </div>
+              </div>
+            )}
             
             {verificationUrl && (
               <div className="mb-6">

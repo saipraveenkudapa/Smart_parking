@@ -1,7 +1,4 @@
-import { Resend } from 'resend'
-
-// Initialize Resend only if API key is available
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+import nodemailer from 'nodemailer'
 
 interface SendVerificationEmailParams {
   to: string
@@ -14,18 +11,36 @@ export async function sendVerificationEmail({
   name,
   verificationUrl,
 }: SendVerificationEmailParams) {
-  // If Resend is not configured, log the URL and return
-  if (!resend) {
-    console.log('⚠️ RESEND_API_KEY not configured')
-    console.log(`✉️ Verification link for ${to}:`)
+  // Check if SMTP credentials are configured
+  const smtpConfigured = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD
+  
+  if (!smtpConfigured) {
+    console.log('⚠️ SMTP not configured - Email will not be sent automatically')
+    console.log(`✉️ Manual verification link for ${to}:`)
     console.log(verificationUrl)
-    return { success: false, error: 'Email service not configured' }
+    return { 
+      success: false, 
+      error: 'SMTP not configured',
+      verificationUrl // Return URL for fallback display
+    }
   }
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: 'Park Connect <onboarding@resend.dev>', // Use your verified domain once set up
-      to: [to],
+    // Create transporter with generic SMTP settings
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    })
+
+    // Send email
+    const info = await transporter.sendMail({
+      from: process.env.SMTP_FROM || `"Park Connect" <${process.env.SMTP_USER}>`,
+      to: to,
       subject: 'Verify your email - Park Connect',
       html: `
         <!DOCTYPE html>
@@ -101,13 +116,9 @@ export async function sendVerificationEmail({
       `,
     })
 
-    if (error) {
-      console.error('Failed to send verification email:', error)
-      return { success: false, error }
-    }
-
     console.log('✅ Verification email sent successfully to:', to)
-    return { success: true, data }
+    console.log('Message ID:', info.messageId)
+    return { success: true, messageId: info.messageId }
   } catch (error) {
     console.error('Error sending verification email:', error)
     return { success: false, error }

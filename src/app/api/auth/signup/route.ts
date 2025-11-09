@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { signupSchema } from '@/lib/validations'
 import { hashPassword } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
+import { sendVerificationEmail } from '@/lib/email'
 import crypto from 'crypto'
 
 export async function POST(req: NextRequest) {
@@ -86,25 +86,36 @@ export async function POST(req: NextRequest) {
       : (process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'https://smart-parking-delta.vercel.app')
     const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`
     
-    // Use Supabase's Edge Function to send custom email with our token
-    // Note: For now, we'll use the manual verification approach since Supabase Auth
-    // sends its own magic links that don't include our custom token
+    // Try to send verification email via SMTP
+    const emailResult = await sendVerificationEmail({
+      to: validatedData.email,
+      name: validatedData.fullName,
+      verificationUrl,
+    })
     
-    console.log('✉️ Verification URL for', validatedData.email, ':', verificationUrl)
-    
-    // TODO: To enable automatic emails, you need to:
-    // 1. Set up Supabase Edge Function for custom emails, OR
-    // 2. Use a custom SMTP service (Gmail, SendGrid, etc.), OR
-    // 3. Configure Resend with a verified domain
-    
-    return NextResponse.json(
-      {
-        message: 'Account created successfully! Use the link below to verify your email.',
-        email: pendingUser.email,
-        verificationUrl, // Return URL for manual/button click verification
-      },
-      { status: 201 }
-    )
+    if (emailResult.success) {
+      console.log('✉️ Verification email sent to:', validatedData.email)
+      return NextResponse.json(
+        {
+          message: 'Account created successfully! Please check your email to verify your account.',
+          email: pendingUser.email,
+          emailSent: true,
+        },
+        { status: 201 }
+      )
+    } else {
+      // SMTP not configured - return verification URL for manual verification
+      console.log('⚠️ SMTP not configured, providing manual verification URL')
+      return NextResponse.json(
+        {
+          message: 'Account created successfully! Use the verification link below.',
+          email: pendingUser.email,
+          emailSent: false,
+          verificationUrl, // Show URL button on frontend
+        },
+        { status: 201 }
+      )
+    }
   } catch (error) {
     console.error('Signup error:', error)
     
