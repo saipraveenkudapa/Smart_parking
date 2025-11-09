@@ -106,8 +106,9 @@ export default function ListingDetailsPage() {
         throw new Error(data.error || 'Failed to create booking')
       }
 
-      setBookingDetails(data)
-      setShowSuccessModal(true)
+      // Redirect to payment page instead of showing success modal
+      const bookingAmount = data.booking?.totalAmount || listing?.monthlyPrice || 0
+      router.push(`/payment?bookingId=${data.booking.id}&amount=${bookingAmount}&title=${encodeURIComponent(listing?.title || '')}&listingId=${listingId}`)
     } catch (err: any) {
       console.error('Booking error:', err)
       setError(err.message || 'Failed to create booking request')
