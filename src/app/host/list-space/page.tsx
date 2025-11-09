@@ -19,7 +19,8 @@ export default function ListSpacePage() {
     longitude: undefined as number | undefined,
     spaceType: 'DRIVEWAY',
     vehicleSize: 'STANDARD',
-    monthlyPrice: '',
+    pricingType: 'MONTHLY' as 'DAILY' | 'MONTHLY',
+    price: '',
     description: '',
     isGated: false,
     hasCCTV: false,
@@ -94,7 +95,8 @@ export default function ListSpacePage() {
       
       formDataToSend.append('spaceType', formData.spaceType)
       formDataToSend.append('vehicleSize', formData.vehicleSize)
-      formDataToSend.append('monthlyPrice', formData.monthlyPrice)
+      formDataToSend.append('pricingType', formData.pricingType)
+      formDataToSend.append('price', formData.price)
       formDataToSend.append('description', formData.description)
       formDataToSend.append('isGated', formData.isGated.toString())
       formDataToSend.append('hasCCTV', formData.hasCCTV.toString())
@@ -265,21 +267,54 @@ export default function ListSpacePage() {
                 </div>
               </div>
 
-              {/* Monthly Price */}
+              {/* Pricing Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Monthly Price (USD) *
+                  Pricing Type *
+                </label>
+                <div className="flex gap-4 mb-4">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="pricingType"
+                      value="DAILY"
+                      checked={formData.pricingType === 'DAILY'}
+                      onChange={(e) => setFormData({ ...formData, pricingType: e.target.value as 'DAILY' | 'MONTHLY' })}
+                      className="w-4 h-4 text-green-600 border-gray-300 focus:ring-green-500"
+                    />
+                    <span className="ml-2 text-gray-700">Per Day</span>
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="pricingType"
+                      value="MONTHLY"
+                      checked={formData.pricingType === 'MONTHLY'}
+                      onChange={(e) => setFormData({ ...formData, pricingType: e.target.value as 'DAILY' | 'MONTHLY' })}
+                      className="w-4 h-4 text-green-600 border-gray-300 focus:ring-green-500"
+                    />
+                    <span className="ml-2 text-gray-700">Monthly</span>
+                  </label>
+                </div>
+
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {formData.pricingType === 'DAILY' ? 'Daily Rate (USD) *' : 'Monthly Rate (USD) *'}
                 </label>
                 <input
                   type="number"
                   required
                   min="0"
                   step="0.01"
-                  placeholder="150.00"
+                  placeholder={formData.pricingType === 'DAILY' ? '10.00' : '150.00'}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  value={formData.monthlyPrice}
-                  onChange={(e) => setFormData({ ...formData, monthlyPrice: e.target.value })}
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.pricingType === 'DAILY' 
+                    ? 'Set your daily parking rate'
+                    : 'Set your monthly parking rate'}
+                </p>
               </div>
 
               {/* Description */}
@@ -450,7 +485,7 @@ export default function ListSpacePage() {
                 📍 {savedListing.address}, {savedListing.city}, {savedListing.state}
               </p>
               <p className="text-sm text-green-700 mt-2">
-                💰 ${savedListing.monthlyPrice}/month
+                💰 ${savedListing.price}/{savedListing.pricingType === 'DAILY' ? 'day' : 'month'}
               </p>
             </div>
             

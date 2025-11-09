@@ -37,7 +37,8 @@ export async function POST(req: NextRequest) {
     const longitude = formData.get('longitude') as string | null
     const spaceType = formData.get('spaceType') as string
     const vehicleSize = formData.get('vehicleSize') as string
-    const monthlyPrice = formData.get('monthlyPrice') as string
+    const pricingType = formData.get('pricingType') as string
+    const price = formData.get('price') as string
     const description = formData.get('description') as string
     const isGated = formData.get('isGated') === 'true'
     const hasCCTV = formData.get('hasCCTV') === 'true'
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
     const hasEVCharging = formData.get('hasEVCharging') === 'true'
 
     // Validate required fields
-    if (!title || !address || !city || !state || !zipCode || !monthlyPrice || !description) {
+    if (!title || !address || !city || !state || !zipCode || !price || !description || !pricingType) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -84,7 +85,9 @@ export async function POST(req: NextRequest) {
         longitude: longitude ? parseFloat(longitude) : null,
         spaceType: (spaceType as any) || 'DRIVEWAY',
         vehicleSize: (vehicleSize as any) || 'STANDARD',
-        monthlyPrice: parseFloat(monthlyPrice),
+        pricingType: (pricingType as any) || 'MONTHLY',
+        price: parseFloat(price),
+        monthlyPrice: pricingType === 'MONTHLY' ? parseFloat(price) : null,
         description,
         isGated,
         hasCCTV,
@@ -107,7 +110,8 @@ export async function POST(req: NextRequest) {
           address: listing.address,
           city: listing.city,
           state: listing.state,
-          monthlyPrice: listing.monthlyPrice,
+          pricingType: listing.pricingType,
+          price: listing.price,
           images: listing.images,
         },
       },

@@ -33,6 +33,11 @@ enum VehicleSize {
   TRUCK
 }
 
+enum PricingType {
+  DAILY
+  MONTHLY
+}
+
 enum BookingStatus {
   PENDING
   APPROVED
@@ -102,7 +107,9 @@ model Listing {
   hasEVCharging     Boolean      @default(false)
   
   // Pricing
-  monthlyPrice      Float
+  pricingType       PricingType  @default(MONTHLY)
+  price             Float        @default(0)
+  monthlyPrice      Float?
   securityDeposit   Float        @default(0)
   
   // Availability
