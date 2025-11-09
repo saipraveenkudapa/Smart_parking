@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     })
     
     // Create verification URL - Always use production URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'https://smart-parking-delta.vercel.app'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'https://smart-parking-two-sigma.vercel.app'
     const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`
     
     // Try to send verification email via SMTP
