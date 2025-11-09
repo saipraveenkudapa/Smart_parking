@@ -121,74 +121,73 @@ export default function PaymentPage() {
                 {/* Payment Form */}
                 <form onSubmit={handlePayment}>
                   <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Card Number *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="1234 5678 9012 3456"
+                        maxLength={19}
+                        value={cardDetails.cardNumber}
+                        onChange={(e) => setCardDetails({
+                          ...cardDetails,
+                          cardNumber: formatCardNumber(e.target.value)
+                        })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Cardholder Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="John Doe"
+                        value={cardDetails.cardHolder}
+                        onChange={(e) => setCardDetails({
+                          ...cardDetails,
+                          cardHolder: e.target.value
+                        })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Card Number *
+                          Expiry Date *
                         </label>
                         <input
                           type="text"
                           required
-                          placeholder="1234 5678 9012 3456"
-                          maxLength={19}
-                          value={cardDetails.cardNumber}
+                          placeholder="MM/YY"
+                          maxLength={5}
+                          value={cardDetails.expiryDate}
                           onChange={(e) => setCardDetails({
                             ...cardDetails,
-                            cardNumber: formatCardNumber(e.target.value)
+                            expiryDate: formatExpiryDate(e.target.value)
                           })}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Cardholder Name *
+                          CVV *
                         </label>
                         <input
                           type="text"
                           required
-                          placeholder="John Doe"
-                          value={cardDetails.cardHolder}
+                          placeholder="123"
+                          maxLength={3}
+                          value={cardDetails.cvv}
                           onChange={(e) => setCardDetails({
                             ...cardDetails,
-                            cardHolder: e.target.value
+                            cvv: e.target.value.replace(/\D/g, '')
                           })}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Expiry Date *
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            placeholder="MM/YY"
-                            maxLength={5}
-                            value={cardDetails.expiryDate}
-                            onChange={(e) => setCardDetails({
-                              ...cardDetails,
-                              expiryDate: formatExpiryDate(e.target.value)
-                            })}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            CVV *
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            placeholder="123"
-                            maxLength={3}
-                            value={cardDetails.cvv}
-                            onChange={(e) => setCardDetails({
-                              ...cardDetails,
-                              cvv: e.target.value.replace(/\D/g, '')
-                            })}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                          />
-                        </div>
                       </div>
                     </div>
                   </div>
