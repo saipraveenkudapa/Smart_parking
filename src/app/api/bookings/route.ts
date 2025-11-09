@@ -78,7 +78,8 @@ export async function POST(req: NextRequest) {
     
     const totalMonths = Math.max(1, monthsDiff)
     const platformFeePercentage = 0.15 // 15% platform fee
-    const subtotal = listing.monthlyPrice * totalMonths
+    const monthlyPrice = listing.monthlyPrice || listing.price || 0
+    const subtotal = monthlyPrice * totalMonths
     const platformFee = subtotal * platformFeePercentage
     const totalAmount = subtotal + platformFee
 
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
         startDate: start,
         endDate: end,
         vehicleDetails,
-        monthlyPrice: listing.monthlyPrice,
+        monthlyPrice: monthlyPrice,
         totalMonths,
         platformFee,
         totalAmount,
