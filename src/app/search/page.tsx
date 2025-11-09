@@ -45,6 +45,7 @@ function SearchResults() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt')
   const [gettingLocation, setGettingLocation] = useState(false)
+  const [autoFilledZip, setAutoFilledZip] = useState<string | null>(null)
 
   useEffect(() => {
     // Request location automatically on page load
@@ -59,6 +60,30 @@ function SearchResults() {
     }
   }, [userLocation])
 
+  const reverseGeocode = async (lat: number, lng: number) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'Smart_Parking_App'
+          }
+        }
+      )
+      const data = await response.json()
+      
+      if (data.address && data.address.postcode) {
+        const zipCode = data.address.postcode
+        setAutoFilledZip(zipCode)
+        setFilters(prev => ({ ...prev, location: zipCode }))
+        return zipCode
+      }
+    } catch (error) {
+      console.error('Reverse geocoding error:', error)
+    }
+    return null
+  }
+
   const requestUserLocation = () => {
     if (!navigator.geolocation) {
       setLocationPermission('denied')
@@ -67,12 +92,17 @@ function SearchResults() {
 
     setGettingLocation(true)
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
+      async (position) => {
+        const location = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
-        })
+        }
+        setUserLocation(location)
         setLocationPermission('granted')
+        
+        // Get ZIP code from coordinates
+        await reverseGeocode(location.lat, location.lng)
+        
         setGettingLocation(false)
       },
       (error) => {
@@ -205,13 +235,13 @@ function SearchResults() {
         </p>
 
         {/* Location Permission Banner */}
-        {locationPermission === 'granted' && userLocation && (
+        {locationPermission === 'granted' && userLocation && autoFilledZip && (
           <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-4 flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <span>📍 Showing parking spaces near you, sorted by distance</span>
+            <span>📍 Showing parking spaces near ZIP code {autoFilledZip}, sorted by distance</span>
           </div>
         )}
 
