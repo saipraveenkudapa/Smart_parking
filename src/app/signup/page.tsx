@@ -11,7 +11,7 @@ export default function SignupPage() {
     email: '',
     password: '',
     phoneNumber: '',
-    role: 'RENTER' as 'RENTER' | 'HOST',
+    role: 'RENTER' as 'RENTER' | 'HOST', // Default role, can be changed later
   })
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -177,36 +177,6 @@ export default function SignupPage() {
             <p className="text-xs text-gray-500 mt-1">
               Must include uppercase, lowercase, number, and symbol
             </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              I want to:
-            </label>
-            <div className="flex gap-4">
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="role"
-                  value="RENTER"
-                  checked={formData.role === 'RENTER'}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as 'RENTER' | 'HOST' })}
-                  className="mr-2"
-                />
-                <span className="text-sm text-gray-700">Find parking</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="role"
-                  value="HOST"
-                  checked={formData.role === 'HOST'}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as 'RENTER' | 'HOST' })}
-                  className="mr-2"
-                />
-                <span className="text-sm text-gray-700">List my space</span>
-              </label>
-            </div>
           </div>
 
           <button

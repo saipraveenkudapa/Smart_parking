@@ -67,6 +67,13 @@ export default function ListSpacePage() {
     setIsSubmitting(true)
 
     try {
+      // Validate images
+      if (images.length === 0) {
+        setError('Please upload at least one photo of your parking space')
+        setIsSubmitting(false)
+        return
+      }
+
       // Get JWT token from localStorage
       const token = localStorage.getItem('token')
       if (!token) {
@@ -293,10 +300,10 @@ export default function ListSpacePage() {
               {/* Parking Space Images */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Parking Space Images (Upload 2 photos)
+                  Parking Space Images (Upload 2 photos) *
                 </label>
                 <p className="text-sm text-gray-500 mb-3">
-                  Add photos of your parking space to attract more renters
+                  At least one photo is required to create a listing
                 </p>
                 <input
                   type="file"

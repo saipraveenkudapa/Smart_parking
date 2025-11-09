@@ -12,6 +12,8 @@ interface Listing {
   city: string
   state: string
   zipCode: string
+  latitude?: number | null
+  longitude?: number | null
   spaceType: string
   vehicleSize: string
   monthlyPrice: number
@@ -20,6 +22,8 @@ interface Listing {
   hasCCTV: boolean
   isCovered: boolean
   hasEVCharging: boolean
+  images?: string[]
+  distance?: number | null
   host: {
     fullName: string
     phoneVerified: boolean
@@ -38,10 +42,62 @@ function SearchResults() {
     maxPrice: '',
     spaceType: '',
   })
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt')
+  const [gettingLocation, setGettingLocation] = useState(false)
 
   useEffect(() => {
-    fetchListings()
+    // Request location automatically on page load
+    requestUserLocation()
   }, [])
+
+  useEffect(() => {
+    if (userLocation) {
+      fetchListings()
+    } else {
+      fetchListings()
+    }
+  }, [userLocation])
+
+  const requestUserLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationPermission('denied')
+      return
+    }
+
+    setGettingLocation(true)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        })
+        setLocationPermission('granted')
+        setGettingLocation(false)
+      },
+      (error) => {
+        console.error('Geolocation error:', error)
+        setLocationPermission('denied')
+        setGettingLocation(false)
+      }
+    )
+  }
+
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    // Haversine formula for calculating distance between two points
+    const R = 6371 // Radius of Earth in kilometers
+    const dLat = (lat2 - lat1) * (Math.PI / 180)
+    const dLon = (lon2 - lon1) * (Math.PI / 180)
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) *
+        Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    const distance = R * c // Distance in kilometers
+    return Math.round(distance * 0.621371 * 10) / 10 // Convert to miles and round to 1 decimal
+  }
 
   const fetchListings = async (searchFilters = filters) => {
     setLoading(true)
@@ -89,7 +145,25 @@ function SearchResults() {
         throw new Error(data.error || 'Failed to fetch listings')
       }
 
-      setListings(data.listings)
+      // Sort by distance if user location is available
+      let sortedListings = data.listings
+      if (userLocation && sortedListings.length > 0) {
+        sortedListings = sortedListings
+          .map((listing: any) => ({
+            ...listing,
+            distance: listing.latitude && listing.longitude
+              ? calculateDistance(userLocation.lat, userLocation.lng, listing.latitude, listing.longitude)
+              : null,
+          }))
+          .sort((a: any, b: any) => {
+            // Prioritize listings with distance data
+            if (a.distance === null) return 1
+            if (b.distance === null) return -1
+            return a.distance - b.distance
+          })
+      }
+
+      setListings(sortedListings)
     } catch (err: any) {
       console.error('Fetch error:', err)
       setError(err.message || 'Failed to load listings')
@@ -129,6 +203,42 @@ function SearchResults() {
         <p className="text-gray-600 mb-8">
           Find the perfect parking spot for your vehicle
         </p>
+
+        {/* Location Permission Banner */}
+        {locationPermission === 'granted' && userLocation && (
+          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-4 flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>📍 Showing parking spaces near you, sorted by distance</span>
+          </div>
+        )}
+
+        {locationPermission === 'denied' && (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg mb-4 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span>Enable location to see nearby parking spaces</span>
+            </div>
+            <button
+              type="button"
+              onClick={requestUserLocation}
+              className="text-yellow-900 hover:underline font-medium text-sm"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {gettingLocation && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg mb-4 flex items-center gap-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            <span>Getting your location...</span>
+          </div>
+        )}
 
         {/* Search & Filters */}
         <div className="bg-white p-6 rounded-lg shadow-md mb-8">
@@ -220,9 +330,19 @@ function SearchResults() {
                 key={listing.id}
                 className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
               >
-                {/* Image Placeholder */}
-                <div className="h-48 bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
-                  <span className="text-white text-6xl">🅿️</span>
+                {/* Image */}
+                <div className="h-48 bg-gray-200 relative overflow-hidden">
+                  {listing.images && listing.images.length > 0 ? (
+                    <img
+                      src={listing.images[0]}
+                      alt={listing.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-linear-to-br from-green-400 to-green-600 flex items-center justify-center">
+                      <span className="text-white text-6xl">🅿️</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Content */}
@@ -236,9 +356,20 @@ function SearchResults() {
                   <p className="text-sm text-gray-600 mb-2">
                     📍 {listing.address}
                   </p>
-                  <p className="text-xs text-gray-500 mb-3">
+                  <p className="text-xs text-gray-500 mb-2">
                     {listing.city}, {listing.state} {listing.zipCode}
                   </p>
+                  
+                  {/* Distance */}
+                  {listing.distance !== undefined && listing.distance !== null && (
+                    <p className="text-xs font-medium text-green-600 mb-3 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      {listing.distance} miles away
+                    </p>
+                  )}
 
                   {/* Price */}
                   <p className="text-2xl font-bold text-green-600 mb-3">

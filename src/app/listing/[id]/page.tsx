@@ -22,6 +22,7 @@ interface Listing {
   isCovered: boolean
   hasEVCharging: boolean
   isActive: boolean
+  images?: string[]
   createdAt: string
   host: {
     id: string
@@ -170,8 +171,27 @@ export default function ListingDetailsPage() {
         <div className="max-w-5xl mx-auto">
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             {/* Image Section */}
-            <div className="h-96 bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
-              <span className="text-white text-9xl">🅿️</span>
+            <div className="h-96 bg-gray-200 relative overflow-hidden">
+              {listing.images && listing.images.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2 h-full p-2">
+                  <img
+                    src={listing.images[0]}
+                    alt={`${listing.title} - Photo 1`}
+                    className="w-full h-full object-cover rounded-lg col-span-2"
+                  />
+                  {listing.images[1] && (
+                    <img
+                      src={listing.images[1]}
+                      alt={`${listing.title} - Photo 2`}
+                      className="w-full h-48 object-cover rounded-lg col-span-2"
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="w-full h-full bg-linear-to-br from-green-400 to-green-600 flex items-center justify-center">
+                  <span className="text-white text-9xl">🅿️</span>
+                </div>
+              )}
             </div>
 
             <div className="p-8">
