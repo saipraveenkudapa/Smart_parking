@@ -57,6 +57,8 @@ export default function HostDashboard() {
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'listings' | 'bookings'>('listings')
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [actionResult, setActionResult] = useState<{ status: string; bookingDetails?: any }>({ status: '' })
 
   useEffect(() => {
     // Check authentication
@@ -225,9 +227,15 @@ export default function HostDashboard() {
         throw new Error(data.error || `Failed to ${status.toLowerCase()} booking`)
       }
 
+      // Find the booking details for the modal
+      const booking = bookings.find(b => b.id === bookingId)
+      
       // Refresh bookings
       await fetchBookings()
-      alert(`Booking ${status.toLowerCase()} successfully`)
+      
+      // Show success modal
+      setActionResult({ status, bookingDetails: booking })
+      setShowSuccessModal(true)
     } catch (err: any) {
       console.error('Booking action error:', err)
       alert(err.message || `Failed to ${status.toLowerCase()} booking`)
@@ -600,6 +608,85 @@ export default function HostDashboard() {
           )}
         </div>
       </main>
+
+      {/* Success Modal */}
+      {showSuccessModal && actionResult.bookingDetails && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-8 animate-fade-in">
+            <div className="text-center">
+              {actionResult.status === 'APPROVED' ? (
+                <>
+                  <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Booking Approved! ✅</h2>
+                  <p className="text-gray-600 mb-6">
+                    You have successfully approved this booking request.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Booking Declined ❌</h2>
+                  <p className="text-gray-600 mb-6">
+                    You have declined this booking request.
+                  </p>
+                </>
+              )}
+
+              <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
+                <h3 className="font-semibold text-gray-900 mb-3">Booking Details:</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Renter:</span>
+                    <span className="font-medium text-gray-900">{actionResult.bookingDetails.renter.fullName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Dates:</span>
+                    <span className="font-medium text-gray-900">
+                      {new Date(actionResult.bookingDetails.startDate).toLocaleDateString()} - {new Date(actionResult.bookingDetails.endDate).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Vehicle:</span>
+                    <span className="font-medium text-gray-900">{actionResult.bookingDetails.vehicleDetails}</span>
+                  </div>
+                </div>
+              </div>
+
+              {actionResult.status === 'APPROVED' && (
+                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 text-left">
+                  <p className="text-sm text-blue-800">
+                    <strong>Next Steps:</strong><br/>
+                    The renter can now see your contact information and will reach out to you to coordinate the parking arrangement.
+                  </p>
+                </div>
+              )}
+
+              {actionResult.status === 'REJECTED' && (
+                <div className="bg-gray-50 border-l-4 border-gray-400 p-4 mb-6 text-left">
+                  <p className="text-sm text-gray-700">
+                    The renter has been notified that their booking request was declined. They can search for other available parking spaces.
+                  </p>
+                </div>
+              )}
+
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="w-full py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Got It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-8 mt-16">
