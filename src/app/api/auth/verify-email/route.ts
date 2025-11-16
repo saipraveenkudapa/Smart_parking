@@ -13,55 +13,49 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find pending user with valid token
-    const pendingUser = await prisma.pendingUser.findFirst({
+    // Find user with valid token
+    const user = await prisma.user.findFirst({
       where: {
-        verificationToken: token,
-        tokenExpiry: {
+        resetToken: token,
+        resetTokenExpiry: {
           gt: new Date(),
         },
+        isVerified: false,
       },
     })
 
-    if (!pendingUser) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Invalid or expired verification token' },
         { status: 400 }
       )
     }
 
-    // Create actual user account
-    const user = await prisma.user.create({
+    // Mark user as verified and clear token
+    const verifiedUser = await prisma.user.update({
+      where: { userId: user.userId },
       data: {
-        fullName: pendingUser.fullName,
-        email: pendingUser.email,
-        password: pendingUser.password,
-        phoneNumber: pendingUser.phoneNumber,
-        role: pendingUser.role,
-        emailVerified: true,
+        isVerified: true,
+        resetToken: null,
+        resetTokenExpiry: null,
       },
-    })
-
-    // Delete pending user
-    await prisma.pendingUser.delete({
-      where: { id: pendingUser.id },
     })
 
     // Generate auth token
     const authToken = generateToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
+      userId: verifiedUser.userId.toString(),
+      email: verifiedUser.email,
+      role: verifiedUser.userType || 'driver',
     })
 
     return NextResponse.json(
       {
         message: 'Email verified successfully!',
         user: {
-          id: user.id,
-          email: user.email,
-          fullName: user.fullName,
-          role: user.role,
+          id: verifiedUser.userId,
+          email: verifiedUser.email,
+          fullName: verifiedUser.fullName,
+          role: verifiedUser.userType,
           emailVerified: true,
         },
         token: authToken,

@@ -22,10 +22,18 @@ export async function POST(req: NextRequest) {
       )
     }
     
+    // Check if user is verified
+    if (!user.isVerified) {
+      return NextResponse.json(
+        { error: 'Please verify your email before logging in' },
+        { status: 403 }
+      )
+    }
+    
     // Verify password
     const isValidPassword = await comparePassword(
       validatedData.password,
-      user.password
+      user.passwordHash
     )
     
     if (!isValidPassword) {
@@ -35,21 +43,27 @@ export async function POST(req: NextRequest) {
       )
     }
     
+    // Update last login
+    await prisma.user.update({
+      where: { userId: user.userId },
+      data: { lastLogin: new Date() },
+    })
+    
     // Generate JWT token
     const token = generateToken({
-      userId: user.id,
+      userId: user.userId.toString(),
       email: user.email,
-      role: user.role,
+      role: user.userType || 'driver',
     })
     
     return NextResponse.json({
       message: 'Login successful',
       user: {
-        id: user.id,
+        id: user.userId,
         email: user.email,
         fullName: user.fullName,
-        role: user.role,
-        emailVerified: user.emailVerified,
+        role: user.userType,
+        emailVerified: user.isVerified,
       },
       token,
     })

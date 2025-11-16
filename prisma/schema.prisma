@@ -1,163 +1,214 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// New Prisma schema matching your database structure
+// This is your Prisma schema file
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider          = "postgresql"
-  url               = env("DATABASE_URL")
-  directUrl         = env("DIRECT_URL")
-  relationMode      = "prisma"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-enum UserRole {
-  RENTER
-  HOST
-  ADMIN
-}
-
-enum SpaceType {
-  GARAGE
-  DRIVEWAY
-  CARPORT
-  STREET
-  LOT
-}
-
-enum VehicleSize {
-  MOTORCYCLE
-  STANDARD
-  SUV
-  TRUCK
-}
-
-enum PricingType {
-  DAILY
-  MONTHLY
-}
-
-enum BookingStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  CANCELLED
-  COMPLETED
-}
-
+// ==================== USERS TABLE ====================
 model User {
-  id                String    @id @default(cuid())
+  userId            Int       @id @default(autoincrement()) @map("user_id")
   email             String    @unique
-  password          String
-  fullName          String
-  phoneNumber       String    @unique
-  role              UserRole  @default(RENTER)
-  emailVerified     Boolean   @default(false)
-  resetToken        String?
-  resetTokenExpiry  DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  
+  passwordHash      String    @map("password_hash")
+  phoneNumber       String?   @unique @map("phone_number")
+  fullName          String    @map("full_name")
+  profilePhotoUrl   String[]  @map("profile_photo_url")
+  userType          String?   @map("user_type") // 'driver' or 'owner'
+  isVerified        Boolean   @default(false) @map("is_verified")
+  dateOfBirth       DateTime? @map("date_of_birth") @db.Date
+  registrationDate  DateTime  @default(now()) @map("registration_date")
+  lastLogin         DateTime? @map("last_login")
+  status            String?   // 'active', 'suspended', 'inactive'
+  address           String?
+  city              String?
+  state             String?
+  zipCode           String?   @map("zip_code")
+  ratingAsDriver    Decimal?  @map("rating_as_driver") @db.Decimal(3, 2)
+  ratingAsOwner     Decimal?  @map("rating_as_owner") @db.Decimal(3, 2)
+  resetToken        String?   @map("reset_token") @db.Text
+  resetTokenExpiry  DateTime? @map("reset_token_expiry")
+  updatedAt         DateTime? @map("updated_at")
+
   // Relations
-  listings          Listing[]
-  bookings          Booking[]
-  
+  parkingSpaces     ParkingSpace[]
+  bookingsAsDriver  Booking[]      @relation("DriverBookings")
+  vehicles          Vehicle[]
+  favorites         Favorite[]
+  reviewsGiven      Review[]       @relation("ReviewsGiven")
+  reviewsReceived   Review[]       @relation("ReviewsReceived")
+  supportTickets    SupportTicket[]
+  payouts           Payout[]
+
   @@map("users")
 }
 
-model PendingUser {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  password          String
-  fullName          String
-  phoneNumber       String    @unique
-  role              UserRole  @default(RENTER)
-  verificationToken String
-  tokenExpiry       DateTime
-  createdAt         DateTime  @default(now())
-  
-  @@map("pending_users")
-}
+// ==================== PARKING SPACES TABLE ====================
+model ParkingSpace {
+  spaceId              Int       @id @default(autoincrement()) @map("space_id")
+  ownerId              Int       @map("owner_id")
+  owner                User      @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
+  title                String
+  description          String?   @db.Text
+  address              String
+  city                 String
+  state                String
+  zipCode              String    @map("zip_code")
+  latitude             Decimal   @db.Decimal(10, 8)
+  longitude            Decimal   @db.Decimal(11, 8)
+  spaceType            String?   @map("space_type") // 'garage', 'driveway', 'lot', etc.
+  vehicleTypeAllowed   String?   @map("vehicle_type_allowed") // 'sedan', 'suv', 'truck', etc.
+  accessInstructions   String?   @map("access_instructions") @db.Text
+  hourlyRate           Decimal?  @map("hourly_rate") @db.Decimal(10, 2)
+  dailyRate            Decimal?  @map("daily_rate") @db.Decimal(10, 2)
+  weeklyRate           Decimal?  @map("weekly_rate") @db.Decimal(10, 2)
+  monthlyRate          Decimal?  @map("monthly_rate") @db.Decimal(10, 2)
+  status               String?   // 'active', 'inactive', 'maintenance'
+  isInstantBook        Boolean   @default(false) @map("is_instant_book")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @default(now()) @map("updated_at")
+  hasCctv              Boolean?  @map("has_cctv")
+  evCharging           Boolean?  @map("ev_charging")
+  images               String[]
 
-model Listing {
-  id                String       @id @default(cuid())
-  hostId            String
-  host              User         @relation(fields: [hostId], references: [id], onDelete: Cascade)
-  
-  // Location
-  address           String
-  city              String
-  state             String
-  zipCode           String
-  latitude          Float?
-  longitude         Float?
-  
-  // Details
-  title             String
-  description       String       @db.Text
-  spaceType         SpaceType
-  vehicleSize       VehicleSize
-  accessInstructions String      @db.Text
-  
-  // Security & Features
-  isGated           Boolean      @default(false)
-  hasCCTV           Boolean      @default(false)
-  isCovered         Boolean      @default(false)
-  hasEVCharging     Boolean      @default(false)
-  
-  // Pricing
-  pricingType       PricingType  @default(MONTHLY)
-  price             Float        @default(0)
-  monthlyPrice      Float?
-  securityDeposit   Float        @default(0)
-  
-  // Availability
-  availableFrom     DateTime
-  isActive          Boolean      @default(true)
-  
-  // Images (stored as JSON array of URLs)
-  images            String[]
-  
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-  
   // Relations
-  bookings          Booking[]
-  
-  @@index([city])
-  @@index([spaceType])
-  @@index([monthlyPrice])
-  @@map("listings")
+  bookings             Booking[]
+  availability         Availability[]
+  favorites            Favorite[]
+
+  @@map("parking_spaces")
 }
 
+// ==================== VEHICLES TABLE ====================
+model Vehicle {
+  vehicleId     Int       @id @default(autoincrement()) @map("vehicle_id")
+  userId        Int       @map("user_id")
+  user          User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  licensePlate  String    @unique @map("license_plate")
+  make          String
+  model         String
+  year          Int
+  color         String?
+  vehicleType   String?   @map("vehicle_type") // 'sedan', 'suv', 'truck', 'motorcycle'
+  isDefault     Boolean   @default(false) @map("is_default")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  bookings      Booking[]
+
+  @@map("vehicles")
+}
+
+// ==================== BOOKINGS TABLE ====================
 model Booking {
-  id                String        @id @default(cuid())
-  renterId          String
-  renter            User          @relation(fields: [renterId], references: [id])
-  listingId         String
-  listing           Listing       @relation(fields: [listingId], references: [id])
-  
-  // Booking details
-  startDate         DateTime
-  endDate           DateTime?
-  vehicleDetails    String
-  
-  // Pricing
-  monthlyPrice      Float
-  totalMonths       Int
-  platformFee       Float
-  totalAmount       Float
-  
-  // Payment
-  status            BookingStatus @default(PENDING)
-  paidAt            DateTime?
-  
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  
-  @@index([renterId])
-  @@index([listingId])
-  @@index([status])
+  bookingId            Int       @id @default(autoincrement()) @map("booking_id")
+  spaceId              Int       @map("space_id")
+  space                ParkingSpace @relation(fields: [spaceId], references: [spaceId], onDelete: Cascade)
+  driverId             Int       @map("driver_id")
+  driver               User      @relation("DriverBookings", fields: [driverId], references: [userId], onDelete: Cascade)
+  vehicleId            Int       @map("vehicle_id")
+  vehicle              Vehicle   @relation(fields: [vehicleId], references: [vehicleId], onDelete: Cascade)
+  bookingDate          DateTime  @default(now()) @map("booking_date")
+  startTime            DateTime  @map("start_time")
+  endTime              DateTime  @map("end_time")
+  durationHours        Decimal   @map("duration_hours") @db.Decimal(10, 2)
+  totalAmount          Decimal   @map("total_amount") @db.Decimal(10, 2)
+  serviceFee           Decimal   @map("service_fee") @db.Decimal(10, 2)
+  ownerPayout          Decimal   @map("owner_payout") @db.Decimal(10, 2)
+  bookingStatus        String?   @map("booking_status") // 'pending', 'confirmed', 'completed', 'cancelled'
+  paymentStatus        String?   @map("payment_status") // 'pending', 'paid', 'refunded'
+  accessCode           String?   @map("access_code")
+  specialInstructions  String?   @map("special_instructions") @db.Text
+  cancellationDate     DateTime? @map("cancellation_date")
+  cancellationReason   String?   @map("cancellation_reason") @db.Text
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @default(now()) @map("updated_at")
+
+  // Relations
+  reviews              Review[]
+  supportTickets       SupportTicket[]
+
   @@map("bookings")
+}
+
+// ==================== AVAILABILITY TABLE ====================
+model Availability {
+  availabilityId Int       @id @default(autoincrement()) @map("availability_id")
+  spaceId        Int       @map("space_id")
+  space          ParkingSpace @relation(fields: [spaceId], references: [spaceId], onDelete: Cascade)
+  date           DateTime  @db.Date
+  startTime      DateTime  @map("start_time") @db.Time
+  endTime        DateTime  @map("end_time") @db.Time
+  isAvailable    Boolean   @default(true) @map("is_available")
+  reason         String?
+
+  @@map("availability")
+}
+
+// ==================== FAVORITES TABLE ====================
+model Favorite {
+  favoriteId Int       @id @default(autoincrement()) @map("favorite_id")
+  userId     Int       @map("user_id")
+  user       User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  spaceId    Int       @map("space_id")
+  space      ParkingSpace @relation(fields: [spaceId], references: [spaceId], onDelete: Cascade)
+  addedDate  DateTime  @default(now()) @map("added_date")
+
+  @@map("favorites")
+}
+
+// ==================== REVIEWS TABLE ====================
+model Review {
+  reviewId    Int       @id @default(autoincrement()) @map("review_id")
+  bookingId   Int       @map("booking_id")
+  booking     Booking   @relation(fields: [bookingId], references: [bookingId], onDelete: Cascade)
+  reviewerId  Int       @map("reviewer_id")
+  reviewer    User      @relation("ReviewsGiven", fields: [reviewerId], references: [userId], onDelete: Cascade)
+  revieweeId  Int       @map("reviewee_id")
+  reviewee    User      @relation("ReviewsReceived", fields: [revieweeId], references: [userId], onDelete: Cascade)
+  reviewType  String?   @map("review_type") // 'driver_to_owner', 'owner_to_driver'
+  rating      Int
+  comment     String?   @db.Text
+  reviewDate  DateTime  @default(now()) @map("review_date")
+  isVerified  Boolean   @default(true) @map("is_verified")
+
+  @@map("reviews")
+}
+
+// ==================== PAYOUTS TABLE ====================
+model Payout {
+  payoutId             Int       @id @default(autoincrement()) @map("payout_id")
+  ownerId              Int       @map("owner_id")
+  owner                User      @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
+  amount               Decimal   @db.Decimal(10, 2)
+  payoutMethod         String?   @map("payout_method") // 'bank_transfer', 'paypal', etc.
+  payoutStatus         String?   @map("payout_status") // 'pending', 'completed', 'failed'
+  payoutDate           DateTime? @map("payout_date")
+  periodStart          DateTime  @map("period_start") @db.Date
+  periodEnd            DateTime  @map("period_end") @db.Date
+  transactionReference String?   @map("transaction_reference")
+
+  @@map("payouts")
+}
+
+// ==================== SUPPORT TICKETS TABLE ====================
+model SupportTicket {
+  ticketId    Int       @id @default(autoincrement()) @map("ticket_id")
+  userId      Int       @map("user_id")
+  user        User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  bookingId   Int?      @map("booking_id")
+  booking     Booking?  @relation(fields: [bookingId], references: [bookingId], onDelete: SetNull)
+  subject     String
+  description String    @db.Text
+  status      String?   // 'open', 'in_progress', 'resolved', 'closed'
+  priority    String?   // 'low', 'medium', 'high', 'urgent'
+  createdAt   DateTime  @default(now()) @map("created_at")
+  resolvedAt  DateTime? @map("resolved_at")
+
+  @@map("support_tickets")
 }
