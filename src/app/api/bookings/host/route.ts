@@ -23,27 +23,37 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Get bookings for listings owned by this host
+    // Get bookings for parking spaces owned by this host
     const bookings = await prisma.booking.findMany({
       where: {
-        listing: {
-          hostId: payload.userId,
+        space: {
+          ownerId: parseInt(payload.userId),
         },
       },
       include: {
-        listing: {
+        space: {
           select: {
             title: true,
             address: true,
-            monthlyPrice: true,
+            city: true,
+            hourlyRate: true,
+            monthlyRate: true,
           },
         },
-        renter: {
+        driver: {
           select: {
             fullName: true,
             email: true,
             phoneNumber: true,
-            emailVerified: true,
+            isVerified: true,
+          },
+        },
+        vehicle: {
+          select: {
+            make: true,
+            model: true,
+            year: true,
+            licensePlate: true,
           },
         },
       },

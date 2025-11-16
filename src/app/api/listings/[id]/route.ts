@@ -29,21 +29,30 @@ export async function PATCH(
     const { id } = await params
     const body = await req.json()
 
-    // Check if listing exists and belongs to user
-    const existingListing = await prisma.listing.findUnique({
-      where: { id },
+    // Convert string ID to integer for new schema
+    const spaceId = parseInt(id)
+    if (isNaN(spaceId)) {
+      return NextResponse.json(
+        { error: 'Invalid parking space ID' },
+        { status: 400 }
+      )
+    }
+
+    // Check if parking space exists and belongs to user
+    const existingSpace = await prisma.parkingSpace.findUnique({
+      where: { spaceId },
     })
 
-    if (!existingListing) {
+    if (!existingSpace) {
       return NextResponse.json(
-        { error: 'Listing not found' },
+        { error: 'Parking space not found' },
         { status: 404 }
       )
     }
 
-    if (existingListing.hostId !== payload.userId) {
+    if (existingSpace.ownerId !== parseInt(payload.userId)) {
       return NextResponse.json(
-        { error: 'Unauthorized to modify this listing' },
+        { error: 'Unauthorized to modify this parking space' },
         { status: 403 }
       )
     }
@@ -53,7 +62,7 @@ export async function PATCH(
 
     // Toggle active status if provided
     if (typeof body.isActive === 'boolean') {
-      updateData.isActive = body.isActive
+      updateData.status = body.isActive ? 'active' : 'inactive'
     }
 
     // Update other fields if provided
@@ -65,23 +74,28 @@ export async function PATCH(
     if (body.zipCode) updateData.zipCode = body.zipCode
     if (body.latitude) updateData.latitude = parseFloat(body.latitude)
     if (body.longitude) updateData.longitude = parseFloat(body.longitude)
-    if (body.spaceType) updateData.spaceType = body.spaceType
-    if (body.vehicleSize) updateData.vehicleSize = body.vehicleSize
-    if (body.monthlyPrice) updateData.monthlyPrice = parseFloat(body.monthlyPrice)
-    if (typeof body.isGated === 'boolean') updateData.isGated = body.isGated
-    if (typeof body.hasCCTV === 'boolean') updateData.hasCCTV = body.hasCCTV
-    if (typeof body.isCovered === 'boolean') updateData.isCovered = body.isCovered
-    if (typeof body.hasEVCharging === 'boolean') updateData.hasEVCharging = body.hasEVCharging
+    if (body.spaceType) updateData.spaceType = body.spaceType.toLowerCase()
+    if (body.vehicleSize) updateData.vehicleTypeAllowed = body.vehicleSize.toLowerCase()
+    if (body.monthlyPrice) updateData.monthlyRate = parseFloat(body.monthlyPrice)
+    if (body.accessInstructions) updateData.accessInstructions = body.accessInstructions
+    if (typeof body.hasCCTV === 'boolean') updateData.hasCctv = body.hasCCTV
+    if (typeof body.hasEVCharging === 'boolean') updateData.evCharging = body.hasEVCharging
+    if (typeof body.isInstantBook === 'boolean') updateData.isInstantBook = body.isInstantBook
 
-    // Update the listing
-    const updatedListing = await prisma.listing.update({
-      where: { id },
+    // Update the parking space
+    const updatedSpace = await prisma.parkingSpace.update({
+      where: { spaceId },
       data: updateData,
     })
 
     return NextResponse.json({
-      message: 'Listing updated successfully',
-      listing: updatedListing,
+      message: 'Parking space updated successfully',
+      listing: {
+        id: updatedSpace.spaceId.toString(),
+        ...updatedSpace,
+        monthlyPrice: parseFloat(updatedSpace.monthlyRate?.toString() || '0'),
+        isActive: updatedSpace.status === 'active',
+      },
     })
   } catch (error) {
     console.error('Update listing error:', error)
@@ -118,32 +132,41 @@ export async function DELETE(
 
     const { id } = await params
 
-    // Check if listing exists and belongs to user
-    const existingListing = await prisma.listing.findUnique({
-      where: { id },
+    // Convert string ID to integer
+    const spaceId = parseInt(id)
+    if (isNaN(spaceId)) {
+      return NextResponse.json(
+        { error: 'Invalid parking space ID' },
+        { status: 400 }
+      )
+    }
+
+    // Check if parking space exists and belongs to user
+    const existingSpace = await prisma.parkingSpace.findUnique({
+      where: { spaceId },
     })
 
-    if (!existingListing) {
+    if (!existingSpace) {
       return NextResponse.json(
-        { error: 'Listing not found' },
+        { error: 'Parking space not found' },
         { status: 404 }
       )
     }
 
-    if (existingListing.hostId !== payload.userId) {
+    if (existingSpace.ownerId !== parseInt(payload.userId)) {
       return NextResponse.json(
-        { error: 'Unauthorized to delete this listing' },
+        { error: 'Unauthorized to delete this parking space' },
         { status: 403 }
       )
     }
 
-    // Delete the listing
-    await prisma.listing.delete({
-      where: { id },
+    // Delete the parking space
+    await prisma.parkingSpace.delete({
+      where: { spaceId },
     })
 
     return NextResponse.json({
-      message: 'Listing deleted successfully',
+      message: 'Parking space deleted successfully',
     })
   } catch (error) {
     console.error('Delete listing error:', error)
@@ -162,33 +185,71 @@ export async function GET(
   try {
     const { id } = await params
 
-    const listing = await prisma.listing.findUnique({
-      where: { id },
+    // Convert string ID to integer
+    const spaceId = parseInt(id)
+    if (isNaN(spaceId)) {
+      return NextResponse.json(
+        { error: 'Invalid parking space ID' },
+        { status: 400 }
+      )
+    }
+
+    const parkingSpace = await prisma.parkingSpace.findUnique({
+      where: { spaceId },
       include: {
-        host: {
+        owner: {
           select: {
-            id: true,
+            userId: true,
             fullName: true,
             email: true,
             phoneNumber: true,
-            emailVerified: true,
+            isVerified: true,
           },
         },
       },
     })
 
-    if (!listing) {
+    if (!parkingSpace) {
       return NextResponse.json(
-        { error: 'Listing not found' },
+        { error: 'Parking space not found' },
         { status: 404 }
       )
     }
 
+    // Map to maintain frontend compatibility
+    const listing = {
+      id: parkingSpace.spaceId.toString(),
+      title: parkingSpace.title,
+      description: parkingSpace.description,
+      address: parkingSpace.address,
+      city: parkingSpace.city,
+      state: parkingSpace.state,
+      zipCode: parkingSpace.zipCode,
+      latitude: parseFloat(parkingSpace.latitude.toString()),
+      longitude: parseFloat(parkingSpace.longitude.toString()),
+      spaceType: parkingSpace.spaceType,
+      vehicleSize: parkingSpace.vehicleTypeAllowed,
+      monthlyPrice: parseFloat(parkingSpace.monthlyRate?.toString() || '0'),
+      hasCCTV: parkingSpace.hasCctv || false,
+      hasEVCharging: parkingSpace.evCharging || false,
+      isInstantBook: parkingSpace.isInstantBook,
+      isActive: parkingSpace.status === 'active',
+      images: parkingSpace.images,
+      accessInstructions: parkingSpace.accessInstructions,
+      host: {
+        id: parkingSpace.owner.userId.toString(),
+        fullName: parkingSpace.owner.fullName,
+        email: parkingSpace.owner.email,
+        phoneNumber: parkingSpace.owner.phoneNumber,
+        emailVerified: parkingSpace.owner.isVerified,
+      },
+    }
+
     return NextResponse.json({ listing })
   } catch (error) {
-    console.error('Get listing error:', error)
+    console.error('Get parking space error:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch listing' },
+      { error: 'Failed to fetch parking space' },
       { status: 500 }
     )
   }

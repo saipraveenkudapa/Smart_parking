@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
     // Build filter conditions
     const where: any = {
-      isActive: true,
+      status: 'active',
     }
 
     if (city) {
@@ -36,24 +36,24 @@ export async function GET(req: NextRequest) {
     }
 
     if (maxPrice) {
-      where.monthlyPrice = {
+      where.monthlyRate = {
         lte: parseFloat(maxPrice),
       }
     }
 
     if (spaceType) {
-      where.spaceType = spaceType
+      where.spaceType = spaceType.toLowerCase()
     }
 
-    // Fetch listings
-    const listings = await prisma.listing.findMany({
+    // Fetch parking spaces
+    const parkingSpaces = await prisma.parkingSpace.findMany({
       where,
       include: {
-        host: {
+        owner: {
           select: {
-            id: true,
+            userId: true,
             fullName: true,
-            emailVerified: true,
+            isVerified: true,
           },
         },
       },
@@ -61,6 +61,31 @@ export async function GET(req: NextRequest) {
         createdAt: 'desc',
       },
     })
+
+    // Format response to match frontend expectations
+    const listings = parkingSpaces.map(space => ({
+      id: space.spaceId.toString(),
+      title: space.title,
+      address: space.address,
+      city: space.city,
+      state: space.state,
+      zipCode: space.zipCode,
+      latitude: space.latitude ? parseFloat(space.latitude.toString()) : null,
+      longitude: space.longitude ? parseFloat(space.longitude.toString()) : null,
+      spaceType: space.spaceType,
+      vehicleSize: space.vehicleTypeAllowed,
+      monthlyPrice: space.monthlyRate ? parseFloat(space.monthlyRate.toString()) : 0,
+      description: space.description,
+      isGated: false, // Not in new schema
+      hasCCTV: space.hasCctv,
+      isCovered: false, // Not in new schema
+      hasEVCharging: space.evCharging,
+      images: space.images,
+      host: {
+        fullName: space.owner.fullName,
+        phoneVerified: space.owner.isVerified,
+      },
+    }))
 
     return NextResponse.json({
       listings,

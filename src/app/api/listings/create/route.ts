@@ -72,47 +72,46 @@ export async function POST(req: NextRequest) {
       imageDataUrls.push(dataUrl)
     }
 
-    // Create listing
-    const listing = await prisma.listing.create({
+    // Create parking space
+    const parkingSpace = await prisma.parkingSpace.create({
       data: {
-        hostId: payload.userId,
+        ownerId: parseInt(payload.userId),
         title,
         address,
         city,
         state,
         zipCode,
-        latitude: latitude ? parseFloat(latitude) : null,
-        longitude: longitude ? parseFloat(longitude) : null,
-        spaceType: (spaceType as any) || 'DRIVEWAY',
-        vehicleSize: (vehicleSize as any) || 'STANDARD',
-        pricingType: (pricingType as any) || 'MONTHLY',
-        price: parseFloat(price),
-        monthlyPrice: pricingType === 'MONTHLY' ? parseFloat(price) : null,
+        latitude: latitude ? parseFloat(latitude) : 0,
+        longitude: longitude ? parseFloat(longitude) : 0,
+        spaceType: spaceType?.toLowerCase() || 'driveway',
+        vehicleTypeAllowed: vehicleSize?.toLowerCase() || 'standard',
         description,
-        isGated,
-        hasCCTV,
-        isCovered,
-        hasEVCharging,
-        availableFrom: new Date(),
+        hasCctv: hasCCTV,
+        evCharging: hasEVCharging,
         images: imageDataUrls,
         accessInstructions: description,
-        securityDeposit: 0,
-        isActive: true,
+        status: 'active',
+        isInstantBook: false,
+        // Set pricing based on type
+        hourlyRate: pricingType === 'HOURLY' ? parseFloat(price) : null,
+        dailyRate: pricingType === 'DAILY' ? parseFloat(price) : null,
+        weeklyRate: pricingType === 'WEEKLY' ? parseFloat(price) : null,
+        monthlyRate: pricingType === 'MONTHLY' ? parseFloat(price) : null,
       },
     })
 
     return NextResponse.json(
       {
-        message: 'Listing created successfully',
+        message: 'Parking space created successfully',
         listing: {
-          id: listing.id,
-          title: listing.title,
-          address: listing.address,
-          city: listing.city,
-          state: listing.state,
-          pricingType: listing.pricingType,
-          price: listing.price,
-          images: listing.images,
+          id: parkingSpace.spaceId,
+          title: parkingSpace.title,
+          address: parkingSpace.address,
+          city: parkingSpace.city,
+          state: parkingSpace.state,
+          spaceType: parkingSpace.spaceType,
+          monthlyRate: parkingSpace.monthlyRate,
+          images: parkingSpace.images,
         },
       },
       { status: 201 }

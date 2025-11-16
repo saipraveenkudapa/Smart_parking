@@ -30,18 +30,32 @@ export async function PATCH(
     const body = await req.json()
     const { status } = body
 
-    if (!status || !['APPROVED', 'REJECTED', 'CANCELLED'].includes(status)) {
+    // Convert to integer
+    const bookingId = parseInt(id)
+    if (isNaN(bookingId)) {
       return NextResponse.json(
-        { error: 'Invalid status. Must be APPROVED, REJECTED, or CANCELLED' },
+        { error: 'Invalid booking ID' },
         { status: 400 }
       )
     }
 
-    // Get the booking with listing details
+    const validStatuses = ['confirmed', 'cancelled', 'completed']
+    if (!status || !validStatuses.includes(status.toLowerCase())) {
+      return NextResponse.json(
+        { error: 'Invalid status. Must be confirmed, cancelled, or completed' },
+        { status: 400 }
+      )
+    }
+
+    // Get the booking with space details
     const booking = await prisma.booking.findUnique({
-      where: { id },
+      where: { bookingId },
       include: {
-        listing: true,
+        space: {
+          select: {
+            ownerId: true,
+          },
+        },
       },
     })
 
@@ -52,19 +66,21 @@ export async function PATCH(
       )
     }
 
+    const userId = parseInt(payload.userId)
+
     // Check permissions
-    // Host can approve/reject, renter can cancel
-    if (status === 'CANCELLED') {
-      if (booking.renterId !== payload.userId) {
+    // Owner can confirm/complete, driver can cancel
+    if (status.toLowerCase() === 'cancelled') {
+      if (booking.driverId !== userId) {
         return NextResponse.json(
-          { error: 'Only the renter can cancel this booking' },
+          { error: 'Only the driver can cancel this booking' },
           { status: 403 }
         )
       }
     } else {
-      if (booking.listing.hostId !== payload.userId) {
+      if (booking.space.ownerId !== userId) {
         return NextResponse.json(
-          { error: 'Only the host can approve or reject this booking' },
+          { error: 'Only the parking space owner can confirm or complete this booking' },
           { status: 403 }
         )
       }
@@ -72,19 +88,31 @@ export async function PATCH(
 
     // Update the booking
     const updatedBooking = await prisma.booking.update({
-      where: { id },
-      data: { status },
+      where: { bookingId },
+      data: {
+        bookingStatus: status.toLowerCase(),
+        ...(status.toLowerCase() === 'cancelled' && {
+          cancellationDate: new Date(),
+        }),
+      },
       include: {
-        listing: {
+        space: {
           select: {
             title: true,
             address: true,
           },
         },
-        renter: {
+        driver: {
           select: {
             fullName: true,
             email: true,
+          },
+        },
+        vehicle: {
+          select: {
+            make: true,
+            model: true,
+            licensePlate: true,
           },
         },
       },

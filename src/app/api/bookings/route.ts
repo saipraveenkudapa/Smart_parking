@@ -24,45 +24,69 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { listingId, startDate, endDate, vehicleDetails } = body
+    const { listingId, startDate, endDate, vehicleId } = body
 
-    if (!listingId || !startDate || !endDate || !vehicleDetails) {
+    if (!listingId || !startDate || !endDate || !vehicleId) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: listingId, startDate, endDate, vehicleId' },
         { status: 400 }
       )
     }
 
-    // Check if listing exists and is active
-    const listing = await prisma.listing.findUnique({
-      where: { id: listingId },
+    // Convert IDs to integers
+    const spaceId = parseInt(listingId)
+    const userId = parseInt(payload.userId)
+    const vehId = parseInt(vehicleId)
+
+    if (isNaN(spaceId) || isNaN(vehId)) {
+      return NextResponse.json(
+        { error: 'Invalid ID format' },
+        { status: 400 }
+      )
+    }
+
+    // Verify vehicle belongs to user
+    const vehicle = await prisma.vehicle.findUnique({
+      where: { vehicleId: vehId },
     })
 
-    if (!listing) {
+    if (!vehicle || vehicle.userId !== userId) {
       return NextResponse.json(
-        { error: 'Listing not found' },
+        { error: 'Vehicle not found or does not belong to you' },
+        { status: 403 }
+      )
+    }
+
+    // Check if parking space exists and is active
+    const parkingSpace = await prisma.parkingSpace.findUnique({
+      where: { spaceId },
+    })
+
+    if (!parkingSpace) {
+      return NextResponse.json(
+        { error: 'Parking space not found' },
         { status: 404 }
       )
     }
 
-    if (!listing.isActive) {
+    if (parkingSpace.status !== 'active') {
       return NextResponse.json(
-        { error: 'This listing is not currently available' },
+        { error: 'This parking space is not currently available' },
         { status: 400 }
       )
     }
 
     // Prevent booking own listing
-    if (listing.hostId === payload.userId) {
+    if (parkingSpace.ownerId === userId) {
       return NextResponse.json(
-        { error: 'You cannot book your own listing' },
+        { error: 'You cannot book your own parking space' },
         { status: 400 }
       )
     }
 
-        // Validate dates
+    // Validate dates
     const start = new Date(startDate)
-    const end = endDate ? new Date(endDate) : null
+    const end = new Date(endDate)
     
     if (start < new Date()) {
       return NextResponse.json(
@@ -71,45 +95,72 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Calculate pricing (assuming monthly bookings)
-    const monthsDiff = end 
-      ? Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30))
-      : 1
+    if (end <= start) {
+      return NextResponse.json(
+        { error: 'End date must be after start date' },
+        { status: 400 }
+      )
+    }
+
+    // Calculate duration in hours
+    const durationHours = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60))
     
-    const totalMonths = Math.max(1, monthsDiff)
-    const platformFeePercentage = 0.15 // 15% platform fee
-    const monthlyPrice = listing.monthlyPrice || listing.price || 0
-    const subtotal = monthlyPrice * totalMonths
-    const platformFee = subtotal * platformFeePercentage
-    const totalAmount = subtotal + platformFee
+    // Calculate pricing (use hourly rate or monthly rate)
+    const serviceFeePercentage = 0.15 // 15% service fee
+    const hourlyRate = parseFloat(parkingSpace.hourlyRate?.toString() || '0')
+    const monthlyRate = parseFloat(parkingSpace.monthlyRate?.toString() || '0')
+    
+    // Use hourly rate if available, otherwise pro-rate monthly
+    let subtotal = 0
+    if (hourlyRate > 0) {
+      subtotal = hourlyRate * durationHours
+    } else if (monthlyRate > 0) {
+      // Pro-rate monthly to hourly (assuming 720 hours per month)
+      const hourlyFromMonthly = monthlyRate / 720
+      subtotal = hourlyFromMonthly * durationHours
+    }
+
+    const serviceFee = subtotal * serviceFeePercentage
+    const totalAmount = subtotal + serviceFee
+    const ownerPayout = subtotal - (subtotal * 0.05) // Owner gets 95% of subtotal
 
     // Create the booking
     const booking = await prisma.booking.create({
       data: {
-        listingId,
-        renterId: payload.userId,
-        startDate: start,
-        endDate: end,
-        vehicleDetails,
-        monthlyPrice: monthlyPrice,
-        totalMonths,
-        platformFee,
-        totalAmount,
-        status: 'PENDING',
+        spaceId,
+        driverId: userId,
+        vehicleId: vehId,
+        startTime: start,
+        endTime: end,
+        durationHours,
+        totalAmount: parseFloat(totalAmount.toFixed(2)),
+        serviceFee: parseFloat(serviceFee.toFixed(2)),
+        ownerPayout: parseFloat(ownerPayout.toFixed(2)),
+        bookingStatus: 'pending',
+        paymentStatus: 'pending',
       },
       include: {
-        listing: {
+        space: {
           select: {
             title: true,
             address: true,
-            monthlyPrice: true,
+            city: true,
+            hourlyRate: true,
+            monthlyRate: true,
           },
         },
-        renter: {
+        driver: {
           select: {
             fullName: true,
             email: true,
             phoneNumber: true,
+          },
+        },
+        vehicle: {
+          select: {
+            make: true,
+            model: true,
+            licensePlate: true,
           },
         },
       },
@@ -154,24 +205,32 @@ export async function GET(req: NextRequest) {
 
     const bookings = await prisma.booking.findMany({
       where: {
-        renterId: payload.userId,
+        driverId: parseInt(payload.userId),
       },
       include: {
-        listing: {
+        space: {
           select: {
             title: true,
             address: true,
             city: true,
             state: true,
             zipCode: true,
-            monthlyPrice: true,
-            host: {
+            hourlyRate: true,
+            monthlyRate: true,
+            owner: {
               select: {
                 fullName: true,
                 phoneNumber: true,
-                emailVerified: true,
+                isVerified: true,
               },
             },
+          },
+        },
+        vehicle: {
+          select: {
+            make: true,
+            model: true,
+            licensePlate: true,
           },
         },
       },
