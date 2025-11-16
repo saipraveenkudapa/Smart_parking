@@ -43,6 +43,12 @@ export default function Header() {
                 My Bookings
               </Link>
               <Link
+                href="/vehicles"
+                className="text-gray-600 hover:text-purple-600"
+              >
+                My Vehicles
+              </Link>
+              <Link
                 href="/host/dashboard"
                 className="text-gray-600 hover:text-green-600"
               >
