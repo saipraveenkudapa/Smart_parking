@@ -45,8 +45,10 @@ export default function ListingDetailsPage() {
   const [bookingData, setBookingData] = useState({
     startDate: '',
     endDate: '',
-    vehicleDetails: '',
+    vehicleId: '',
   })
+  const [vehicles, setVehicles] = useState<any[]>([])
+  const [loadingVehicles, setLoadingVehicles] = useState(false)
   const [bookingSubmitting, setBookingSubmitting] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [bookingDetails, setBookingDetails] = useState<any>(null)
@@ -54,6 +56,38 @@ export default function ListingDetailsPage() {
   useEffect(() => {
     fetchListing()
   }, [listingId])
+
+  useEffect(() => {
+    if (showBookingForm && isAuthenticated()) {
+      fetchVehicles()
+    }
+  }, [showBookingForm])
+
+  const fetchVehicles = async () => {
+    setLoadingVehicles(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/vehicles', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setVehicles(data.vehicles)
+        // Auto-select default vehicle if available
+        const defaultVehicle = data.vehicles.find((v: any) => v.isDefault)
+        if (defaultVehicle) {
+          setBookingData(prev => ({ ...prev, vehicleId: defaultVehicle.vehicleId.toString() }))
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch vehicles:', err)
+    } finally {
+      setLoadingVehicles(false)
+    }
+  }
 
   const fetchListing = async () => {
     try {
@@ -96,7 +130,7 @@ export default function ListingDetailsPage() {
           listingId,
           startDate: bookingData.startDate,
           endDate: bookingData.endDate,
-          vehicleDetails: bookingData.vehicleDetails,
+          vehicleId: bookingData.vehicleId,
         }),
       })
 
@@ -323,16 +357,38 @@ export default function ListingDetailsPage() {
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Vehicle Details *
+                            Select Vehicle *
                           </label>
-                          <textarea
-                            required
-                            rows={3}
-                            placeholder="e.g., 2020 Honda Civic, Blue, License Plate: ABC123"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                            value={bookingData.vehicleDetails}
-                            onChange={(e) => setBookingData({ ...bookingData, vehicleDetails: e.target.value })}
-                          />
+                          {loadingVehicles ? (
+                            <div className="text-gray-500 py-2">Loading vehicles...</div>
+                          ) : vehicles.length === 0 ? (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                              <p className="text-sm text-yellow-800 mb-2">
+                                You need to add a vehicle before booking.
+                              </p>
+                              <Link
+                                href="/vehicles"
+                                className="text-sm text-blue-600 hover:underline font-medium"
+                              >
+                                Add a vehicle →
+                              </Link>
+                            </div>
+                          ) : (
+                            <select
+                              required
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                              value={bookingData.vehicleId}
+                              onChange={(e) => setBookingData({ ...bookingData, vehicleId: e.target.value })}
+                            >
+                              <option value="">Choose a vehicle...</option>
+                              {vehicles.map((vehicle) => (
+                                <option key={vehicle.vehicleId} value={vehicle.vehicleId}>
+                                  {vehicle.year} {vehicle.make} {vehicle.model} - {vehicle.licensePlate}
+                                  {vehicle.isDefault && ' (Default)'}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                         <div className="flex gap-2">
                           <button
@@ -344,10 +400,10 @@ export default function ListingDetailsPage() {
                           </button>
                           <button
                             type="submit"
-                            disabled={bookingSubmitting}
+                            disabled={bookingSubmitting || vehicles.length === 0}
                             className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold disabled:opacity-50"
                           >
-                            {bookingSubmitting ? 'Sending...' : 'Send Request'}
+                            {bookingSubmitting ? 'Sending...' : vehicles.length === 0 ? 'Add Vehicle First' : 'Send Request'}
                           </button>
                         </div>
                       </form>
