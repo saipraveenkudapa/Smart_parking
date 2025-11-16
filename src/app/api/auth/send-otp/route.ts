@@ -20,11 +20,15 @@ export async function POST(req: NextRequest) {
     
     // Get user
     const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
+      where: { userId: parseInt(payload.userId) },
     })
     
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+    
+    if (!user.phoneNumber) {
+      return NextResponse.json({ error: 'Phone number not found for this user' }, { status: 400 })
     }
     
     // Generate and send OTP
