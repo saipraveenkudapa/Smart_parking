@@ -45,8 +45,8 @@ export async function POST(request: NextRequest) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     const resetLink = `${appUrl}/reset-password?token=${resetToken}`
 
-    // Send SMS with reset link (if Twilio is configured)
-    if (twilioClient && process.env.TWILIO_PHONE_NUMBER) {
+    // Send SMS with reset link (if Twilio is configured and user has phone number)
+    if (twilioClient && process.env.TWILIO_PHONE_NUMBER && user.phoneNumber) {
       try {
         await twilioClient.messages.create({
           body: `🅿️ Park-Connect Password Reset\n\nClick here to reset your password:\n${resetLink}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, please ignore this message.`,
