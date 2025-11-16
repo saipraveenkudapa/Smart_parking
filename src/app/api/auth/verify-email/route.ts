@@ -14,13 +14,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user with valid token
-    const user = await prisma.user.findFirst({
+    const user = await prisma.dim_users.findFirst({
       where: {
-        resetToken: token,
-        resetTokenExpiry: {
+        reset_token: token,
+        reset_token_expiry: {
           gt: new Date(),
         },
-        isVerified: false,
+        is_verified: false,
       },
     })
 
@@ -32,30 +32,30 @@ export async function POST(request: NextRequest) {
     }
 
     // Mark user as verified and clear token
-    const verifiedUser = await prisma.user.update({
-      where: { userId: user.userId },
+    const verifiedUser = await prisma.dim_users.update({
+      where: { user_id: user.user_id },
       data: {
-        isVerified: true,
-        resetToken: null,
-        resetTokenExpiry: null,
+        is_verified: true,
+        reset_token: null,
+        reset_token_expiry: null,
       },
     })
 
     // Generate auth token
     const authToken = generateToken({
-      userId: verifiedUser.userId.toString(),
+      userId: verifiedUser.user_id.toString(),
       email: verifiedUser.email,
-      role: verifiedUser.userType || 'driver',
+      role: 'driver', // No userType in new schema
     })
 
     return NextResponse.json(
       {
         message: 'Email verified successfully!',
         user: {
-          id: verifiedUser.userId,
+          id: verifiedUser.user_id,
           email: verifiedUser.email,
-          fullName: verifiedUser.fullName,
-          role: verifiedUser.userType,
+          fullName: verifiedUser.full_name,
+          phoneNumber: verifiedUser.phone_number,
           emailVerified: true,
         },
         token: authToken,

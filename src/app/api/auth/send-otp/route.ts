@@ -19,26 +19,24 @@ export async function POST(req: NextRequest) {
     }
     
     // Get user
-    const user = await prisma.user.findUnique({
-      where: { userId: parseInt(payload.userId) },
+    const user = await prisma.dim_users.findUnique({
+      where: { user_id: parseInt(payload.userId) },
     })
     
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
     
-    if (!user.phoneNumber) {
-      return NextResponse.json({ error: 'Phone number not found for this user' }, { status: 400 })
-    }
+    // phone_number is NOT NULL in new schema, so no null check needed
     
     // Generate and send OTP
     const otp = generateOTP()
-    storeOTP(user.phoneNumber, otp)
-    await sendOTP(user.phoneNumber, otp)
+    storeOTP(user.phone_number, otp)
+    await sendOTP(user.phone_number, otp)
     
     return NextResponse.json({
       message: 'OTP sent successfully',
-      phoneNumber: user.phoneNumber,
+      phoneNumber: user.phone_number,
     })
   } catch (error) {
     console.error('Send OTP error:', error)

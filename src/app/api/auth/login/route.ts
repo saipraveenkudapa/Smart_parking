@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const validatedData = loginSchema.parse(body)
     
     // Find user
-    const user = await prisma.user.findUnique({
+    const user = await prisma.dim_users.findUnique({
       where: { email: validatedData.email },
     })
     
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Check if user is verified
-    if (!user.isVerified) {
+    if (!user.is_verified) {
       return NextResponse.json(
         { error: 'Please verify your email before logging in' },
         { status: 403 }
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     // Verify password
     const isValidPassword = await comparePassword(
       validatedData.password,
-      user.passwordHash
+      user.password
     )
     
     if (!isValidPassword) {
@@ -43,27 +43,27 @@ export async function POST(req: NextRequest) {
       )
     }
     
-    // Update last login
-    await prisma.user.update({
-      where: { userId: user.userId },
-      data: { lastLogin: new Date() },
+    // Update last login (updated_at timestamp)
+    await prisma.dim_users.update({
+      where: { user_id: user.user_id },
+      data: { updated_at: new Date() },
     })
     
     // Generate JWT token
     const token = generateToken({
-      userId: user.userId.toString(),
+      userId: user.user_id.toString(),
       email: user.email,
-      role: user.userType || 'driver',
+      role: 'driver', // No userType field in new schema
     })
     
     return NextResponse.json({
       message: 'Login successful',
       user: {
-        id: user.userId,
+        id: user.user_id,
         email: user.email,
-        fullName: user.fullName,
-        role: user.userType,
-        emailVerified: user.isVerified,
+        fullName: user.full_name,
+        phoneNumber: user.phone_number,
+        emailVerified: user.is_verified,
       },
       token,
     })

@@ -1,214 +1,176 @@
-// New Prisma schema matching your database structure
-// This is your Prisma schema file
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+  schemas   = ["park_connect"]
 }
 
-// ==================== USERS TABLE ====================
-model User {
-  userId            Int       @id @default(autoincrement()) @map("user_id")
-  email             String    @unique
-  passwordHash      String    @map("password_hash")
-  phoneNumber       String?   @unique @map("phone_number")
-  fullName          String    @map("full_name")
-  profilePhotoUrl   String[]  @map("profile_photo_url")
-  userType          String?   @map("user_type") // 'driver' or 'owner'
-  isVerified        Boolean   @default(false) @map("is_verified")
-  dateOfBirth       DateTime? @map("date_of_birth") @db.Date
-  registrationDate  DateTime  @default(now()) @map("registration_date")
-  lastLogin         DateTime? @map("last_login")
-  status            String?   // 'active', 'suspended', 'inactive'
-  address           String?
-  city              String?
-  state             String?
-  zipCode           String?   @map("zip_code")
-  ratingAsDriver    Decimal?  @map("rating_as_driver") @db.Decimal(3, 2)
-  ratingAsOwner     Decimal?  @map("rating_as_owner") @db.Decimal(3, 2)
-  resetToken        String?   @map("reset_token") @db.Text
-  resetTokenExpiry  DateTime? @map("reset_token_expiry")
-  updatedAt         DateTime? @map("updated_at")
+model dim_favorites {
+  favorite_id        Int                 @id @default(autoincrement())
+  user_id            Int?
+  space_id           Int?
+  added_date         DateTime?           @default(now()) @db.Timestamp(6)
+  dim_parking_spaces dim_parking_spaces? @relation(fields: [space_id], references: [space_id], onDelete: NoAction, onUpdate: NoAction)
+  dim_users          dim_users?          @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
 
-  // Relations
-  parkingSpaces     ParkingSpace[]
-  bookingsAsDriver  Booking[]      @relation("DriverBookings")
-  vehicles          Vehicle[]
-  favorites         Favorite[]
-  reviewsGiven      Review[]       @relation("ReviewsGiven")
-  reviewsReceived   Review[]       @relation("ReviewsReceived")
-  supportTickets    SupportTicket[]
-  payouts           Payout[]
-
-  @@map("users")
+  @@unique([user_id, space_id], map: "dim_favorites_user_space_unique")
+  @@schema("park_connect")
 }
 
-// ==================== PARKING SPACES TABLE ====================
-model ParkingSpace {
-  spaceId              Int       @id @default(autoincrement()) @map("space_id")
-  ownerId              Int       @map("owner_id")
-  owner                User      @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
-  title                String
-  description          String?   @db.Text
-  address              String
-  city                 String
-  state                String
-  zipCode              String    @map("zip_code")
-  latitude             Decimal   @db.Decimal(10, 8)
-  longitude            Decimal   @db.Decimal(11, 8)
-  spaceType            String?   @map("space_type") // 'garage', 'driveway', 'lot', etc.
-  vehicleTypeAllowed   String?   @map("vehicle_type_allowed") // 'sedan', 'suv', 'truck', etc.
-  accessInstructions   String?   @map("access_instructions") @db.Text
-  hourlyRate           Decimal?  @map("hourly_rate") @db.Decimal(10, 2)
-  dailyRate            Decimal?  @map("daily_rate") @db.Decimal(10, 2)
-  weeklyRate           Decimal?  @map("weekly_rate") @db.Decimal(10, 2)
-  monthlyRate          Decimal?  @map("monthly_rate") @db.Decimal(10, 2)
-  status               String?   // 'active', 'inactive', 'maintenance'
-  isInstantBook        Boolean   @default(false) @map("is_instant_book")
-  createdAt            DateTime  @default(now()) @map("created_at")
-  updatedAt            DateTime  @default(now()) @map("updated_at")
-  hasCctv              Boolean?  @map("has_cctv")
-  evCharging           Boolean?  @map("ev_charging")
-  images               String[]
+model dim_parking_spaces {
+  space_id            Int                 @id @default(autoincrement())
+  title               String              @db.VarChar
+  description         String
+  space_type          String?             @db.VarChar
+  is_instant_book     Boolean?
+  has_cctv            Boolean?
+  ev_charging         Boolean?
+  access_instructions String?
+  images              String?
+  location_id         Int?
+  pricing_id          Int?
+  dim_favorites       dim_favorites[]
+  dim_space_location  dim_space_location? @relation(fields: [location_id], references: [location_id], onDelete: NoAction, onUpdate: NoAction)
+  dim_pricing_model   dim_pricing_model?  @relation(fields: [pricing_id], references: [pricing_id], onDelete: NoAction, onUpdate: NoAction)
+  fact_availability   fact_availability[]
 
-  // Relations
-  bookings             Booking[]
-  availability         Availability[]
-  favorites            Favorite[]
-
-  @@map("parking_spaces")
+  @@schema("park_connect")
 }
 
-// ==================== VEHICLES TABLE ====================
-model Vehicle {
-  vehicleId     Int       @id @default(autoincrement()) @map("vehicle_id")
-  userId        Int       @map("user_id")
-  user          User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
-  licensePlate  String    @unique @map("license_plate")
-  make          String
-  model         String
-  year          Int
-  color         String?
-  vehicleType   String?   @map("vehicle_type") // 'sedan', 'suv', 'truck', 'motorcycle'
-  isDefault     Boolean   @default(false) @map("is_default")
-  createdAt     DateTime  @default(now()) @map("created_at")
+model dim_payout {
+  payout_id             Int             @id @default(autoincrement())
+  method                String?         @db.VarChar
+  status                String?         @db.VarChar
+  payout_date           DateTime?       @db.Timestamp(6)
+  transaction_reference String?         @db.VarChar
+  fact_bookings         fact_bookings[]
 
-  // Relations
-  bookings      Booking[]
-
-  @@map("vehicles")
+  @@schema("park_connect")
 }
 
-// ==================== BOOKINGS TABLE ====================
-model Booking {
-  bookingId            Int       @id @default(autoincrement()) @map("booking_id")
-  spaceId              Int       @map("space_id")
-  space                ParkingSpace @relation(fields: [spaceId], references: [spaceId], onDelete: Cascade)
-  driverId             Int       @map("driver_id")
-  driver               User      @relation("DriverBookings", fields: [driverId], references: [userId], onDelete: Cascade)
-  vehicleId            Int       @map("vehicle_id")
-  vehicle              Vehicle   @relation(fields: [vehicleId], references: [vehicleId], onDelete: Cascade)
-  bookingDate          DateTime  @default(now()) @map("booking_date")
-  startTime            DateTime  @map("start_time")
-  endTime              DateTime  @map("end_time")
-  durationHours        Decimal   @map("duration_hours") @db.Decimal(10, 2)
-  totalAmount          Decimal   @map("total_amount") @db.Decimal(10, 2)
-  serviceFee           Decimal   @map("service_fee") @db.Decimal(10, 2)
-  ownerPayout          Decimal   @map("owner_payout") @db.Decimal(10, 2)
-  bookingStatus        String?   @map("booking_status") // 'pending', 'confirmed', 'completed', 'cancelled'
-  paymentStatus        String?   @map("payment_status") // 'pending', 'paid', 'refunded'
-  accessCode           String?   @map("access_code")
-  specialInstructions  String?   @map("special_instructions") @db.Text
-  cancellationDate     DateTime? @map("cancellation_date")
-  cancellationReason   String?   @map("cancellation_reason") @db.Text
-  createdAt            DateTime  @default(now()) @map("created_at")
-  updatedAt            DateTime  @default(now()) @map("updated_at")
+model dim_pricing_model {
+  pricing_id         Int                  @id @default(autoincrement())
+  hourly_rate        Decimal?             @db.Decimal
+  daily_rate         Decimal?             @db.Decimal
+  weekly_rate        Decimal?             @db.Decimal
+  monthly_rate       Decimal?             @db.Decimal
+  dim_parking_spaces dim_parking_spaces[]
 
-  // Relations
-  reviews              Review[]
-  supportTickets       SupportTicket[]
-
-  @@map("bookings")
+  @@schema("park_connect")
 }
 
-// ==================== AVAILABILITY TABLE ====================
-model Availability {
-  availabilityId Int       @id @default(autoincrement()) @map("availability_id")
-  spaceId        Int       @map("space_id")
-  space          ParkingSpace @relation(fields: [spaceId], references: [spaceId], onDelete: Cascade)
-  date           DateTime  @db.Date
-  startTime      DateTime  @map("start_time") @db.Time
-  endTime        DateTime  @map("end_time") @db.Time
-  isAvailable    Boolean   @default(true) @map("is_available")
-  reason         String?
+model dim_reviews {
+  review_id                                           Int             @id @default(autoincrement())
+  booking_id                                          Int?
+  reviewer_id                                         Int?
+  reviewee_id                                         Int?
+  review_type                                         String?         @db.VarChar
+  rating                                              Int?
+  review_date                                         DateTime?       @db.Timestamp(6)
+  comments                                            String?
+  dim_users_dim_reviews_reviewee_idTodim_users        dim_users?      @relation("dim_reviews_reviewee_idTodim_users", fields: [reviewee_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  dim_users_dim_reviews_reviewer_idTodim_users        dim_users?      @relation("dim_reviews_reviewer_idTodim_users", fields: [reviewer_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  fact_bookings_dim_reviews_booking_idTofact_bookings fact_bookings?  @relation("dim_reviews_booking_idTofact_bookings", fields: [booking_id], references: [booking_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reviews_booking")
+  fact_bookings_fact_bookings_review_idTodim_reviews  fact_bookings[] @relation("fact_bookings_review_idTodim_reviews")
 
-  @@map("availability")
+  @@schema("park_connect")
 }
 
-// ==================== FAVORITES TABLE ====================
-model Favorite {
-  favoriteId Int       @id @default(autoincrement()) @map("favorite_id")
-  userId     Int       @map("user_id")
-  user       User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
-  spaceId    Int       @map("space_id")
-  space      ParkingSpace @relation(fields: [spaceId], references: [spaceId], onDelete: Cascade)
-  addedDate  DateTime  @default(now()) @map("added_date")
+model dim_space_location {
+  location_id        Int                  @id @default(autoincrement())
+  address            String?              @db.VarChar
+  city               String?              @db.VarChar
+  state              String?              @db.VarChar
+  zip_code           String?              @db.VarChar
+  latitude           Decimal?             @db.Decimal
+  longitude          Decimal?             @db.Decimal
+  dim_parking_spaces dim_parking_spaces[]
 
-  @@map("favorites")
+  @@schema("park_connect")
 }
 
-// ==================== REVIEWS TABLE ====================
-model Review {
-  reviewId    Int       @id @default(autoincrement()) @map("review_id")
-  bookingId   Int       @map("booking_id")
-  booking     Booking   @relation(fields: [bookingId], references: [bookingId], onDelete: Cascade)
-  reviewerId  Int       @map("reviewer_id")
-  reviewer    User      @relation("ReviewsGiven", fields: [reviewerId], references: [userId], onDelete: Cascade)
-  revieweeId  Int       @map("reviewee_id")
-  reviewee    User      @relation("ReviewsReceived", fields: [revieweeId], references: [userId], onDelete: Cascade)
-  reviewType  String?   @map("review_type") // 'driver_to_owner', 'owner_to_driver'
-  rating      Int
-  comment     String?   @db.Text
-  reviewDate  DateTime  @default(now()) @map("review_date")
-  isVerified  Boolean   @default(true) @map("is_verified")
+model dim_users {
+  user_id                                        Int                 @id @default(autoincrement())
+  email                                          String              @unique @db.VarChar
+  full_name                                      String              @db.VarChar
+  phone_number                                   String              @unique @db.VarChar
+  date_of_birth                                  DateTime            @db.Date
+  status                                         Int                 @db.SmallInt
+  address                                        String              @db.VarChar
+  city                                           String              @db.VarChar
+  state                                          String              @db.VarChar
+  zip_code                                       String              @db.VarChar
+  password                                       String
+  is_verified                                    Boolean?
+  registration_date                              DateTime            @db.Timestamp(6)
+  updated_at                                     DateTime?           @db.Timestamp(6)
+  reset_token                                    String?
+  reset_token_expiry                             DateTime?           @db.Timestamp(6)
+  dim_favorites                                  dim_favorites[]
+  dim_reviews_dim_reviews_reviewee_idTodim_users dim_reviews[]       @relation("dim_reviews_reviewee_idTodim_users")
+  dim_reviews_dim_reviews_reviewer_idTodim_users dim_reviews[]       @relation("dim_reviews_reviewer_idTodim_users")
+  dim_vehicle                                    dim_vehicle[]
+  fact_availability                              fact_availability[]
+  fact_bookings                                  fact_bookings[]
 
-  @@map("reviews")
+  @@schema("park_connect")
 }
 
-// ==================== PAYOUTS TABLE ====================
-model Payout {
-  payoutId             Int       @id @default(autoincrement()) @map("payout_id")
-  ownerId              Int       @map("owner_id")
-  owner                User      @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
-  amount               Decimal   @db.Decimal(10, 2)
-  payoutMethod         String?   @map("payout_method") // 'bank_transfer', 'paypal', etc.
-  payoutStatus         String?   @map("payout_status") // 'pending', 'completed', 'failed'
-  payoutDate           DateTime? @map("payout_date")
-  periodStart          DateTime  @map("period_start") @db.Date
-  periodEnd            DateTime  @map("period_end") @db.Date
-  transactionReference String?   @map("transaction_reference")
+model dim_vehicle {
+  vehicle_id    Int        @id @default(autoincrement())
+  user_id       Int?
+  license_plate String?    @db.VarChar
+  make          String?    @db.VarChar
+  model         String?    @db.VarChar
+  year          Int?       @db.SmallInt
+  color         String?    @db.VarChar
+  vehicle_type  String?    @db.VarChar
+  dim_users     dim_users? @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@map("payouts")
+  @@schema("park_connect")
 }
 
-// ==================== SUPPORT TICKETS TABLE ====================
-model SupportTicket {
-  ticketId    Int       @id @default(autoincrement()) @map("ticket_id")
-  userId      Int       @map("user_id")
-  user        User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
-  bookingId   Int?      @map("booking_id")
-  booking     Booking?  @relation(fields: [bookingId], references: [bookingId], onDelete: SetNull)
-  subject     String
-  description String    @db.Text
-  status      String?   // 'open', 'in_progress', 'resolved', 'closed'
-  priority    String?   // 'low', 'medium', 'high', 'urgent'
-  createdAt   DateTime  @default(now()) @map("created_at")
-  resolvedAt  DateTime? @map("resolved_at")
+model fact_availability {
+  availability_id     Int                 @id @default(autoincrement())
+  owner_id            Int?
+  space_id            Int?
+  available_start     DateTime?           @db.Timestamp(6)
+  available_end       DateTime?           @db.Timestamp(6)
+  is_available        Boolean?
+  availability_reason String?             @db.VarChar
+  created_at          DateTime?           @db.Timestamp(6)
+  updated_at          DateTime?           @db.Timestamp(6)
+  dim_users           dim_users?          @relation(fields: [owner_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  dim_parking_spaces  dim_parking_spaces? @relation(fields: [space_id], references: [space_id], onDelete: NoAction, onUpdate: NoAction)
+  fact_bookings       fact_bookings[]
 
-  @@map("support_tickets")
+  @@schema("park_connect")
+}
+
+model fact_bookings {
+  booking_id                                        Int                @id @default(autoincrement())
+  availability_id                                   Int?
+  driver_id                                         Int?
+  payout_id                                         Int?
+  review_id                                         Int?
+  start_time                                        DateTime?          @db.Timestamp(6)
+  end_time                                          DateTime?          @db.Timestamp(6)
+  duration_hours                                    Decimal?           @db.Decimal
+  total_amount                                      Decimal?           @db.Decimal
+  service_fee                                       Decimal?           @db.Decimal
+  owner_payout                                      Decimal?           @db.Decimal
+  booking_status                                    String?            @db.VarChar
+  payment_status                                    String?            @db.VarChar
+  cancellation_reason                               String?
+  dim_reviews_dim_reviews_booking_idTofact_bookings dim_reviews[]      @relation("dim_reviews_booking_idTofact_bookings")
+  fact_availability                                 fact_availability? @relation(fields: [availability_id], references: [availability_id], onDelete: NoAction, onUpdate: NoAction)
+  dim_users                                         dim_users?         @relation(fields: [driver_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  dim_payout                                        dim_payout?        @relation(fields: [payout_id], references: [payout_id], onDelete: NoAction, onUpdate: NoAction)
+  dim_reviews_fact_bookings_review_idTodim_reviews  dim_reviews?       @relation("fact_bookings_review_idTodim_reviews", fields: [review_id], references: [review_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("park_connect")
 }

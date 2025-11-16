@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user
-    const user = await prisma.user.findUnique({
+    const user = await prisma.dim_users.findUnique({
       where: { email },
     })
 
@@ -33,11 +33,11 @@ export async function POST(request: NextRequest) {
     const resetTokenExpiry = new Date(Date.now() + 3600000) // 1 hour from now
 
     // Save token to database
-    await prisma.user.update({
+    await prisma.dim_users.update({
       where: { email },
       data: {
-        resetToken,
-        resetTokenExpiry,
+        reset_token: resetToken,
+        reset_token_expiry: resetTokenExpiry,
       },
     })
 
@@ -46,12 +46,12 @@ export async function POST(request: NextRequest) {
     const resetLink = `${appUrl}/reset-password?token=${resetToken}`
 
     // Send SMS with reset link (if Twilio is configured and user has phone number)
-    if (twilioClient && process.env.TWILIO_PHONE_NUMBER && user.phoneNumber) {
+    if (twilioClient && process.env.TWILIO_PHONE_NUMBER && user.phone_number) {
       try {
         await twilioClient.messages.create({
           body: `🅿️ Park-Connect Password Reset\n\nClick here to reset your password:\n${resetLink}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, please ignore this message.`,
           from: process.env.TWILIO_PHONE_NUMBER,
-          to: user.phoneNumber,
+          to: user.phone_number,
         })
       } catch (twilioError) {
         console.error('Failed to send SMS:', twilioError)

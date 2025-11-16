@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     const validatedData = signupSchema.parse(body)
     
     // Check if email already exists
-    const existingUserByEmail = await prisma.user.findUnique({
+    const existingUserByEmail = await prisma.dim_users.findUnique({
       where: { email: validatedData.email },
     })
     
@@ -24,18 +24,24 @@ export async function POST(req: NextRequest) {
       )
     }
     
-    // Check if phone number already exists (if provided)
-    if (validatedData.phoneNumber) {
-      const existingUserByPhone = await prisma.user.findFirst({
-        where: { phoneNumber: validatedData.phoneNumber },
-      })
-      
-      if (existingUserByPhone) {
-        return NextResponse.json(
-          { error: 'User with this phone number already exists' },
-          { status: 400 }
-        )
-      }
+    // Phone number is required in the new schema
+    if (!validatedData.phoneNumber) {
+      return NextResponse.json(
+        { error: 'Phone number is required' },
+        { status: 400 }
+      )
+    }
+    
+    // Check if phone number already exists
+    const existingUserByPhone = await prisma.dim_users.findFirst({
+      where: { phone_number: validatedData.phoneNumber },
+    })
+    
+    if (existingUserByPhone) {
+      return NextResponse.json(
+        { error: 'User with this phone number already exists' },
+        { status: 400 }
+      )
     }
     
     // Hash password
@@ -46,19 +52,22 @@ export async function POST(req: NextRequest) {
     const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
     
     // Create user directly (with unverified status)
-    const newUser = await prisma.user.create({
+    const newUser = await prisma.dim_users.create({
       data: {
-        fullName: validatedData.fullName,
+        full_name: validatedData.fullName,
         email: validatedData.email,
-        passwordHash: hashedPassword,
-        phoneNumber: validatedData.phoneNumber,
-        userType: validatedData.role?.toLowerCase() || 'driver',
-        isVerified: false,
-        status: 'active',
-        profilePhotoUrl: [],
-        resetToken: verificationToken,
-        resetTokenExpiry: tokenExpiry,
-        registrationDate: new Date(),
+        password: hashedPassword, // Note: field is 'password' not 'passwordHash' in new schema
+        phone_number: validatedData.phoneNumber!,
+        date_of_birth: new Date('2000-01-01'), // Default date, can be updated later
+        status: 1, // Active status (SmallInt: 1=active, 0=inactive)
+        address: 'Not provided', // Required field, can be updated in profile
+        city: 'Not provided',
+        state: 'Not provided',
+        zip_code: '00000',
+        is_verified: false,
+        reset_token: verificationToken,
+        reset_token_expiry: tokenExpiry,
+        registration_date: new Date(),
       },
     })
     
@@ -79,6 +88,7 @@ export async function POST(req: NextRequest) {
         {
           message: 'Account created successfully! Please check your email to verify your account.',
           email: newUser.email,
+          userId: newUser.user_id,
           emailSent: true,
         },
         { status: 201 }
@@ -90,6 +100,7 @@ export async function POST(req: NextRequest) {
         {
           message: 'Account created successfully! Use the verification link below.',
           email: newUser.email,
+          userId: newUser.user_id,
           emailSent: false,
           verificationUrl, // Show URL button on frontend
         },
