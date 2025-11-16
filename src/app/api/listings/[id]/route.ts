@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 
 // PATCH - Update listing (edit or toggle active status)
+// NOTE: dim_parking_spaces doesn't have owner_id in park_connect schema
+// Ownership is tracked through fact_availability table
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -38,9 +40,16 @@ export async function PATCH(
       )
     }
 
+    // TODO: Need to verify ownership through fact_availability table
+    // For now, return not implemented
+    return NextResponse.json(
+      { error: 'Listing updates not yet implemented for new schema' },
+      { status: 501 }
+    )
+
     // Check if parking space exists and belongs to user
-    const existingSpace = await prisma.parkingSpace.findUnique({
-      where: { spaceId },
+    const existingSpace = await prisma.dim_parking_spaces.findUnique({
+      where: { space_id: spaceId },
     })
 
     if (!existingSpace) {
@@ -106,7 +115,8 @@ export async function PATCH(
   }
 }
 
-// DELETE - Delete listing
+// DELETE - Delete parking space
+// NOTE: dim_parking_spaces doesn't have owner_id in park_connect schema
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -131,9 +141,8 @@ export async function DELETE(
     }
 
     const { id } = await params
-
-    // Convert string ID to integer
     const spaceId = parseInt(id)
+
     if (isNaN(spaceId)) {
       return NextResponse.json(
         { error: 'Invalid parking space ID' },
@@ -141,41 +150,16 @@ export async function DELETE(
       )
     }
 
-    // Check if parking space exists and belongs to user
-    const existingSpace = await prisma.parkingSpace.findUnique({
-      where: { spaceId },
-    })
-
-    if (!existingSpace) {
-      return NextResponse.json(
-        { error: 'Parking space not found' },
-        { status: 404 }
-      )
-    }
-
-    if (existingSpace.ownerId !== parseInt(payload.userId)) {
-      return NextResponse.json(
-        { error: 'Unauthorized to delete this parking space' },
-        { status: 403 }
-      )
-    }
-
-    // Delete the parking space
-    await prisma.parkingSpace.delete({
-      where: { spaceId },
-    })
-
-    return NextResponse.json({
-      message: 'Parking space deleted successfully',
-    })
-  } catch (error) {
-    console.error('Delete listing error:', error)
+    // TODO: Need to verify ownership through fact_availability table
     return NextResponse.json(
-      { error: 'Failed to delete listing' },
-      { status: 500 }
+      { error: 'Listing deletion not yet implemented for new schema' },
+      { status: 501 }
     )
-  }
-}
+
+    // Check if parking space exists and belongs to user
+    const existingSpace = await prisma.dim_parking_spaces.findUnique({
+      where: { space_id: spaceId },
+    })
 
 // GET - Get single listing details
 export async function GET(
@@ -194,18 +178,11 @@ export async function GET(
       )
     }
 
-    const parkingSpace = await prisma.parkingSpace.findUnique({
-      where: { spaceId },
+    const parkingSpace = await prisma.dim_parking_spaces.findUnique({
+      where: { space_id: spaceId },
       include: {
-        owner: {
-          select: {
-            userId: true,
-            fullName: true,
-            email: true,
-            phoneNumber: true,
-            isVerified: true,
-          },
-        },
+        dim_space_location: true,
+        dim_pricing_model: true,
       },
     })
 
@@ -218,31 +195,22 @@ export async function GET(
 
     // Map to maintain frontend compatibility
     const listing = {
-      id: parkingSpace.spaceId.toString(),
+      id: parkingSpace.space_id.toString(),
       title: parkingSpace.title,
       description: parkingSpace.description,
-      address: parkingSpace.address,
-      city: parkingSpace.city,
-      state: parkingSpace.state,
-      zipCode: parkingSpace.zipCode,
-      latitude: parseFloat(parkingSpace.latitude.toString()),
-      longitude: parseFloat(parkingSpace.longitude.toString()),
-      spaceType: parkingSpace.spaceType,
-      vehicleSize: parkingSpace.vehicleTypeAllowed,
-      monthlyPrice: parseFloat(parkingSpace.monthlyRate?.toString() || '0'),
-      hasCCTV: parkingSpace.hasCctv || false,
-      hasEVCharging: parkingSpace.evCharging || false,
-      isInstantBook: parkingSpace.isInstantBook,
-      isActive: parkingSpace.status === 'active',
-      images: parkingSpace.images,
-      accessInstructions: parkingSpace.accessInstructions,
-      host: {
-        id: parkingSpace.owner.userId.toString(),
-        fullName: parkingSpace.owner.fullName,
-        email: parkingSpace.owner.email,
-        phoneNumber: parkingSpace.owner.phoneNumber,
-        emailVerified: parkingSpace.owner.isVerified,
-      },
+      address: parkingSpace.dim_space_location?.address || '',
+      city: parkingSpace.dim_space_location?.city || '',
+      state: parkingSpace.dim_space_location?.state || '',
+      zipCode: parkingSpace.dim_space_location?.zip_code || '',
+      latitude: parkingSpace.dim_space_location?.latitude ? parseFloat(parkingSpace.dim_space_location.latitude.toString()) : 0,
+      longitude: parkingSpace.dim_space_location?.longitude ? parseFloat(parkingSpace.dim_space_location.longitude.toString()) : 0,
+      spaceType: parkingSpace.space_type,
+      monthlyPrice: parkingSpace.dim_pricing_model?.monthly_rate ? parseFloat(parkingSpace.dim_pricing_model.monthly_rate.toString()) : 0,
+      hasCCTV: parkingSpace.has_cctv || false,
+      hasEVCharging: parkingSpace.ev_charging || false,
+      isInstantBook: parkingSpace.is_instant_book,
+      images: parkingSpace.images ? parkingSpace.images.split(',') : [],
+      accessInstructions: parkingSpace.access_instructions,
     }
 
     return NextResponse.json({ listing })
