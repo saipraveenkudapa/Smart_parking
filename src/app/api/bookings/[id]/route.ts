@@ -47,13 +47,13 @@ export async function PATCH(
       )
     }
 
-    // Get the booking with space details
-    const booking = await prisma.booking.findUnique({
-      where: { bookingId },
+    // Get the booking with space and availability details
+    const booking = await prisma.fact_bookings.findUnique({
+      where: { booking_id: bookingId },
       include: {
-        space: {
+        fact_availability: {
           select: {
-            ownerId: true,
+            owner_id: true,
           },
         },
       },
@@ -71,14 +71,14 @@ export async function PATCH(
     // Check permissions
     // Owner can confirm/complete, driver can cancel
     if (status.toLowerCase() === 'cancelled') {
-      if (booking.driverId !== userId) {
+      if (booking.driver_id !== userId) {
         return NextResponse.json(
           { error: 'Only the driver can cancel this booking' },
           { status: 403 }
         )
       }
     } else {
-      if (booking.space.ownerId !== userId) {
+      if (booking.fact_availability?.owner_id !== userId) {
         return NextResponse.json(
           { error: 'Only the parking space owner can confirm or complete this booking' },
           { status: 403 }
@@ -87,40 +87,58 @@ export async function PATCH(
     }
 
     // Update the booking
-    const updatedBooking = await prisma.booking.update({
-      where: { bookingId },
+    const updatedBooking = await prisma.fact_bookings.update({
+      where: { booking_id: bookingId },
       data: {
-        bookingStatus: status.toLowerCase(),
+        booking_status: status.toLowerCase(),
         ...(status.toLowerCase() === 'cancelled' && {
-          cancellationDate: new Date(),
+          cancellation_reason: 'Cancelled by user',
         }),
       },
       include: {
-        space: {
-          select: {
-            title: true,
-            address: true,
+        fact_availability: {
+          include: {
+            dim_parking_spaces: {
+              include: {
+                dim_space_location: true,
+              },
+            },
           },
         },
-        driver: {
+        dim_users: {
           select: {
-            fullName: true,
+            full_name: true,
             email: true,
-          },
-        },
-        vehicle: {
-          select: {
-            make: true,
-            model: true,
-            licensePlate: true,
           },
         },
       },
     })
 
+    // Map response for API compatibility
+    const response = {
+      bookingId: updatedBooking.booking_id,
+      driverId: updatedBooking.driver_id,
+      startTime: updatedBooking.start_time,
+      endTime: updatedBooking.end_time,
+      durationHours: updatedBooking.duration_hours,
+      totalAmount: updatedBooking.total_amount,
+      serviceFee: updatedBooking.service_fee,
+      ownerPayout: updatedBooking.owner_payout,
+      bookingStatus: updatedBooking.booking_status,
+      paymentStatus: updatedBooking.payment_status,
+      space: {
+        title: updatedBooking.fact_availability?.dim_parking_spaces?.title,
+        address: updatedBooking.fact_availability?.dim_parking_spaces?.dim_space_location?.address,
+      },
+      driver: {
+        fullName: updatedBooking.dim_users?.full_name,
+        email: updatedBooking.dim_users?.email,
+      },
+    }
+
     return NextResponse.json({
       message: `Booking ${status.toLowerCase()} successfully`,
-      booking: updatedBooking,
+      booking: response,
     })
   } catch (error) {
     console.error('Update booking error:', error)

@@ -24,45 +24,67 @@ export async function GET(req: NextRequest) {
     }
 
     // Get bookings for parking spaces owned by this host
-    const bookings = await prisma.booking.findMany({
+    // Note: Need to query via fact_availability to find owner's bookings
+    const bookings = await prisma.fact_bookings.findMany({
       where: {
-        space: {
-          ownerId: parseInt(payload.userId),
+        fact_availability: {
+          owner_id: parseInt(payload.userId),
         },
       },
       include: {
-        space: {
-          select: {
-            title: true,
-            address: true,
-            city: true,
-            hourlyRate: true,
-            monthlyRate: true,
+        fact_availability: {
+          include: {
+            dim_parking_spaces: {
+              include: {
+                dim_space_location: true,
+                dim_pricing_model: true,
+              },
+            },
           },
         },
-        driver: {
+        dim_users: {
           select: {
-            fullName: true,
+            full_name: true,
             email: true,
-            phoneNumber: true,
-            isVerified: true,
-          },
-        },
-        vehicle: {
-          select: {
-            make: true,
-            model: true,
-            year: true,
-            licensePlate: true,
+            phone_number: true,
+            is_verified: true,
           },
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        booking_id: 'desc',
       },
     })
 
-    return NextResponse.json({ bookings })
+    // Map response for API compatibility
+    const mappedBookings = bookings.map((booking) => ({
+      bookingId: booking.booking_id,
+      spaceId: booking.fact_availability?.space_id,
+      driverId: booking.driver_id,
+      startTime: booking.start_time,
+      endTime: booking.end_time,
+      durationHours: booking.duration_hours,
+      totalAmount: booking.total_amount,
+      serviceFee: booking.service_fee,
+      ownerPayout: booking.owner_payout,
+      bookingStatus: booking.booking_status,
+      paymentStatus: booking.payment_status,
+      space: {
+        title: booking.fact_availability?.dim_parking_spaces?.title,
+        address: booking.fact_availability?.dim_parking_spaces?.dim_space_location?.address,
+        city: booking.fact_availability?.dim_parking_spaces?.dim_space_location?.city,
+        hourlyRate: booking.fact_availability?.dim_parking_spaces?.dim_pricing_model?.hourly_rate,
+        monthlyRate: booking.fact_availability?.dim_parking_spaces?.dim_pricing_model?.monthly_rate,
+      },
+      driver: {
+        fullName: booking.dim_users?.full_name,
+        email: booking.dim_users?.email,
+        phoneNumber: booking.dim_users?.phone_number,
+        isVerified: booking.dim_users?.is_verified,
+      },
+    }))
+
+    return NextResponse.json({ bookings: mappedBookings })
   } catch (error) {
     console.error('Get host bookings error:', error)
     return NextResponse.json(

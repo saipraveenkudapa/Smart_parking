@@ -45,48 +45,64 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Verify vehicle belongs to user
-    const vehicle = await prisma.vehicle.findUnique({
-      where: { vehicleId: vehId },
-    })
+    // Validate dates first so we can use them in availability check
+    const start = new Date(startDate)
+    const end = new Date(endDate)
 
-    if (!vehicle || vehicle.userId !== userId) {
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       return NextResponse.json(
-        { error: 'Vehicle not found or does not belong to you' },
-        { status: 403 }
-      )
-    }
-
-    // Check if parking space exists and is active
-    const parkingSpace = await prisma.parkingSpace.findUnique({
-      where: { spaceId },
-    })
-
-    if (!parkingSpace) {
-      return NextResponse.json(
-        { error: 'Parking space not found' },
-        { status: 404 }
-      )
-    }
-
-    if (parkingSpace.status !== 'active') {
-      return NextResponse.json(
-        { error: 'This parking space is not currently available' },
+        { error: 'Invalid date format' },
         { status: 400 }
       )
     }
 
-    // Prevent booking own listing
-    if (parkingSpace.ownerId === userId) {
+    // Verify vehicle belongs to user (using dim_vehicle)
+    const vehicle = await prisma.dim_vehicle.findUnique({
+      where: {
+        vehicle_id: vehId,
+      },
+    })
+
+    if (!vehicle || vehicle.user_id !== userId) {
+      return NextResponse.json(
+        { error: 'Vehicle not found or does not belong to you' },
+        { status: 400 }
+      )
+    }
+
+    // Check if parking space exists and get availability
+    // Note: dim_parking_spaces doesn't have owner_id or isApproved
+    // We need to check fact_availability for availability and ownership
+    const availability = await prisma.fact_availability.findFirst({
+      where: {
+        space_id: spaceId,
+        is_available: true,
+        available_start: { lte: start },
+        available_end: { gte: end },
+      },
+      include: {
+        dim_parking_spaces: {
+          include: {
+            dim_pricing_model: true,
+          },
+        },
+      },
+    })
+
+    if (!availability || !availability.dim_parking_spaces) {
+      return NextResponse.json(
+        { error: 'Parking space not found or not available for the selected dates' },
+        { status: 404 }
+      )
+    }
+
+    // Prevent user from booking their own space
+    if (availability.owner_id === userId) {
       return NextResponse.json(
         { error: 'You cannot book your own parking space' },
         { status: 400 }
       )
     }
-
-    // Validate dates
-    const start = new Date(startDate)
-    const end = new Date(endDate)
     
     if (start < new Date()) {
       return NextResponse.json(
@@ -105,10 +121,11 @@ export async function POST(req: NextRequest) {
     // Calculate duration in hours
     const durationHours = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60))
     
-    // Calculate pricing (use hourly rate or monthly rate)
+    // Calculate pricing (use hourly rate or monthly rate from dim_pricing_model)
     const serviceFeePercentage = 0.15 // 15% service fee
-    const hourlyRate = parseFloat(parkingSpace.hourlyRate?.toString() || '0')
-    const monthlyRate = parseFloat(parkingSpace.monthlyRate?.toString() || '0')
+    const pricing = availability.dim_parking_spaces.dim_pricing_model
+    const hourlyRate = parseFloat(pricing?.hourly_rate?.toString() || '0')
+    const monthlyRate = parseFloat(pricing?.monthly_rate?.toString() || '0')
     
     // Use hourly rate if available, otherwise pro-rate monthly
     let subtotal = 0
@@ -124,52 +141,73 @@ export async function POST(req: NextRequest) {
     const totalAmount = subtotal + serviceFee
     const ownerPayout = subtotal - (subtotal * 0.05) // Owner gets 95% of subtotal
 
-    // Create the booking
-    const booking = await prisma.booking.create({
+    // Create the booking (using fact_bookings)
+    // Note: fact_bookings links to availability_id, not directly to space_id
+    const booking = await prisma.fact_bookings.create({
       data: {
-        spaceId,
-        driverId: userId,
-        vehicleId: vehId,
-        startTime: start,
-        endTime: end,
-        durationHours,
-        totalAmount: parseFloat(totalAmount.toFixed(2)),
-        serviceFee: parseFloat(serviceFee.toFixed(2)),
-        ownerPayout: parseFloat(ownerPayout.toFixed(2)),
-        bookingStatus: 'pending',
-        paymentStatus: 'pending',
+        availability_id: availability.availability_id,
+        driver_id: userId,
+        start_time: start,
+        end_time: end,
+        duration_hours: durationHours,
+        total_amount: parseFloat(totalAmount.toFixed(2)),
+        service_fee: parseFloat(serviceFee.toFixed(2)),
+        owner_payout: parseFloat(ownerPayout.toFixed(2)),
+        booking_status: 'pending',
+        payment_status: 'pending',
       },
       include: {
-        space: {
-          select: {
-            title: true,
-            address: true,
-            city: true,
-            hourlyRate: true,
-            monthlyRate: true,
+        fact_availability: {
+          include: {
+            dim_parking_spaces: {
+              include: {
+                dim_space_location: true,
+                dim_pricing_model: true,
+              },
+            },
           },
         },
-        driver: {
+        dim_users: {
           select: {
-            fullName: true,
+            full_name: true,
             email: true,
-            phoneNumber: true,
-          },
-        },
-        vehicle: {
-          select: {
-            make: true,
-            model: true,
-            licensePlate: true,
+            phone_number: true,
           },
         },
       },
     })
 
+    // Map response for API compatibility
+    const response = {
+      bookingId: booking.booking_id,
+      spaceId: booking.fact_availability?.space_id,
+      driverId: booking.driver_id,
+      startTime: booking.start_time,
+      endTime: booking.end_time,
+      durationHours: booking.duration_hours,
+      totalAmount: booking.total_amount,
+      serviceFee: booking.service_fee,
+      ownerPayout: booking.owner_payout,
+      bookingStatus: booking.booking_status,
+      paymentStatus: booking.payment_status,
+      space: {
+        title: booking.fact_availability?.dim_parking_spaces?.title,
+        address: booking.fact_availability?.dim_parking_spaces?.dim_space_location?.address,
+        city: booking.fact_availability?.dim_parking_spaces?.dim_space_location?.city,
+        hourlyRate: booking.fact_availability?.dim_parking_spaces?.dim_pricing_model?.hourly_rate,
+        monthlyRate: booking.fact_availability?.dim_parking_spaces?.dim_pricing_model?.monthly_rate,
+      },
+      driver: {
+        fullName: booking.dim_users?.full_name,
+        email: booking.dim_users?.email,
+        phoneNumber: booking.dim_users?.phone_number,
+      },
+    }
+
     return NextResponse.json(
       {
         message: 'Booking request created successfully',
-        booking,
+        booking: response,
       },
       { status: 201 }
     )
@@ -203,43 +241,64 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    const bookings = await prisma.booking.findMany({
+    const bookings = await prisma.fact_bookings.findMany({
       where: {
-        driverId: parseInt(payload.userId),
+        driver_id: parseInt(payload.userId),
       },
       include: {
-        space: {
-          select: {
-            title: true,
-            address: true,
-            city: true,
-            state: true,
-            zipCode: true,
-            hourlyRate: true,
-            monthlyRate: true,
-            owner: {
+        fact_availability: {
+          include: {
+            dim_parking_spaces: {
+              include: {
+                dim_space_location: true,
+                dim_pricing_model: true,
+              },
+            },
+            dim_users: {
               select: {
-                fullName: true,
-                phoneNumber: true,
-                isVerified: true,
+                full_name: true,
+                phone_number: true,
+                is_verified: true,
               },
             },
           },
         },
-        vehicle: {
-          select: {
-            make: true,
-            model: true,
-            licensePlate: true,
-          },
-        },
       },
       orderBy: {
-        createdAt: 'desc',
+        booking_id: 'desc',
       },
     })
 
-    return NextResponse.json({ bookings })
+    // Map response for API compatibility
+    const mappedBookings = bookings.map((booking) => ({
+      bookingId: booking.booking_id,
+      spaceId: booking.fact_availability?.space_id,
+      driverId: booking.driver_id,
+      startTime: booking.start_time,
+      endTime: booking.end_time,
+      durationHours: booking.duration_hours,
+      totalAmount: booking.total_amount,
+      serviceFee: booking.service_fee,
+      ownerPayout: booking.owner_payout,
+      bookingStatus: booking.booking_status,
+      paymentStatus: booking.payment_status,
+      space: {
+        title: booking.fact_availability?.dim_parking_spaces?.title,
+        address: booking.fact_availability?.dim_parking_spaces?.dim_space_location?.address,
+        city: booking.fact_availability?.dim_parking_spaces?.dim_space_location?.city,
+        state: booking.fact_availability?.dim_parking_spaces?.dim_space_location?.state,
+        zipCode: booking.fact_availability?.dim_parking_spaces?.dim_space_location?.zip_code,
+        hourlyRate: booking.fact_availability?.dim_parking_spaces?.dim_pricing_model?.hourly_rate,
+        monthlyRate: booking.fact_availability?.dim_parking_spaces?.dim_pricing_model?.monthly_rate,
+        owner: {
+          fullName: booking.fact_availability?.dim_users?.full_name,
+          phoneNumber: booking.fact_availability?.dim_users?.phone_number,
+          isVerified: booking.fact_availability?.dim_users?.is_verified,
+        },
+      },
+    }))
+
+    return NextResponse.json({ bookings: mappedBookings })
   } catch (error) {
     console.error('Get bookings error:', error)
     return NextResponse.json(
