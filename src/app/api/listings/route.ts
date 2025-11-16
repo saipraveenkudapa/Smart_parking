@@ -10,81 +10,57 @@ export async function GET(req: NextRequest) {
     const maxPrice = searchParams.get('maxPrice')
     const spaceType = searchParams.get('spaceType')
 
-    // Build filter conditions
-    const where: any = {
-      status: 'active',
-    }
-
-    if (city) {
-      where.city = {
-        contains: city,
-        mode: 'insensitive',
-      }
-    }
-
-    if (state) {
-      where.state = {
-        contains: state,
-        mode: 'insensitive',
-      }
-    }
-
-    if (zipCode) {
-      where.zipCode = {
-        contains: zipCode,
-      }
-    }
-
-    if (maxPrice) {
-      where.monthlyRate = {
-        lte: parseFloat(maxPrice),
-      }
-    }
-
-    if (spaceType) {
-      where.spaceType = spaceType.toLowerCase()
-    }
-
-    // Fetch parking spaces
-    const parkingSpaces = await prisma.parkingSpace.findMany({
-      where,
-      include: {
-        owner: {
-          select: {
-            userId: true,
-            fullName: true,
-            isVerified: true,
-          },
-        },
+    // Fetch parking spaces with joined location and pricing
+    const parkingSpaces = await prisma.dim_parking_spaces.findMany({
+      where: {
+        ...(spaceType && { space_type: spaceType.toLowerCase() }),
       },
-      orderBy: {
-        createdAt: 'desc',
+      include: {
+        dim_space_location: true,
+        dim_pricing_model: true,
       },
     })
 
+    // Filter by location criteria (since they're in joined table)
+    let filteredSpaces = parkingSpaces
+
+    if (city || state || zipCode || maxPrice) {
+      filteredSpaces = parkingSpaces.filter(space => {
+        const location = space.dim_space_location
+        const pricing = space.dim_pricing_model
+
+        if (city && location?.city && !location.city.toLowerCase().includes(city.toLowerCase())) {
+          return false
+        }
+        if (state && location?.state && !location.state.toLowerCase().includes(state.toLowerCase())) {
+          return false
+        }
+        if (zipCode && location?.zip_code && !location.zip_code.includes(zipCode)) {
+          return false
+        }
+        if (maxPrice && pricing?.monthly_rate && parseFloat(pricing.monthly_rate.toString()) > parseFloat(maxPrice)) {
+          return false
+        }
+        return true
+      })
+    }
+
     // Format response to match frontend expectations
-    const listings = parkingSpaces.map(space => ({
-      id: space.spaceId.toString(),
+    const listings = filteredSpaces.map(space => ({
+      id: space.space_id.toString(),
       title: space.title,
-      address: space.address,
-      city: space.city,
-      state: space.state,
-      zipCode: space.zipCode,
-      latitude: space.latitude ? parseFloat(space.latitude.toString()) : null,
-      longitude: space.longitude ? parseFloat(space.longitude.toString()) : null,
-      spaceType: space.spaceType,
-      vehicleSize: space.vehicleTypeAllowed,
-      monthlyPrice: space.monthlyRate ? parseFloat(space.monthlyRate.toString()) : 0,
+      address: space.dim_space_location?.address || '',
+      city: space.dim_space_location?.city || '',
+      state: space.dim_space_location?.state || '',
+      zipCode: space.dim_space_location?.zip_code || '',
+      latitude: space.dim_space_location?.latitude ? parseFloat(space.dim_space_location.latitude.toString()) : null,
+      longitude: space.dim_space_location?.longitude ? parseFloat(space.dim_space_location.longitude.toString()) : null,
+      spaceType: space.space_type,
+      monthlyPrice: space.dim_pricing_model?.monthly_rate ? parseFloat(space.dim_pricing_model.monthly_rate.toString()) : 0,
       description: space.description,
-      isGated: false, // Not in new schema
-      hasCCTV: space.hasCctv,
-      isCovered: false, // Not in new schema
-      hasEVCharging: space.evCharging,
-      images: space.images,
-      host: {
-        fullName: space.owner.fullName,
-        phoneVerified: space.owner.isVerified,
-      },
+      hasCCTV: space.has_cctv,
+      hasEVCharging: space.ev_charging,
+      images: space.images ? space.images.split(',') : [],
     }))
 
     return NextResponse.json({

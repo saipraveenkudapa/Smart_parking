@@ -26,17 +26,28 @@ export async function GET(req: NextRequest) {
     const userId = parseInt(payload.userId)
 
     // Get all vehicles for this user
-    const vehicles = await prisma.vehicle.findMany({
+    const vehicles = await prisma.dim_vehicle.findMany({
       where: {
-        userId,
+        user_id: userId,
       },
-      orderBy: [
-        { isDefault: 'desc' }, // Default vehicle first
-        { createdAt: 'desc' },
-      ],
+      orderBy: {
+        vehicle_id: 'desc',
+      },
     })
 
-    return NextResponse.json({ vehicles })
+    // Map to maintain API compatibility
+    const mappedVehicles = vehicles.map(v => ({
+      vehicleId: v.vehicle_id,
+      userId: v.user_id,
+      licensePlate: v.license_plate,
+      make: v.make,
+      model: v.model,
+      year: v.year,
+      color: v.color,
+      vehicleType: v.vehicle_type,
+    }))
+
+    return NextResponse.json({ vehicles: mappedVehicles })
   } catch (error) {
     console.error('Get vehicles error:', error)
     return NextResponse.json(
@@ -90,8 +101,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if license plate already exists
-    const existingVehicle = await prisma.vehicle.findUnique({
-      where: { licensePlate: licensePlate.toUpperCase() },
+    const existingVehicle = await prisma.dim_vehicle.findFirst({
+      where: { license_plate: licensePlate.toUpperCase() },
     })
 
     if (existingVehicle) {
@@ -101,37 +112,35 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // If this is set as default, unset other defaults
-    if (isDefault) {
-      await prisma.vehicle.updateMany({
-        where: {
-          userId,
-          isDefault: true,
-        },
-        data: {
-          isDefault: false,
-        },
-      })
-    }
+    // Note: dim_vehicle doesn't have isDefault field in park_connect schema
+    // Removed default vehicle logic
 
     // Create the vehicle
-    const vehicle = await prisma.vehicle.create({
+    const vehicle = await prisma.dim_vehicle.create({
       data: {
-        userId,
-        licensePlate: licensePlate.toUpperCase(),
+        user_id: userId,
+        license_plate: licensePlate.toUpperCase(),
         make,
         model,
         year: vehicleYear,
         color: color || null,
-        vehicleType: vehicleType?.toLowerCase() || 'sedan',
-        isDefault: isDefault || false,
+        vehicle_type: vehicleType?.toLowerCase() || 'sedan',
       },
     })
 
     return NextResponse.json(
       {
         message: 'Vehicle added successfully',
-        vehicle,
+        vehicle: {
+          vehicleId: vehicle.vehicle_id,
+          userId: vehicle.user_id,
+          licensePlate: vehicle.license_plate,
+          make: vehicle.make,
+          model: vehicle.model,
+          year: vehicle.year,
+          color: vehicle.color,
+          vehicleType: vehicle.vehicle_type,
+        },
       },
       { status: 201 }
     )

@@ -72,31 +72,41 @@ export async function POST(req: NextRequest) {
       imageDataUrls.push(dataUrl)
     }
 
-    // Create parking space
-    const parkingSpace = await prisma.parkingSpace.create({
+    // Create location first
+    const location = await prisma.dim_space_location.create({
       data: {
-        ownerId: parseInt(payload.userId),
-        title,
         address,
         city,
         state,
-        zipCode,
-        latitude: latitude ? parseFloat(latitude) : 0,
-        longitude: longitude ? parseFloat(longitude) : 0,
-        spaceType: spaceType?.toLowerCase() || 'driveway',
-        vehicleTypeAllowed: vehicleSize?.toLowerCase() || 'standard',
+        zip_code: zipCode,
+        latitude: latitude ? parseFloat(latitude) : null,
+        longitude: longitude ? parseFloat(longitude) : null,
+      },
+    })
+
+    // Create pricing model
+    const pricing = await prisma.dim_pricing_model.create({
+      data: {
+        hourly_rate: pricingType === 'HOURLY' ? parseFloat(price) : null,
+        daily_rate: pricingType === 'DAILY' ? parseFloat(price) : null,
+        weekly_rate: pricingType === 'WEEKLY' ? parseFloat(price) : null,
+        monthly_rate: pricingType === 'MONTHLY' ? parseFloat(price) : null,
+      },
+    })
+
+    // Create parking space with foreign keys
+    const parkingSpace = await prisma.dim_parking_spaces.create({
+      data: {
+        title,
         description,
-        hasCctv: hasCCTV,
-        evCharging: hasEVCharging,
-        images: imageDataUrls,
-        accessInstructions: description,
-        status: 'active',
-        isInstantBook: false,
-        // Set pricing based on type
-        hourlyRate: pricingType === 'HOURLY' ? parseFloat(price) : null,
-        dailyRate: pricingType === 'DAILY' ? parseFloat(price) : null,
-        weeklyRate: pricingType === 'WEEKLY' ? parseFloat(price) : null,
-        monthlyRate: pricingType === 'MONTHLY' ? parseFloat(price) : null,
+        space_type: spaceType?.toLowerCase() || 'driveway',
+        is_instant_book: false,
+        has_cctv: hasCCTV,
+        ev_charging: hasEVCharging,
+        access_instructions: description,
+        images: imageDataUrls.join(','), // Store as comma-separated string
+        location_id: location.location_id,
+        pricing_id: pricing.pricing_id,
       },
     })
 
@@ -104,14 +114,23 @@ export async function POST(req: NextRequest) {
       {
         message: 'Parking space created successfully',
         listing: {
-          id: parkingSpace.spaceId,
+          id: parkingSpace.space_id,
           title: parkingSpace.title,
-          address: parkingSpace.address,
-          city: parkingSpace.city,
-          state: parkingSpace.state,
-          spaceType: parkingSpace.spaceType,
-          monthlyRate: parkingSpace.monthlyRate,
-          images: parkingSpace.images,
+          description: parkingSpace.description,
+          spaceType: parkingSpace.space_type,
+          location: {
+            address: location.address,
+            city: location.city,
+            state: location.state,
+            zipCode: location.zip_code,
+          },
+          pricing: {
+            hourlyRate: pricing.hourly_rate,
+            dailyRate: pricing.daily_rate,
+            weeklyRate: pricing.weekly_rate,
+            monthlyRate: pricing.monthly_rate,
+          },
+          images: imageDataUrls,
         },
       },
       { status: 201 }

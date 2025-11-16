@@ -24,30 +24,41 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Fetch user's parking spaces
-    const parkingSpaces = await prisma.parkingSpace.findMany({
+    // Note: dim_parking_spaces doesn't have owner_id in park_connect schema
+    // We'll need to use fact_availability to link spaces to owners
+    const availabilities = await prisma.fact_availability.findMany({
       where: {
-        ownerId: parseInt(payload.userId),
+        owner_id: parseInt(payload.userId),
       },
-      orderBy: {
-        createdAt: 'desc',
+      include: {
+        dim_parking_spaces: {
+          include: {
+            dim_space_location: true,
+            dim_pricing_model: true,
+          },
+        },
       },
+      distinct: ['space_id'],
     })
 
     // Map to maintain frontend compatibility
-    const listings = parkingSpaces.map(space => ({
-      id: space.spaceId.toString(),
-      title: space.title,
-      address: space.address,
-      city: space.city,
-      state: space.state,
-      zipCode: space.zipCode,
-      spaceType: space.spaceType,
-      monthlyPrice: parseFloat(space.monthlyRate?.toString() || '0'),
-      isActive: space.status === 'active',
-      images: space.images,
-      createdAt: space.createdAt,
-    }))
+    const listings = availabilities
+      .filter(avail => avail.dim_parking_spaces)
+      .map(avail => {
+        const space = avail.dim_parking_spaces!
+        return {
+          id: space.space_id.toString(),
+          title: space.title,
+          address: space.dim_space_location?.address || '',
+          city: space.dim_space_location?.city || '',
+          state: space.dim_space_location?.state || '',
+          zipCode: space.dim_space_location?.zip_code || '',
+          spaceType: space.space_type,
+          monthlyPrice: space.dim_pricing_model?.monthly_rate ? parseFloat(space.dim_pricing_model.monthly_rate.toString()) : 0,
+          isActive: avail.is_available || false,
+          images: space.images ? space.images.split(',') : [],
+        }
+      })
 
     return NextResponse.json({
       listings,

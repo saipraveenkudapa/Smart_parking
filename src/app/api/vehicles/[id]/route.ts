@@ -40,8 +40,8 @@ export async function PATCH(
     const body = await req.json()
 
     // Check if vehicle exists and belongs to user
-    const existingVehicle = await prisma.vehicle.findUnique({
-      where: { vehicleId },
+    const existingVehicle = await prisma.dim_vehicle.findUnique({
+      where: { vehicle_id: vehicleId },
     })
 
     if (!existingVehicle) {
@@ -51,7 +51,7 @@ export async function PATCH(
       )
     }
 
-    if (existingVehicle.userId !== userId) {
+    if (existingVehicle.user_id !== userId) {
       return NextResponse.json(
         { error: 'Unauthorized to modify this vehicle' },
         { status: 403 }
@@ -63,18 +63,18 @@ export async function PATCH(
 
     if (body.licensePlate) {
       // Check if new license plate conflicts with another vehicle
-      if (body.licensePlate.toUpperCase() !== existingVehicle.licensePlate) {
-        const conflict = await prisma.vehicle.findUnique({
-          where: { licensePlate: body.licensePlate.toUpperCase() },
+      if (body.licensePlate.toUpperCase() !== existingVehicle.license_plate) {
+        const conflict = await prisma.dim_vehicle.findFirst({
+          where: { license_plate: body.licensePlate.toUpperCase() },
         })
-        if (conflict) {
+        if (conflict && conflict.vehicle_id !== vehicleId) {
           return NextResponse.json(
             { error: 'A vehicle with this license plate already exists' },
             { status: 409 }
           )
         }
       }
-      updateData.licensePlate = body.licensePlate.toUpperCase()
+      updateData.license_plate = body.licensePlate.toUpperCase()
     }
 
     if (body.make) updateData.make = body.make
@@ -93,34 +93,28 @@ export async function PATCH(
     }
 
     if (body.color !== undefined) updateData.color = body.color || null
-    if (body.vehicleType) updateData.vehicleType = body.vehicleType.toLowerCase()
+    if (body.vehicleType) updateData.vehicle_type = body.vehicleType.toLowerCase()
 
-    // Handle setting as default
-    if (body.isDefault === true) {
-      // Unset other defaults first
-      await prisma.vehicle.updateMany({
-        where: {
-          userId,
-          isDefault: true,
-        },
-        data: {
-          isDefault: false,
-        },
-      })
-      updateData.isDefault = true
-    } else if (body.isDefault === false) {
-      updateData.isDefault = false
-    }
+    // Note: dim_vehicle doesn't have isDefault field - removed that logic
 
     // Update the vehicle
-    const updatedVehicle = await prisma.vehicle.update({
-      where: { vehicleId },
+    const updatedVehicle = await prisma.dim_vehicle.update({
+      where: { vehicle_id: vehicleId },
       data: updateData,
     })
 
     return NextResponse.json({
       message: 'Vehicle updated successfully',
-      vehicle: updatedVehicle,
+      vehicle: {
+        vehicleId: updatedVehicle.vehicle_id,
+        userId: updatedVehicle.user_id,
+        licensePlate: updatedVehicle.license_plate,
+        make: updatedVehicle.make,
+        model: updatedVehicle.model,
+        year: updatedVehicle.year,
+        color: updatedVehicle.color,
+        vehicleType: updatedVehicle.vehicle_type,
+      },
     })
   } catch (error) {
     console.error('Update vehicle error:', error)
@@ -168,8 +162,8 @@ export async function DELETE(
     const userId = parseInt(payload.userId)
 
     // Check if vehicle exists and belongs to user
-    const existingVehicle = await prisma.vehicle.findUnique({
-      where: { vehicleId },
+    const existingVehicle = await prisma.dim_vehicle.findUnique({
+      where: { vehicle_id: vehicleId },
     })
 
     if (!existingVehicle) {
@@ -179,33 +173,20 @@ export async function DELETE(
       )
     }
 
-    if (existingVehicle.userId !== userId) {
+    if (existingVehicle.user_id !== userId) {
       return NextResponse.json(
         { error: 'Unauthorized to delete this vehicle' },
         { status: 403 }
       )
     }
 
-    // Check if vehicle has active bookings
-    const activeBookings = await prisma.booking.count({
-      where: {
-        vehicleId,
-        bookingStatus: {
-          in: ['pending', 'confirmed'],
-        },
-      },
-    })
-
-    if (activeBookings > 0) {
-      return NextResponse.json(
-        { error: 'Cannot delete vehicle with active bookings. Please cancel bookings first.' },
-        { status: 400 }
-      )
-    }
+    // Note: Cannot check active bookings as fact_bookings doesn't have vehicle_id directly
+    // In the normalized schema, vehicle info would need to be tracked differently
+    // For now, allow deletion
 
     // Delete the vehicle
-    await prisma.vehicle.delete({
-      where: { vehicleId },
+    await prisma.dim_vehicle.delete({
+      where: { vehicle_id: vehicleId },
     })
 
     return NextResponse.json({
