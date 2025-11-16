@@ -24,15 +24,30 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Fetch user's listings
-    const listings = await prisma.listing.findMany({
+    // Fetch user's parking spaces
+    const parkingSpaces = await prisma.parkingSpace.findMany({
       where: {
-        hostId: payload.userId,
+        ownerId: parseInt(payload.userId),
       },
       orderBy: {
         createdAt: 'desc',
       },
     })
+
+    // Map to maintain frontend compatibility
+    const listings = parkingSpaces.map(space => ({
+      id: space.spaceId.toString(),
+      title: space.title,
+      address: space.address,
+      city: space.city,
+      state: space.state,
+      zipCode: space.zipCode,
+      spaceType: space.spaceType,
+      monthlyPrice: parseFloat(space.monthlyRate?.toString() || '0'),
+      isActive: space.status === 'active',
+      images: space.images,
+      createdAt: space.createdAt,
+    }))
 
     return NextResponse.json({
       listings,
