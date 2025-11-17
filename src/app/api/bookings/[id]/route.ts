@@ -51,7 +51,7 @@ export async function PATCH(
     const booking = await prisma.fact_bookings.findUnique({
       where: { booking_id: bookingId },
       include: {
-        fact_availability: {
+        availability: {
           select: {
             owner_id: true,
           },
@@ -78,7 +78,7 @@ export async function PATCH(
         )
       }
     } else {
-      if (booking.fact_availability?.owner_id !== userId) {
+      if (booking.availability?.owner_id !== userId) {
         return NextResponse.json(
           { error: 'Only the parking space owner can confirm or complete this booking' },
           { status: 403 }
@@ -96,16 +96,16 @@ export async function PATCH(
         }),
       },
       include: {
-        fact_availability: {
+        availability: {
           include: {
-            dim_parking_spaces: {
+            parking_spaces: {
               include: {
-                dim_space_location: true,
+                space_location: true,
               },
             },
           },
         },
-        dim_users: {
+        users: {
           select: {
             full_name: true,
             email: true,
@@ -127,12 +127,12 @@ export async function PATCH(
       bookingStatus: updatedBooking.booking_status,
       paymentStatus: updatedBooking.payment_status,
       space: {
-        title: updatedBooking.fact_availability?.dim_parking_spaces?.title,
-        address: updatedBooking.fact_availability?.dim_parking_spaces?.dim_space_location?.address,
+        title: updatedBooking.availability?.parking_spaces?.title,
+        address: updatedBooking.availability?.parking_spaces?.space_location?.address,
       },
       driver: {
-        fullName: updatedBooking.dim_users?.full_name,
-        email: updatedBooking.dim_users?.email,
+        fullName: updatedBooking.users?.full_name,
+        email: updatedBooking.users?.email,
       },
     }
 
