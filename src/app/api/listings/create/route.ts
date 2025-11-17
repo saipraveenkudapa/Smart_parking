@@ -84,12 +84,12 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Create pricing model
+    // Create pricing model - hourly_rate is NOT NULL and part of PRIMARY KEY
     const pricing = await prisma.pricing_model.create({
       data: {
         valid_from: new Date(),
         is_current: true,
-        hourly_rate: pricingType === 'HOURLY' ? parseFloat(price) : null,
+        hourly_rate: pricingType === 'HOURLY' ? parseFloat(price) : 0, // NOT NULL - use 0 as default
         daily_rate: pricingType === 'DAILY' ? parseFloat(price) : null,
         monthly_rate: pricingType === 'MONTHLY' ? parseFloat(price) : null,
       },

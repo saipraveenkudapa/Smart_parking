@@ -136,9 +136,9 @@ export async function POST(req: NextRequest) {
     const totalAmount = subtotal + serviceFee
     const ownerPayout = subtotal - (subtotal * 0.05) // Owner gets 95% of subtotal
 
-    // Create the booking (using fact_bookings)
-    // Note: fact_bookings links to availability_id, not directly to space_id
-    const booking = await prisma.fact_bookings.create({
+    // Create the booking (using bookings)
+    // Note: bookings links to availability_id, not directly to space_id
+    const booking = await prisma.bookings.create({
       data: {
         availability_id: availability.availability_id,
         driver_id: userId,
@@ -235,7 +235,7 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    const bookings = await prisma.fact_bookings.findMany({
+    const bookings = await prisma.bookings.findMany({
       where: {
         driver_id: parseInt(payload.userId),
       },

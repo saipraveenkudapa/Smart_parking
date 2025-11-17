@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
     // Get bookings for parking spaces owned by this host
     // Note: Need to query via availability to find owner's bookings
-    const bookings = await prisma.fact_bookings.findMany({
+    const bookings = await prisma.bookings.findMany({
       where: {
         availability: {
           owner_id: parseInt(payload.userId),

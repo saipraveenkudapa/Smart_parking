@@ -48,7 +48,7 @@ export async function PATCH(
     }
 
     // Get the booking with space and availability details
-    const booking = await prisma.fact_bookings.findUnique({
+    const booking = await prisma.bookings.findUnique({
       where: { booking_id: bookingId },
       include: {
         availability: {
@@ -87,7 +87,7 @@ export async function PATCH(
     }
 
     // Update the booking
-    const updatedBooking = await prisma.fact_bookings.update({
+    const updatedBooking = await prisma.bookings.update({
       where: { booking_id: bookingId },
       data: {
         booking_status: status.toLowerCase(),

@@ -180,7 +180,7 @@ export async function DELETE(
       )
     }
 
-    // Note: Cannot check active bookings as fact_bookings doesn't have vehicle_id directly
+    // Note: Cannot check active bookings as bookings doesn't have vehicle_id directly
     // In the normalized schema, vehicle info would need to be tracked differently
     // For now, allow deletion
 
