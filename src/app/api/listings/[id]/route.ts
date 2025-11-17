@@ -121,7 +121,7 @@ export async function GET(
       )
     }
 
-    const parkingSpace = await prisma.dim_parking_spaces.findUnique({
+    const parkingSpace = await prisma.parking_spaces.findUnique({
       where: { space_id: spaceId },
       include: {
         dim_space_location: true,

@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify vehicle belongs to user (using dim_vehicle)
-    const vehicle = await prisma.dim_vehicle.findUnique({
+    const vehicle = await prisma.vehicle.findUnique({
       where: {
         vehicle_id: vehId,
       },
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     // Check if parking space exists and get availability
     // Note: dim_parking_spaces doesn't have owner_id or isApproved
     // We need to check fact_availability for availability and ownership
-    const availability = await prisma.fact_availability.findFirst({
+    const availability = await prisma.availability.findFirst({
       where: {
         space_id: spaceId,
         is_available: true,
@@ -246,15 +246,14 @@ export async function GET(req: NextRequest) {
         driver_id: parseInt(payload.userId),
       },
       include: {
-        fact_availability: {
+        availability: {
           include: {
-            dim_parking_spaces: {
+            parking_spaces: {
               include: {
-                dim_space_location: true,
-                dim_pricing_model: true,
+                space_location: true,
               },
             },
-            dim_users: {
+            users: {
               select: {
                 full_name: true,
                 phone_number: true,
@@ -270,9 +269,9 @@ export async function GET(req: NextRequest) {
     })
 
     // Map response for API compatibility
-    const mappedBookings = bookings.map((booking) => ({
+    const mappedBookings = bookings.map((booking: typeof bookings[0]) => ({
       bookingId: booking.booking_id,
-      spaceId: booking.fact_availability?.space_id,
+      spaceId: booking.availability?.space_id,
       driverId: booking.driver_id,
       startTime: booking.start_time,
       endTime: booking.end_time,
@@ -283,17 +282,17 @@ export async function GET(req: NextRequest) {
       bookingStatus: booking.booking_status,
       paymentStatus: booking.payment_status,
       space: {
-        title: booking.fact_availability?.dim_parking_spaces?.title,
-        address: booking.fact_availability?.dim_parking_spaces?.dim_space_location?.address,
-        city: booking.fact_availability?.dim_parking_spaces?.dim_space_location?.city,
-        state: booking.fact_availability?.dim_parking_spaces?.dim_space_location?.state,
-        zipCode: booking.fact_availability?.dim_parking_spaces?.dim_space_location?.zip_code,
-        hourlyRate: booking.fact_availability?.dim_parking_spaces?.dim_pricing_model?.hourly_rate,
-        monthlyRate: booking.fact_availability?.dim_parking_spaces?.dim_pricing_model?.monthly_rate,
+        title: booking.availability?.parking_spaces?.title,
+        address: booking.availability?.parking_spaces?.space_location?.address,
+        city: booking.availability?.parking_spaces?.space_location?.city,
+        state: booking.availability?.parking_spaces?.space_location?.state,
+        zipCode: booking.availability?.parking_spaces?.space_location?.zip_code,
+        hourlyRate: null, // pricing_model not included due to complex primary key
+        monthlyRate: null,
         owner: {
-          fullName: booking.fact_availability?.dim_users?.full_name,
-          phoneNumber: booking.fact_availability?.dim_users?.phone_number,
-          isVerified: booking.fact_availability?.dim_users?.is_verified,
+          fullName: booking.availability?.users?.full_name,
+          phoneNumber: booking.availability?.users?.phone_number,
+          isVerified: booking.availability?.users?.is_verified,
         },
       },
     }))

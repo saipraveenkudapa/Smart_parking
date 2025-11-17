@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user
-    const user = await prisma.dim_users.findUnique({
+    const user = await prisma.users.findUnique({
       where: { email },
     })
 
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const resetTokenExpiry = new Date(Date.now() + 3600000) // 1 hour from now
 
     // Save token to database
-    await prisma.dim_users.update({
+    await prisma.users.update({
       where: { email },
       data: {
         reset_token: resetToken,

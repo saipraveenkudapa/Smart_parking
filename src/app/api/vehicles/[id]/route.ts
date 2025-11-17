@@ -40,7 +40,7 @@ export async function PATCH(
     const body = await req.json()
 
     // Check if vehicle exists and belongs to user
-    const existingVehicle = await prisma.dim_vehicle.findUnique({
+    const existingVehicle = await prisma.vehicle.findUnique({
       where: { vehicle_id: vehicleId },
     })
 
@@ -64,7 +64,7 @@ export async function PATCH(
     if (body.licensePlate) {
       // Check if new license plate conflicts with another vehicle
       if (body.licensePlate.toUpperCase() !== existingVehicle.license_plate) {
-        const conflict = await prisma.dim_vehicle.findFirst({
+        const conflict = await prisma.vehicle.findFirst({
           where: { license_plate: body.licensePlate.toUpperCase() },
         })
         if (conflict && conflict.vehicle_id !== vehicleId) {
@@ -98,7 +98,7 @@ export async function PATCH(
     // Note: dim_vehicle doesn't have isDefault field - removed that logic
 
     // Update the vehicle
-    const updatedVehicle = await prisma.dim_vehicle.update({
+    const updatedVehicle = await prisma.vehicle.update({
       where: { vehicle_id: vehicleId },
       data: updateData,
     })
@@ -162,7 +162,7 @@ export async function DELETE(
     const userId = parseInt(payload.userId)
 
     // Check if vehicle exists and belongs to user
-    const existingVehicle = await prisma.dim_vehicle.findUnique({
+    const existingVehicle = await prisma.vehicle.findUnique({
       where: { vehicle_id: vehicleId },
     })
 
@@ -185,7 +185,7 @@ export async function DELETE(
     // For now, allow deletion
 
     // Delete the vehicle
-    await prisma.dim_vehicle.delete({
+    await prisma.vehicle.delete({
       where: { vehicle_id: vehicleId },
     })
 

@@ -9,40 +9,80 @@ datasource db {
   schemas   = ["park_connect"]
 }
 
-model dim_favorites {
-  favorite_id        Int                 @id @default(autoincrement())
-  user_id            Int?
-  space_id           Int?
-  added_date         DateTime?           @default(now()) @db.Timestamp(6)
-  dim_parking_spaces dim_parking_spaces? @relation(fields: [space_id], references: [space_id], onDelete: NoAction, onUpdate: NoAction)
-  dim_users          dim_users?          @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+model availability {
+  availability_id     Int             @id(map: "fact_availability_pkey") @default(autoincrement())
+  owner_id            Int?
+  space_id            Int?
+  available_start     DateTime?       @db.Timestamp(6)
+  available_end       DateTime?       @db.Timestamp(6)
+  is_available        Boolean?
+  availability_reason String?         @db.VarChar
+  created_at          DateTime?       @db.Timestamp(6)
+  updated_at          DateTime?       @db.Timestamp(6)
+  users               users?          @relation(fields: [owner_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fact_availability_owner_id_fkey")
+  parking_spaces      parking_spaces? @relation(fields: [space_id], references: [space_id], onDelete: NoAction, onUpdate: NoAction, map: "fact_availability_space_id_fkey")
+  fact_bookings       fact_bookings[]
+
+  @@schema("park_connect")
+}
+
+model fact_bookings {
+  booking_id                                Int           @id @default(autoincrement())
+  availability_id                           Int?
+  driver_id                                 Int?
+  payout_id                                 Int?
+  review_id                                 Int?
+  start_time                                DateTime?     @db.Timestamp(6)
+  end_time                                  DateTime?     @db.Timestamp(6)
+  duration_hours                            Decimal?      @db.Decimal
+  total_amount                              Decimal?      @db.Decimal
+  service_fee                               Decimal?      @db.Decimal
+  owner_payout                              Decimal?      @db.Decimal
+  booking_status                            String?       @db.VarChar
+  payment_status                            String?       @db.VarChar
+  cancellation_reason                       String?
+  availability                              availability? @relation(fields: [availability_id], references: [availability_id], onDelete: NoAction, onUpdate: NoAction)
+  users                                     users?        @relation(fields: [driver_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  payout                                    payout?       @relation(fields: [payout_id], references: [payout_id], onDelete: NoAction, onUpdate: NoAction)
+  reviews_fact_bookings_review_idToreviews  reviews?      @relation("fact_bookings_review_idToreviews", fields: [review_id], references: [review_id], onDelete: NoAction, onUpdate: NoAction)
+  reviews_reviews_booking_idTofact_bookings reviews[]     @relation("reviews_booking_idTofact_bookings")
+
+  @@schema("park_connect")
+}
+
+model favorites {
+  favorite_id    Int             @id(map: "dim_favorites_pkey") @default(autoincrement())
+  user_id        Int?
+  space_id       Int?
+  added_date     DateTime?       @default(now()) @db.Timestamp(6)
+  parking_spaces parking_spaces? @relation(fields: [space_id], references: [space_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_favorites_space_id_fkey")
+  users          users?          @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_favorites_user_id_fkey")
 
   @@unique([user_id, space_id], map: "dim_favorites_user_space_unique")
   @@schema("park_connect")
 }
 
-model dim_parking_spaces {
-  space_id            Int                 @id @default(autoincrement())
-  title               String              @db.VarChar
+model parking_spaces {
+  space_id            Int             @id(map: "dim_parking_spaces_pkey") @default(autoincrement())
+  title               String          @db.VarChar
   description         String
-  space_type          String?             @db.VarChar
+  space_type          String?         @db.VarChar
   is_instant_book     Boolean?
   has_cctv            Boolean?
   ev_charging         Boolean?
   access_instructions String?
   images              String?
   location_id         Int?
-  pricing_id          Int?
-  dim_favorites       dim_favorites[]
-  dim_space_location  dim_space_location? @relation(fields: [location_id], references: [location_id], onDelete: NoAction, onUpdate: NoAction)
-  dim_pricing_model   dim_pricing_model?  @relation(fields: [pricing_id], references: [pricing_id], onDelete: NoAction, onUpdate: NoAction)
-  fact_availability   fact_availability[]
+  pricing_id          Int             @default(autoincrement())
+  availability        availability[]
+  favorites           favorites[]
+  space_location      space_location? @relation(fields: [location_id], references: [location_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_parking_spaces_location_id_fkey")
 
   @@schema("park_connect")
 }
 
-model dim_payout {
-  payout_id             Int             @id @default(autoincrement())
+model payout {
+  payout_id             Int             @id(map: "dim_payout_pkey") @default(autoincrement())
   method                String?         @db.VarChar
   status                String?         @db.VarChar
   payout_date           DateTime?       @db.Timestamp(6)
@@ -52,125 +92,87 @@ model dim_payout {
   @@schema("park_connect")
 }
 
-model dim_pricing_model {
-  pricing_id         Int                  @id @default(autoincrement())
-  hourly_rate        Decimal?             @db.Decimal
-  daily_rate         Decimal?             @db.Decimal
-  weekly_rate        Decimal?             @db.Decimal
-  monthly_rate       Decimal?             @db.Decimal
-  dim_parking_spaces dim_parking_spaces[]
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model pricing_model {
+  valid_from   DateTime  @db.Timestamptz(6)
+  hourly_rate  Decimal?  @db.Decimal
+  daily_rate   Decimal?  @db.Decimal
+  monthly_rate Decimal?  @db.Decimal
+  valid_to     DateTime? @db.Timestamp(6)
+  is_current   Boolean
+  pricing_id   Int       @default(autoincrement())
+
+  @@id([valid_from, pricing_id])
+  @@schema("park_connect")
+}
+
+model reviews {
+  review_id                                       Int             @id(map: "dim_reviews_pkey") @default(autoincrement())
+  booking_id                                      Int?
+  reviewer_id                                     Int?
+  reviewee_id                                     Int?
+  review_type                                     String?         @db.VarChar
+  rating                                          Int?
+  review_date                                     DateTime?       @db.Timestamp(6)
+  comments                                        String?
+  fact_bookings_fact_bookings_review_idToreviews  fact_bookings[] @relation("fact_bookings_review_idToreviews")
+  users_reviews_reviewee_idTousers                users?          @relation("reviews_reviewee_idTousers", fields: [reviewee_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_reviews_reviewee_id_fkey")
+  users_reviews_reviewer_idTousers                users?          @relation("reviews_reviewer_idTousers", fields: [reviewer_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_reviews_reviewer_id_fkey")
+  fact_bookings_reviews_booking_idTofact_bookings fact_bookings?  @relation("reviews_booking_idTofact_bookings", fields: [booking_id], references: [booking_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reviews_booking")
 
   @@schema("park_connect")
 }
 
-model dim_reviews {
-  review_id                                           Int             @id @default(autoincrement())
-  booking_id                                          Int?
-  reviewer_id                                         Int?
-  reviewee_id                                         Int?
-  review_type                                         String?         @db.VarChar
-  rating                                              Int?
-  review_date                                         DateTime?       @db.Timestamp(6)
-  comments                                            String?
-  dim_users_dim_reviews_reviewee_idTodim_users        dim_users?      @relation("dim_reviews_reviewee_idTodim_users", fields: [reviewee_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  dim_users_dim_reviews_reviewer_idTodim_users        dim_users?      @relation("dim_reviews_reviewer_idTodim_users", fields: [reviewer_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  fact_bookings_dim_reviews_booking_idTofact_bookings fact_bookings?  @relation("dim_reviews_booking_idTofact_bookings", fields: [booking_id], references: [booking_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reviews_booking")
-  fact_bookings_fact_bookings_review_idTodim_reviews  fact_bookings[] @relation("fact_bookings_review_idTodim_reviews")
+model space_location {
+  location_id    Int              @id(map: "dim_space_location_pkey") @default(autoincrement())
+  address        String?          @db.VarChar
+  city           String?          @db.VarChar
+  state          String?          @db.VarChar
+  zip_code       String?          @db.VarChar
+  latitude       Decimal?         @db.Decimal
+  longitude      Decimal?         @db.Decimal
+  parking_spaces parking_spaces[]
 
   @@schema("park_connect")
 }
 
-model dim_space_location {
-  location_id        Int                  @id @default(autoincrement())
-  address            String?              @db.VarChar
-  city               String?              @db.VarChar
-  state              String?              @db.VarChar
-  zip_code           String?              @db.VarChar
-  latitude           Decimal?             @db.Decimal
-  longitude          Decimal?             @db.Decimal
-  dim_parking_spaces dim_parking_spaces[]
+model users {
+  user_id                            Int             @id(map: "dim_users_pkey") @default(autoincrement())
+  email                              String          @unique(map: "dim_users_email_key") @db.VarChar
+  full_name                          String          @db.VarChar
+  phone_number                       String          @unique(map: "dim_users_phone_number_key") @db.VarChar
+  date_of_birth                      DateTime        @db.Date
+  status                             Int             @db.SmallInt
+  address                            String          @db.VarChar
+  city                               String          @db.VarChar
+  state                              String          @db.VarChar
+  zip_code                           String          @db.VarChar
+  password                           String
+  is_verified                        Boolean?
+  registration_date                  DateTime        @db.Timestamp(6)
+  updated_at                         DateTime?       @db.Timestamp(6)
+  reset_token                        String?
+  reset_token_expiry                 DateTime?       @db.Timestamp(6)
+  availability                       availability[]
+  fact_bookings                      fact_bookings[]
+  favorites                          favorites[]
+  reviews_reviews_reviewee_idTousers reviews[]       @relation("reviews_reviewee_idTousers")
+  reviews_reviews_reviewer_idTousers reviews[]       @relation("reviews_reviewer_idTousers")
+  vehicle                            vehicle[]
 
   @@schema("park_connect")
 }
 
-model dim_users {
-  user_id                                        Int                 @id @default(autoincrement())
-  email                                          String              @unique @db.VarChar
-  full_name                                      String              @db.VarChar
-  phone_number                                   String              @unique @db.VarChar
-  date_of_birth                                  DateTime            @db.Date
-  status                                         Int                 @db.SmallInt
-  address                                        String              @db.VarChar
-  city                                           String              @db.VarChar
-  state                                          String              @db.VarChar
-  zip_code                                       String              @db.VarChar
-  password                                       String
-  is_verified                                    Boolean?
-  registration_date                              DateTime            @db.Timestamp(6)
-  updated_at                                     DateTime?           @db.Timestamp(6)
-  reset_token                                    String?
-  reset_token_expiry                             DateTime?           @db.Timestamp(6)
-  dim_favorites                                  dim_favorites[]
-  dim_reviews_dim_reviews_reviewee_idTodim_users dim_reviews[]       @relation("dim_reviews_reviewee_idTodim_users")
-  dim_reviews_dim_reviews_reviewer_idTodim_users dim_reviews[]       @relation("dim_reviews_reviewer_idTodim_users")
-  dim_vehicle                                    dim_vehicle[]
-  fact_availability                              fact_availability[]
-  fact_bookings                                  fact_bookings[]
-
-  @@schema("park_connect")
-}
-
-model dim_vehicle {
-  vehicle_id    Int        @id @default(autoincrement())
+model vehicle {
+  vehicle_id    Int     @id(map: "dim_vehicle_pkey") @default(autoincrement())
   user_id       Int?
-  license_plate String?    @db.VarChar
-  make          String?    @db.VarChar
-  model         String?    @db.VarChar
-  year          Int?       @db.SmallInt
-  color         String?    @db.VarChar
-  vehicle_type  String?    @db.VarChar
-  dim_users     dim_users? @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@schema("park_connect")
-}
-
-model fact_availability {
-  availability_id     Int                 @id @default(autoincrement())
-  owner_id            Int?
-  space_id            Int?
-  available_start     DateTime?           @db.Timestamp(6)
-  available_end       DateTime?           @db.Timestamp(6)
-  is_available        Boolean?
-  availability_reason String?             @db.VarChar
-  created_at          DateTime?           @db.Timestamp(6)
-  updated_at          DateTime?           @db.Timestamp(6)
-  dim_users           dim_users?          @relation(fields: [owner_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  dim_parking_spaces  dim_parking_spaces? @relation(fields: [space_id], references: [space_id], onDelete: NoAction, onUpdate: NoAction)
-  fact_bookings       fact_bookings[]
-
-  @@schema("park_connect")
-}
-
-model fact_bookings {
-  booking_id                                        Int                @id @default(autoincrement())
-  availability_id                                   Int?
-  driver_id                                         Int?
-  payout_id                                         Int?
-  review_id                                         Int?
-  start_time                                        DateTime?          @db.Timestamp(6)
-  end_time                                          DateTime?          @db.Timestamp(6)
-  duration_hours                                    Decimal?           @db.Decimal
-  total_amount                                      Decimal?           @db.Decimal
-  service_fee                                       Decimal?           @db.Decimal
-  owner_payout                                      Decimal?           @db.Decimal
-  booking_status                                    String?            @db.VarChar
-  payment_status                                    String?            @db.VarChar
-  cancellation_reason                               String?
-  dim_reviews_dim_reviews_booking_idTofact_bookings dim_reviews[]      @relation("dim_reviews_booking_idTofact_bookings")
-  fact_availability                                 fact_availability? @relation(fields: [availability_id], references: [availability_id], onDelete: NoAction, onUpdate: NoAction)
-  dim_users                                         dim_users?         @relation(fields: [driver_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  dim_payout                                        dim_payout?        @relation(fields: [payout_id], references: [payout_id], onDelete: NoAction, onUpdate: NoAction)
-  dim_reviews_fact_bookings_review_idTodim_reviews  dim_reviews?       @relation("fact_bookings_review_idTodim_reviews", fields: [review_id], references: [review_id], onDelete: NoAction, onUpdate: NoAction)
+  license_plate String? @db.VarChar
+  make          String? @db.VarChar
+  model         String? @db.VarChar
+  year          Int?    @db.SmallInt
+  color         String? @db.VarChar
+  vehicle_type  String? @db.VarChar
+  users         users?  @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_vehicle_user_id_fkey")
 
   @@schema("park_connect")
 }

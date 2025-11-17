@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const validatedData = loginSchema.parse(body)
     
     // Find user
-    const user = await prisma.dim_users.findUnique({
+    const user = await prisma.users.findUnique({
       where: { email: validatedData.email },
     })
     
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Update last login (updated_at timestamp)
-    await prisma.dim_users.update({
+    await prisma.users.update({
       where: { user_id: user.user_id },
       data: { updated_at: new Date() },
     })

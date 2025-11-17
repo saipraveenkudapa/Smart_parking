@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const userId = parseInt(payload.userId)
 
     // Get all vehicles for this user
-    const vehicles = await prisma.dim_vehicle.findMany({
+    const vehicles = await prisma.vehicle.findMany({
       where: {
         user_id: userId,
       },
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if license plate already exists
-    const existingVehicle = await prisma.dim_vehicle.findFirst({
+    const existingVehicle = await prisma.vehicle.findFirst({
       where: { license_plate: licensePlate.toUpperCase() },
     })
 
@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
     // Removed default vehicle logic
 
     // Create the vehicle
-    const vehicle = await prisma.dim_vehicle.create({
+    const vehicle = await prisma.vehicle.create({
       data: {
         user_id: userId,
         license_plate: licensePlate.toUpperCase(),

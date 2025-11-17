@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     const validatedData = signupSchema.parse(body)
     
     // Check if email already exists
-    const existingUserByEmail = await prisma.dim_users.findUnique({
+    const existingUserByEmail = await prisma.users.findUnique({
       where: { email: validatedData.email },
     })
     
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Check if phone number already exists
-    const existingUserByPhone = await prisma.dim_users.findFirst({
+    const existingUserByPhone = await prisma.users.findFirst({
       where: { phone_number: validatedData.phoneNumber },
     })
     
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
     
     // Create user directly (with unverified status)
-    const newUser = await prisma.dim_users.create({
+    const newUser = await prisma.users.create({
       data: {
         full_name: validatedData.fullName,
         email: validatedData.email,

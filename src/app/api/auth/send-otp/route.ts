@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Get user
-    const user = await prisma.dim_users.findUnique({
+    const user = await prisma.users.findUnique({
       where: { user_id: parseInt(payload.userId) },
     })
     

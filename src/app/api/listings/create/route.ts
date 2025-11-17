@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create location first
-    const location = await prisma.dim_space_location.create({
+    const location = await prisma.space_location.create({
       data: {
         address,
         city,
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     })
 
     // Create pricing model
-    const pricing = await prisma.dim_pricing_model.create({
+    const pricing = await prisma.pricing_model.create({
       data: {
         hourly_rate: pricingType === 'HOURLY' ? parseFloat(price) : null,
         daily_rate: pricingType === 'DAILY' ? parseFloat(price) : null,
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     })
 
     // Create parking space with foreign keys
-    const parkingSpace = await prisma.dim_parking_spaces.create({
+    const parkingSpace = await prisma.parking_spaces.create({
       data: {
         title,
         description,

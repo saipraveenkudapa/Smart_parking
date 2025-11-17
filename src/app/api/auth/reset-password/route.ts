@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user with valid reset token
-    const user = await prisma.dim_users.findFirst({
+    const user = await prisma.users.findFirst({
       where: {
         reset_token: token,
         reset_token_expiry: {
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     // Update password and clear reset token
-    await prisma.dim_users.update({
+    await prisma.users.update({
       where: { user_id: user.user_id },
       data: {
         password: hashedPassword,

@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user with valid token
-    const user = await prisma.dim_users.findFirst({
+    const user = await prisma.users.findFirst({
       where: {
         reset_token: token,
         reset_token_expiry: {
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Mark user as verified and clear token
-    const verifiedUser = await prisma.dim_users.update({
+    const verifiedUser = await prisma.users.update({
       where: { user_id: user.user_id },
       data: {
         is_verified: true,
