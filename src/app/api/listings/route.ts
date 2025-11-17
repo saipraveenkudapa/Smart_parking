@@ -55,12 +55,19 @@ export async function GET(req: NextRequest) {
       zipCode: space.space_location?.zip_code || '',
       latitude: space.space_location?.latitude ? parseFloat(space.space_location.latitude.toString()) : null,
       longitude: space.space_location?.longitude ? parseFloat(space.space_location.longitude.toString()) : null,
-      spaceType: space.space_type,
+      spaceType: space.space_type || 'driveway',
+      vehicleSize: 'standard', // Not in DB - default value
       monthlyPrice: 0, // pricing_model not included due to complex primary key
       description: space.description,
-      hasCCTV: space.has_cctv,
-      hasEVCharging: space.ev_charging,
+      isGated: false, // Not in DB - default value
+      hasCCTV: space.has_cctv || false,
+      isCovered: false, // Not in DB - default value
+      hasEVCharging: space.ev_charging || false,
       images: space.images ? space.images.split(',') : [],
+      host: {
+        fullName: 'Host', // Would need to join users table via availability
+        phoneVerified: false,
+      },
     }))
 
     return NextResponse.json({
