@@ -73,10 +73,11 @@ model parking_spaces {
   access_instructions String?
   images              String?
   location_id         Int            // NOT NULL in database
-  pricing_id          Int            @unique @default(autoincrement()) // GENERATED ALWAYS AS IDENTITY in database
+  pricing_id          Int            // Foreign key to pricing_model
   availability        availability[]
   favorites           favorites[]
   space_location      space_location @relation(fields: [location_id], references: [location_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_parking_spaces_location_id_fkey")
+  pricing_model       pricing_model  @relation(fields: [pricing_id], references: [pricing_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("park_connect")
 }
@@ -94,15 +95,15 @@ model payout {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model pricing_model {
-  valid_from   DateTime @db.Timestamptz(6)
-  hourly_rate  Decimal  @db.Decimal // NOT NULL in database and part of PRIMARY KEY
-  daily_rate   Decimal? @db.Decimal
-  monthly_rate Decimal? @db.Decimal
-  valid_to     DateTime? @db.Timestamp(6)
-  is_current   Boolean
-  pricing_id   Int      @unique @default(autoincrement()) // GENERATED ALWAYS AS IDENTITY, references parking_spaces
+  valid_from      DateTime         @db.Timestamptz(6)
+  hourly_rate     Decimal          @db.Decimal // NOT NULL in database and part of PRIMARY KEY
+  daily_rate      Decimal?         @db.Decimal
+  monthly_rate    Decimal?         @db.Decimal
+  valid_to        DateTime?        @db.Timestamp(6)
+  is_current      Boolean
+  pricing_id      Int              @id @default(autoincrement()) // Primary key for foreign key relationships
+  parking_spaces  parking_spaces[]
 
-  @@id([valid_from, hourly_rate]) // Composite primary key matches database
   @@schema("park_connect")
 }
 
