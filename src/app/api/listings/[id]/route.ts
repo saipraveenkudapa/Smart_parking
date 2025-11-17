@@ -46,66 +46,6 @@ export async function PATCH(
       { error: 'Listing updates not yet implemented for new schema' },
       { status: 501 }
     )
-
-    // Check if parking space exists and belongs to user
-    const existingSpace = await prisma.dim_parking_spaces.findUnique({
-      where: { space_id: spaceId },
-    })
-
-    if (!existingSpace) {
-      return NextResponse.json(
-        { error: 'Parking space not found' },
-        { status: 404 }
-      )
-    }
-
-    if (existingSpace.ownerId !== parseInt(payload.userId)) {
-      return NextResponse.json(
-        { error: 'Unauthorized to modify this parking space' },
-        { status: 403 }
-      )
-    }
-
-    // Prepare update data
-    const updateData: any = {}
-
-    // Toggle active status if provided
-    if (typeof body.isActive === 'boolean') {
-      updateData.status = body.isActive ? 'active' : 'inactive'
-    }
-
-    // Update other fields if provided
-    if (body.title) updateData.title = body.title
-    if (body.description) updateData.description = body.description
-    if (body.address) updateData.address = body.address
-    if (body.city) updateData.city = body.city
-    if (body.state) updateData.state = body.state
-    if (body.zipCode) updateData.zipCode = body.zipCode
-    if (body.latitude) updateData.latitude = parseFloat(body.latitude)
-    if (body.longitude) updateData.longitude = parseFloat(body.longitude)
-    if (body.spaceType) updateData.spaceType = body.spaceType.toLowerCase()
-    if (body.vehicleSize) updateData.vehicleTypeAllowed = body.vehicleSize.toLowerCase()
-    if (body.monthlyPrice) updateData.monthlyRate = parseFloat(body.monthlyPrice)
-    if (body.accessInstructions) updateData.accessInstructions = body.accessInstructions
-    if (typeof body.hasCCTV === 'boolean') updateData.hasCctv = body.hasCCTV
-    if (typeof body.hasEVCharging === 'boolean') updateData.evCharging = body.hasEVCharging
-    if (typeof body.isInstantBook === 'boolean') updateData.isInstantBook = body.isInstantBook
-
-    // Update the parking space
-    const updatedSpace = await prisma.parkingSpace.update({
-      where: { spaceId },
-      data: updateData,
-    })
-
-    return NextResponse.json({
-      message: 'Parking space updated successfully',
-      listing: {
-        id: updatedSpace.spaceId.toString(),
-        ...updatedSpace,
-        monthlyPrice: parseFloat(updatedSpace.monthlyRate?.toString() || '0'),
-        isActive: updatedSpace.status === 'active',
-      },
-    })
   } catch (error) {
     console.error('Update listing error:', error)
     return NextResponse.json(
@@ -155,11 +95,14 @@ export async function DELETE(
       { error: 'Listing deletion not yet implemented for new schema' },
       { status: 501 }
     )
-
-    // Check if parking space exists and belongs to user
-    const existingSpace = await prisma.dim_parking_spaces.findUnique({
-      where: { space_id: spaceId },
-    })
+  } catch (error) {
+    console.error('Delete listing error:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete listing' },
+      { status: 500 }
+    )
+  }
+}
 
 // GET - Get single listing details
 export async function GET(
