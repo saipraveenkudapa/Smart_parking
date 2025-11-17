@@ -128,7 +128,6 @@ export async function POST(req: NextRequest) {
           pricing: {
             hourlyRate: pricing.hourly_rate,
             dailyRate: pricing.daily_rate,
-            weeklyRate: pricing.weekly_rate,
             monthlyRate: pricing.monthly_rate,
           },
           images: imageDataUrls,
