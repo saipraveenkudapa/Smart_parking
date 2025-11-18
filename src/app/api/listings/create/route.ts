@@ -37,8 +37,10 @@ export async function POST(req: NextRequest) {
     const longitude = formData.get('longitude') as string | null
     const spaceType = formData.get('spaceType') as string
     const vehicleSize = formData.get('vehicleSize') as string
-    const pricingType = formData.get('pricingType') as string
-    const price = formData.get('price') as string
+    const hourlyRate = formData.get('hourlyRate') as string
+    const dailyRate = formData.get('dailyRate') as string
+    const weeklyRate = formData.get('weeklyRate') as string
+    const monthlyRate = formData.get('monthlyRate') as string
     const description = formData.get('description') as string
     const isGated = formData.get('isGated') === 'true'
     const hasCCTV = formData.get('hasCCTV') === 'true'
@@ -46,7 +48,7 @@ export async function POST(req: NextRequest) {
     const hasEVCharging = formData.get('hasEVCharging') === 'true'
 
     // Validate required fields
-    if (!title || !address || !city || !state || !zipCode || !price || !description || !pricingType) {
+    if (!title || !address || !city || !state || !zipCode || !hourlyRate || !dailyRate || !monthlyRate || !description) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -84,14 +86,14 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Create pricing model - hourly_rate is NOT NULL and part of PRIMARY KEY
+    // Create pricing model with all pricing types
     const pricing = await prisma.pricing_model.create({
       data: {
         valid_from: new Date(),
         is_current: true,
-        hourly_rate: pricingType === 'HOURLY' ? parseFloat(price) : 0, // NOT NULL - use 0 as default
-        daily_rate: pricingType === 'DAILY' ? parseFloat(price) : null,
-        monthly_rate: pricingType === 'MONTHLY' ? parseFloat(price) : null,
+        hourly_rate: parseFloat(hourlyRate),
+        daily_rate: parseFloat(dailyRate),
+        monthly_rate: parseFloat(monthlyRate),
       },
     })
 

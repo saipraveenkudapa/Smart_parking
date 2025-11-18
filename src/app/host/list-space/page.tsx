@@ -19,8 +19,10 @@ export default function ListSpacePage() {
     longitude: undefined as number | undefined,
     spaceType: 'DRIVEWAY',
     vehicleSize: 'STANDARD',
-    pricingType: 'MONTHLY' as 'DAILY' | 'MONTHLY',
-    price: '',
+    hourlyRate: '',
+    dailyRate: '',
+    weeklyRate: '',
+    monthlyRate: '',
     description: '',
     isGated: false,
     hasCCTV: false,
@@ -95,8 +97,10 @@ export default function ListSpacePage() {
       
       formDataToSend.append('spaceType', formData.spaceType)
       formDataToSend.append('vehicleSize', formData.vehicleSize)
-      formDataToSend.append('pricingType', formData.pricingType)
-      formDataToSend.append('price', formData.price)
+      formDataToSend.append('hourlyRate', formData.hourlyRate)
+      formDataToSend.append('dailyRate', formData.dailyRate)
+      formDataToSend.append('weeklyRate', formData.weeklyRate)
+      formDataToSend.append('monthlyRate', formData.monthlyRate)
       formDataToSend.append('description', formData.description)
       formDataToSend.append('isGated', formData.isGated.toString())
       formDataToSend.append('hasCCTV', formData.hasCCTV.toString())
@@ -267,54 +271,146 @@ export default function ListSpacePage() {
                 </div>
               </div>
 
-              {/* Pricing Type */}
+              {/* Pricing - All Types */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Pricing Type *
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Pricing (USD) *
                 </label>
-                <div className="flex gap-4 mb-4">
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="radio"
-                      name="pricingType"
-                      value="DAILY"
-                      checked={formData.pricingType === 'DAILY'}
-                      onChange={(e) => setFormData({ ...formData, pricingType: e.target.value as 'DAILY' | 'MONTHLY' })}
-                      className="w-4 h-4 text-green-600 border-gray-300 focus:ring-green-500"
-                    />
-                    <span className="ml-2 text-gray-700">Per Day</span>
-                  </label>
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="radio"
-                      name="pricingType"
-                      value="MONTHLY"
-                      checked={formData.pricingType === 'MONTHLY'}
-                      onChange={(e) => setFormData({ ...formData, pricingType: e.target.value as 'DAILY' | 'MONTHLY' })}
-                      className="w-4 h-4 text-green-600 border-gray-300 focus:ring-green-500"
-                    />
-                    <span className="ml-2 text-gray-700">Monthly</span>
-                  </label>
-                </div>
-
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {formData.pricingType === 'DAILY' ? 'Daily Rate (USD) *' : 'Monthly Rate (USD) *'}
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  step="0.01"
-                  placeholder={formData.pricingType === 'DAILY' ? '10.00' : '150.00'}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {formData.pricingType === 'DAILY' 
-                    ? 'Set your daily parking rate'
-                    : 'Set your monthly parking rate'}
+                <p className="text-sm text-gray-600 mb-4">
+                  Fill in one rate and others will auto-calculate, or customize each rate manually.
+                  <br />
+                  <span className="text-xs text-gray-500">Formula: Daily = Hourly × 5 | Weekly = Daily × 4 | Monthly = Weekly × 3</span>
                 </p>
+                
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Hourly Rate *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        placeholder="5.00"
+                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                        value={formData.hourlyRate}
+                        onChange={(e) => {
+                          const hourly = parseFloat(e.target.value) || 0
+                          const daily = (hourly * 5).toFixed(2)
+                          const weekly = (parseFloat(daily) * 4).toFixed(2)
+                          const monthly = (parseFloat(weekly) * 3).toFixed(2)
+                          
+                          setFormData({
+                            ...formData,
+                            hourlyRate: e.target.value,
+                            dailyRate: hourly > 0 ? daily : '',
+                            weeklyRate: hourly > 0 ? weekly : '',
+                            monthlyRate: hourly > 0 ? monthly : '',
+                          })
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Daily Rate *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        placeholder="25.00"
+                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                        value={formData.dailyRate}
+                        onChange={(e) => {
+                          const daily = parseFloat(e.target.value) || 0
+                          const hourly = (daily / 5).toFixed(2)
+                          const weekly = (daily * 4).toFixed(2)
+                          const monthly = (parseFloat(weekly) * 3).toFixed(2)
+                          
+                          setFormData({
+                            ...formData,
+                            hourlyRate: daily > 0 ? hourly : '',
+                            dailyRate: e.target.value,
+                            weeklyRate: daily > 0 ? weekly : '',
+                            monthlyRate: daily > 0 ? monthly : '',
+                          })
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Weekly Rate *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        placeholder="100.00"
+                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                        value={formData.weeklyRate}
+                        onChange={(e) => {
+                          const weekly = parseFloat(e.target.value) || 0
+                          const daily = (weekly / 4).toFixed(2)
+                          const hourly = (parseFloat(daily) / 5).toFixed(2)
+                          const monthly = (weekly * 3).toFixed(2)
+                          
+                          setFormData({
+                            ...formData,
+                            hourlyRate: weekly > 0 ? hourly : '',
+                            dailyRate: weekly > 0 ? daily : '',
+                            weeklyRate: e.target.value,
+                            monthlyRate: weekly > 0 ? monthly : '',
+                          })
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Monthly Rate *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        placeholder="300.00"
+                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                        value={formData.monthlyRate}
+                        onChange={(e) => {
+                          const monthly = parseFloat(e.target.value) || 0
+                          const weekly = (monthly / 3).toFixed(2)
+                          const daily = (parseFloat(weekly) / 4).toFixed(2)
+                          const hourly = (parseFloat(daily) / 5).toFixed(2)
+                          
+                          setFormData({
+                            ...formData,
+                            hourlyRate: monthly > 0 ? hourly : '',
+                            dailyRate: monthly > 0 ? daily : '',
+                            weeklyRate: monthly > 0 ? weekly : '',
+                            monthlyRate: e.target.value,
+                          })
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Description */}
@@ -482,11 +578,17 @@ export default function ListSpacePage() {
             <div className="bg-green-50 rounded-lg p-4 mb-6">
               <h3 className="font-semibold text-green-900 mb-2">{savedListing.title}</h3>
               <p className="text-sm text-green-700">
-                📍 {savedListing.address}, {savedListing.city}, {savedListing.state}
+                📍 {savedListing.location?.address}, {savedListing.location?.city}, {savedListing.location?.state}
               </p>
-              <p className="text-sm text-green-700 mt-2">
-                💰 ${savedListing.price}/{savedListing.pricingType === 'DAILY' ? 'day' : 'month'}
-              </p>
+              <div className="text-sm text-green-700 mt-2 space-y-1">
+                <p>💰 Pricing:</p>
+                <div className="ml-4 grid grid-cols-2 gap-1">
+                  <span>Hourly: ${savedListing.pricing?.hourlyRate}</span>
+                  <span>Daily: ${savedListing.pricing?.dailyRate}</span>
+                  <span>Weekly: ${savedListing.pricing?.weeklyRate || 'N/A'}</span>
+                  <span>Monthly: ${savedListing.pricing?.monthlyRate}</span>
+                </div>
+              </div>
             </div>
             
             {/* Action Buttons */}
