@@ -36,6 +36,7 @@ export default function ListSpacePage() {
   const [error, setError] = useState('')
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [savedListing, setSavedListing] = useState<any>(null)
+  const [useRecommendedPrices, setUseRecommendedPrices] = useState(false)
 
   // Check authentication on mount
   useEffect(() => {
@@ -273,54 +274,55 @@ export default function ListSpacePage() {
 
               {/* Pricing - All Types */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Pricing (USD) *
-                </label>
-                <p className="text-sm text-gray-600 mb-4">
-                  Fill in one rate and click "Auto-Calculate" to fill the rest, or enter each rate manually.
-                  <br />
-                  <span className="text-xs text-gray-500">Formula: Daily = Hourly × 5 | Weekly = Daily × 4 | Monthly = Weekly × 3</span>
-                </p>
+                <div className="flex items-center justify-between mb-4">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Pricing (USD) *
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                      checked={useRecommendedPrices}
+                      onChange={(e) => setUseRecommendedPrices(e.target.checked)}
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Use Recommended Prices</span>
+                  </label>
+                </div>
                 
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Hourly Rate *
                     </label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <span className="absolute left-3 top-2.5 text-gray-500">$</span>
-                        <input
-                          type="number"
-                          required
-                          min="0"
-                          step="0.01"
-                          placeholder="5.00"
-                          className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                          value={formData.hourlyRate}
-                          onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const hourly = parseFloat(formData.hourlyRate) || 0
-                          if (hourly > 0) {
-                            const daily = (hourly * 5).toFixed(2)
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        placeholder="5.00"
+                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                        value={formData.hourlyRate}
+                        onChange={(e) => {
+                          const hourly = e.target.value
+                          setFormData({ ...formData, hourlyRate: hourly })
+                          
+                          if (useRecommendedPrices && hourly) {
+                            const hourlyNum = parseFloat(hourly)
+                            const daily = (hourlyNum * 5).toFixed(2)
                             const weekly = (parseFloat(daily) * 4).toFixed(2)
                             const monthly = (parseFloat(weekly) * 3).toFixed(2)
                             setFormData({
                               ...formData,
+                              hourlyRate: hourly,
                               dailyRate: daily,
                               weeklyRate: weekly,
                               monthlyRate: monthly,
                             })
                           }
                         }}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 whitespace-nowrap text-sm"
-                      >
-                        Auto-Calculate
-                      </button>
+                      />
                     </div>
                   </div>
 
@@ -328,40 +330,35 @@ export default function ListSpacePage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Daily Rate *
                     </label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <span className="absolute left-3 top-2.5 text-gray-500">$</span>
-                        <input
-                          type="number"
-                          required
-                          min="0"
-                          step="0.01"
-                          placeholder="25.00"
-                          className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                          value={formData.dailyRate}
-                          onChange={(e) => setFormData({ ...formData, dailyRate: e.target.value })}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const daily = parseFloat(formData.dailyRate) || 0
-                          if (daily > 0) {
-                            const hourly = (daily / 5).toFixed(2)
-                            const weekly = (daily * 4).toFixed(2)
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        placeholder="25.00"
+                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                        value={formData.dailyRate}
+                        onChange={(e) => {
+                          const daily = e.target.value
+                          setFormData({ ...formData, dailyRate: daily })
+                          
+                          if (useRecommendedPrices && daily) {
+                            const dailyNum = parseFloat(daily)
+                            const hourly = (dailyNum / 5).toFixed(2)
+                            const weekly = (dailyNum * 4).toFixed(2)
                             const monthly = (parseFloat(weekly) * 3).toFixed(2)
                             setFormData({
                               ...formData,
                               hourlyRate: hourly,
+                              dailyRate: daily,
                               weeklyRate: weekly,
                               monthlyRate: monthly,
                             })
                           }
                         }}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 whitespace-nowrap text-sm"
-                      >
-                        Auto-Calculate
-                      </button>
+                      />
                     </div>
                   </div>
 
@@ -369,40 +366,35 @@ export default function ListSpacePage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Weekly Rate *
                     </label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <span className="absolute left-3 top-2.5 text-gray-500">$</span>
-                        <input
-                          type="number"
-                          required
-                          min="0"
-                          step="0.01"
-                          placeholder="100.00"
-                          className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                          value={formData.weeklyRate}
-                          onChange={(e) => setFormData({ ...formData, weeklyRate: e.target.value })}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const weekly = parseFloat(formData.weeklyRate) || 0
-                          if (weekly > 0) {
-                            const daily = (weekly / 4).toFixed(2)
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        placeholder="100.00"
+                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                        value={formData.weeklyRate}
+                        onChange={(e) => {
+                          const weekly = e.target.value
+                          setFormData({ ...formData, weeklyRate: weekly })
+                          
+                          if (useRecommendedPrices && weekly) {
+                            const weeklyNum = parseFloat(weekly)
+                            const daily = (weeklyNum / 4).toFixed(2)
                             const hourly = (parseFloat(daily) / 5).toFixed(2)
-                            const monthly = (weekly * 3).toFixed(2)
+                            const monthly = (weeklyNum * 3).toFixed(2)
                             setFormData({
                               ...formData,
                               hourlyRate: hourly,
                               dailyRate: daily,
+                              weeklyRate: weekly,
                               monthlyRate: monthly,
                             })
                           }
                         }}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 whitespace-nowrap text-sm"
-                      >
-                        Auto-Calculate
-                      </button>
+                      />
                     </div>
                   </div>
 
@@ -410,26 +402,23 @@ export default function ListSpacePage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Monthly Rate *
                     </label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <span className="absolute left-3 top-2.5 text-gray-500">$</span>
-                        <input
-                          type="number"
-                          required
-                          min="0"
-                          step="0.01"
-                          placeholder="300.00"
-                          className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                          value={formData.monthlyRate}
-                          onChange={(e) => setFormData({ ...formData, monthlyRate: e.target.value })}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const monthly = parseFloat(formData.monthlyRate) || 0
-                          if (monthly > 0) {
-                            const weekly = (monthly / 3).toFixed(2)
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        placeholder="300.00"
+                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                        value={formData.monthlyRate}
+                        onChange={(e) => {
+                          const monthly = e.target.value
+                          setFormData({ ...formData, monthlyRate: monthly })
+                          
+                          if (useRecommendedPrices && monthly) {
+                            const monthlyNum = parseFloat(monthly)
+                            const weekly = (monthlyNum / 3).toFixed(2)
                             const daily = (parseFloat(weekly) / 4).toFixed(2)
                             const hourly = (parseFloat(daily) / 5).toFixed(2)
                             setFormData({
@@ -437,13 +426,11 @@ export default function ListSpacePage() {
                               hourlyRate: hourly,
                               dailyRate: daily,
                               weeklyRate: weekly,
+                              monthlyRate: monthly,
                             })
                           }
                         }}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 whitespace-nowrap text-sm"
-                      >
-                        Auto-Calculate
-                      </button>
+                      />
                     </div>
                   </div>
                 </div>
