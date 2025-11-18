@@ -86,13 +86,14 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Create pricing model with all pricing types
+    // Create pricing model with all pricing types (hourly, daily, weekly, monthly)
     const pricing = await prisma.pricing_model.create({
       data: {
         valid_from: new Date(),
         is_current: true,
         hourly_rate: parseFloat(hourlyRate),
         daily_rate: parseFloat(dailyRate),
+        weekly_rate: parseFloat(weeklyRate),
         monthly_rate: parseFloat(monthlyRate),
       },
     })
@@ -130,6 +131,7 @@ export async function POST(req: NextRequest) {
           pricing: {
             hourlyRate: pricing.hourly_rate,
             dailyRate: pricing.daily_rate,
+            weeklyRate: pricing.weekly_rate,
             monthlyRate: pricing.monthly_rate,
           },
           images: imageDataUrls,

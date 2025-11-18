@@ -52,18 +52,20 @@ export async function POST(req: NextRequest) {
     const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
     
     // Create user directly (with unverified status)
+    // Note: date_of_birth, address, city, state, zip_code are required by DB schema
+    // Using placeholder values that user can update in their profile later
     const newUser = await prisma.users.create({
       data: {
         full_name: validatedData.fullName,
         email: validatedData.email,
-        password: hashedPassword, // Note: field is 'password' not 'passwordHash' in new schema
+        password: hashedPassword,
         phone_number: validatedData.phoneNumber!,
-        date_of_birth: new Date('2000-01-01'), // Default date, can be updated later
+        date_of_birth: new Date('1990-01-01'), // Placeholder - user can update in profile
         status: 1, // Active status (SmallInt: 1=active, 0=inactive)
-        address: 'Not provided', // Required field, can be updated in profile
-        city: 'Not provided',
-        state: 'Not provided',
-        zip_code: '00000',
+        address: 'To be updated', // Placeholder - required by schema
+        city: 'To be updated',    // Placeholder - required by schema
+        state: 'XX',              // Placeholder - required by schema
+        zip_code: '00000',        // Placeholder - required by schema
         is_verified: false,
         reset_token: verificationToken,
         reset_token_expiry: tokenExpiry,

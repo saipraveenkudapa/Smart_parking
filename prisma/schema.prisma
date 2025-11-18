@@ -98,8 +98,9 @@ model payout {
 model pricing_model {
   valid_from     DateTime       @db.Timestamptz(6)
   hourly_rate    Decimal        @db.Decimal
-  daily_rate     Decimal?       @db.Decimal
-  monthly_rate   Decimal?       @db.Decimal
+  daily_rate     Decimal        @db.Decimal
+  weekly_rate    Decimal        @db.Decimal
+  monthly_rate   Decimal        @db.Decimal
   valid_to       DateTime?      @db.Timestamp(6)
   is_current     Boolean
   pricing_id     Int            @id @default(autoincrement())
