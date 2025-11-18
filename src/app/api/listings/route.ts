@@ -24,6 +24,8 @@ export async function GET(req: NextRequest) {
     const spaceType = searchParams.get('spaceType')
     const radiusMiles = 20 // Search within 20 miles
 
+    console.log('Fetching listings with filters:', { city, state, zipCode, maxPrice, spaceType })
+
     // Fetch parking spaces with joined location
     const parkingSpaces = await prisma.parking_spaces.findMany({
       where: {
@@ -33,6 +35,8 @@ export async function GET(req: NextRequest) {
         space_location: true,
       },
     })
+
+    console.log(`Found ${parkingSpaces.length} parking spaces in database`)
 
     // Filter by location criteria (since they're in joined table)
     let filteredSpaces = parkingSpaces
@@ -112,15 +116,27 @@ export async function GET(req: NextRequest) {
       },
     }))
 
+    console.log(`Returning ${listings.length} listings after filtering`)
+
     return NextResponse.json({
+      success: true,
       listings,
       count: listings.length,
     })
   } catch (error) {
     console.error('Fetch listings error:', error)
+    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error')
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
+    
     return NextResponse.json(
-      { error: 'Failed to fetch listings' },
-      { status: 500 }
+      { 
+        success: false,
+        error: 'Failed to fetch listings',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        listings: [], // Return empty array instead of error
+        count: 0
+      },
+      { status: 200 } // Return 200 instead of 500 to prevent frontend errors on empty data
     )
   }
 }

@@ -34,11 +34,15 @@ export default function HomePage() {
     try {
       const response = await fetch('/api/listings')
       const data = await response.json()
-      if (response.ok) {
+      if (response.ok && data.listings) {
         setFeaturedListings(data.listings.slice(0, 6)) // Show only 6 listings
+      } else {
+        // Handle empty or error response gracefully
+        setFeaturedListings([])
       }
     } catch (error) {
       console.error('Failed to fetch listings:', error)
+      setFeaturedListings([]) // Set empty array on error
     } finally {
       setLoadingListings(false)
     }

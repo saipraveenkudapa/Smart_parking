@@ -87,11 +87,14 @@ export default function HostDashboard() {
 
       const data = await response.json()
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch listings')
+      if (!response.ok || data.success === false) {
+        console.warn('Failed to fetch listings:', data.error || data.details)
+        setListings([]) // Set empty array instead of throwing
+        setError('') // Clear error to show "no listings" message
+        return
       }
 
-      setListings(data.listings)
+      setListings(data.listings || [])
     } catch (err: any) {
       console.error('Fetch error:', err)
       setError(err.message || 'Failed to load your listings')

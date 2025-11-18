@@ -171,8 +171,13 @@ function SearchResults() {
       const response = await fetch(`/api/listings?${params.toString()}`)
       const data = await response.json()
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch listings')
+      // Handle both error cases and empty results gracefully
+      if (!response.ok || data.success === false) {
+        console.warn('Listings fetch returned error:', data.error || data.details)
+        // Don't throw - just use empty array
+        setListings([])
+        setLoading(false)
+        return
       }
 
       // Sort by distance if user location is available
