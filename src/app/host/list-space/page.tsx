@@ -73,7 +73,13 @@ export default function ListSpacePage() {
     try {
       // Validate images
       if (images.length === 0) {
-        setError('Please upload at least one photo of your parking space')
+        setError('Please upload one photo of your parking space')
+        setIsSubmitting(false)
+        return
+      }
+
+      if (images.length > 1) {
+        setError('Only 1 photo allowed')
         setIsSubmitting(false)
         return
       }
@@ -454,19 +460,18 @@ export default function ListSpacePage() {
               {/* Parking Space Images */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Parking Space Images (Upload 2 photos) *
+                  Photo * (1 image required)
                 </label>
                 <p className="text-sm text-gray-500 mb-3">
-                  At least one photo is required to create a listing
+                  Please upload 1 photo of your parking space
                 </p>
                 <input
                   type="file"
                   accept="image/*"
-                  multiple
                   onChange={(e) => {
                     const files = Array.from(e.target.files || [])
-                    if (files.length > 2) {
-                      alert('Please select only 2 images')
+                    if (files.length > 1) {
+                      alert('Only 1 image allowed. Please select a single image.')
                       e.target.value = ''
                       return
                     }
