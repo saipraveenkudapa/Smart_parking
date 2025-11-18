@@ -76,6 +76,7 @@ model parking_spaces {
   pricing_id          Int?           @unique
   availability        availability[]
   favorites           favorites[]
+  reviews             reviews[]
   space_location      space_location @relation(fields: [location_id], references: [location_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_parking_spaces_location_id_fkey")
   pricing_model       pricing_model?
 
@@ -108,18 +109,20 @@ model pricing_model {
 }
 
 model reviews {
-  review_id                             Int        @id(map: "dim_reviews_pkey") @default(autoincrement())
+  review_id                             Int             @id(map: "dim_reviews_pkey") @default(autoincrement())
   booking_id                            Int?
   reviewer_id                           Int?
   reviewee_id                           Int?
-  review_type                           String?    @db.VarChar
+  space_id                              Int?
+  review_type                           String?         @db.VarChar
   rating                                Int?
-  review_date                           DateTime?  @db.Timestamp(6)
+  review_date                           DateTime?       @default(now()) @db.Timestamp(6)
   comments                              String?
-  bookings_bookings_review_idToreviews  bookings[] @relation("bookings_review_idToreviews")
-  users_reviews_reviewee_idTousers      users?     @relation("reviews_reviewee_idTousers", fields: [reviewee_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_reviews_reviewee_id_fkey")
-  users_reviews_reviewer_idTousers      users?     @relation("reviews_reviewer_idTousers", fields: [reviewer_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_reviews_reviewer_id_fkey")
-  bookings_reviews_booking_idTobookings bookings?  @relation("reviews_booking_idTobookings", fields: [booking_id], references: [booking_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reviews_booking")
+  bookings_bookings_review_idToreviews  bookings[]      @relation("bookings_review_idToreviews")
+  users_reviews_reviewee_idTousers      users?          @relation("reviews_reviewee_idTousers", fields: [reviewee_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_reviews_reviewee_id_fkey")
+  users_reviews_reviewer_idTousers      users?          @relation("reviews_reviewer_idTousers", fields: [reviewer_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_reviews_reviewer_id_fkey")
+  bookings_reviews_booking_idTobookings bookings?       @relation("reviews_booking_idTobookings", fields: [booking_id], references: [booking_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reviews_booking")
+  parking_spaces                        parking_spaces? @relation(fields: [space_id], references: [space_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("park_connect")
 }

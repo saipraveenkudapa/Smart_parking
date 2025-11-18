@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { isAuthenticated, getUser } from '@/lib/clientAuth'
 import Header from '@/components/Header'
+import Reviews from '@/components/Reviews'
 
 interface Listing {
   id: string
@@ -308,6 +309,15 @@ export default function ListingDetailsPage() {
                     )}
                   </div>
                 </div>
+              </div>
+
+              {/* Reviews Section */}
+              <div className="mb-6">
+                <Reviews 
+                  targetId={parseInt(listingId)} 
+                  targetType="SPACE"
+                  allowNewReview={isAuthenticated() && !isOwnListing}
+                />
               </div>
 
               {/* Booking Section */}

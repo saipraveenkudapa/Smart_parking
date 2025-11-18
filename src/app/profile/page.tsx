@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import { isAuthenticated } from '@/lib/clientAuth'
+import Reviews from '@/components/Reviews'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -344,6 +345,17 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
+
+        {/* Reviews Section */}
+        {user && (
+          <div className="bg-white rounded-xl shadow-lg p-8">
+            <Reviews 
+              targetId={user.userId} 
+              targetType="USER"
+              allowNewReview={false}
+            />
+          </div>
+        )}
 
         {/* Quick Links */}
         <div className="grid md:grid-cols-3 gap-6">
