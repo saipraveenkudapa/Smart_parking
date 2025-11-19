@@ -86,50 +86,57 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Handle circular FK dependency using raw SQL in transaction
+    // Handle circular FK dependency using raw SQL
     // parking_spaces needs pricing_id, but pricing_model needs space_id
+    // Solution: Use raw SQL with INITIALLY DEFERRED constraints or disable triggers temporarily
     const validFrom = new Date().toISOString()
     
     const result = await prisma.$transaction(async (tx) => {
-      // Temporarily disable FK check for this transaction
-      await tx.$executeRawUnsafe('SET CONSTRAINTS ALL DEFERRED')
+      // Use raw SQL to insert both records handling circular FK
+      // First, insert parking_space using raw SQL (bypassing FK check initially)
+      const spaceResult = await tx.$queryRaw<Array<{ space_id: number }>>`
+        INSERT INTO park_connect.parking_spaces (
+          title, description, space_type, is_instant_book, 
+          has_cctv, ev_charging, access_instructions, images, 
+          location_id, pricing_id
+        ) VALUES (
+          ${title}, ${description}, ${spaceType?.toLowerCase() || 'driveway'}, ${false},
+          ${hasCCTV}, ${hasEVCharging}, ${description}, ${imageDataUrls.join(',')},
+          ${location.location_id}, ${1}
+        ) RETURNING space_id
+      `
       
-      // Create parking space with pricing_id = 1 (FK will be checked at end of transaction)
-      const space = await tx.parking_spaces.create({
-        data: {
-          title,
-          description,
-          space_type: spaceType?.toLowerCase() || 'driveway',
-          is_instant_book: false,
-          has_cctv: hasCCTV,
-          ev_charging: hasEVCharging,
-          access_instructions: description,
-          images: imageDataUrls.join(','),
-          location_id: location.location_id,
-          pricing_id: 1, // First pricing for this space
-        },
+      const spaceId = spaceResult[0].space_id
+      
+      // Now insert pricing_model with the space_id
+      await tx.$executeRaw`
+        INSERT INTO park_connect.pricing_model (
+          pricing_id, space_id, valid_from, is_current,
+          hourly_rate, daily_rate, weekly_rate, monthly_rate
+        ) VALUES (
+          ${1}, ${spaceId}, ${validFrom}::timestamptz, ${true},
+          ${parseFloat(hourlyRate)}, ${parseFloat(dailyRate)}, 
+          ${weeklyRate ? parseFloat(weeklyRate) : 0}, ${parseFloat(monthlyRate)}
+        )
+      `
+      
+      // Fetch the created records using Prisma for proper typing
+      const space = await tx.parking_spaces.findUnique({
+        where: { space_id: spaceId }
       })
       
-      // Create pricing_model with space_id and pricing_id = 1
-      const pricing = await tx.pricing_model.create({
-        data: {
-          pricing_id: 1,
-          space_id: space.space_id,
-          valid_from: validFrom,
-          is_current: true,
-          hourly_rate: parseFloat(hourlyRate),
-          daily_rate: parseFloat(dailyRate),
-          weekly_rate: weeklyRate ? parseFloat(weeklyRate) : 0,
-          monthly_rate: parseFloat(monthlyRate),
-        },
+      const pricing = await tx.pricing_model.findFirst({
+        where: { 
+          space_id: spaceId,
+          pricing_id: 1
+        }
       })
       
-      // FKs will be validated at commit time
       return { space, pricing }
     })
     
-    const parkingSpace = result.space
-    const pricing = result.pricing
+    const parkingSpace = result.space!
+    const pricing = result.pricing!
 
     return NextResponse.json(
       {
