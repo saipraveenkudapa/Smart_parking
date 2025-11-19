@@ -86,14 +86,26 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Handle circular FK dependency using raw SQL
-    // parking_spaces needs pricing_id, but pricing_model needs space_id
-    // Solution: Use raw SQL with INITIALLY DEFERRED constraints or disable triggers temporarily
+    // Handle circular FK dependency: parking_spaces.pricing_id → pricing_model.pricing_id
+    // AND pricing_model.space_id → parking_spaces.space_id
+    // Solution: Create pricing_model FIRST with dummy space_id=0, then space, then update pricing
     const validFrom = new Date().toISOString()
     
     const result = await prisma.$transaction(async (tx) => {
-      // Use raw SQL to insert both records handling circular FK
-      // First, insert parking_space using raw SQL (bypassing FK check initially)
+      // Step 1: Create pricing_model with dummy space_id (will update later)
+      // We use space_id = 0 as placeholder (assumes no space with ID 0 exists)
+      await tx.$executeRaw`
+        INSERT INTO park_connect.pricing_model (
+          pricing_id, space_id, valid_from, is_current,
+          hourly_rate, daily_rate, weekly_rate, monthly_rate
+        ) VALUES (
+          ${1}, ${0}, ${validFrom}::timestamptz, ${true},
+          ${parseFloat(hourlyRate)}, ${parseFloat(dailyRate)}, 
+          ${weeklyRate ? parseFloat(weeklyRate) : 0}, ${parseFloat(monthlyRate)}
+        )
+      `
+      
+      // Step 2: Create parking_space with pricing_id = 1 (now exists!)
       const spaceResult = await tx.$queryRaw<Array<{ space_id: number }>>`
         INSERT INTO park_connect.parking_spaces (
           title, description, space_type, is_instant_book, 
@@ -108,16 +120,11 @@ export async function POST(req: NextRequest) {
       
       const spaceId = spaceResult[0].space_id
       
-      // Now insert pricing_model with the space_id
+      // Step 3: Update pricing_model with actual space_id
       await tx.$executeRaw`
-        INSERT INTO park_connect.pricing_model (
-          pricing_id, space_id, valid_from, is_current,
-          hourly_rate, daily_rate, weekly_rate, monthly_rate
-        ) VALUES (
-          ${1}, ${spaceId}, ${validFrom}::timestamptz, ${true},
-          ${parseFloat(hourlyRate)}, ${parseFloat(dailyRate)}, 
-          ${weeklyRate ? parseFloat(weeklyRate) : 0}, ${parseFloat(monthlyRate)}
-        )
+        UPDATE park_connect.pricing_model 
+        SET space_id = ${spaceId}
+        WHERE pricing_id = ${1} AND valid_from = ${validFrom}::timestamptz
       `
       
       // Fetch the created records using Prisma for proper typing
