@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
           is_current: true,
           hourly_rate: parseFloat(hourlyRate),
           daily_rate: parseFloat(dailyRate),
-          weekly_rate: weeklyRate ? parseFloat(weeklyRate) : null,
+          weekly_rate: weeklyRate ? parseFloat(weeklyRate) : 0,
           monthly_rate: parseFloat(monthlyRate),
         },
       })
