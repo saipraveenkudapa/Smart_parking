@@ -144,6 +144,25 @@ export async function POST(req: NextRequest) {
     const parkingSpace = result.space!
     const pricing = result.pricing!
 
+    // Create initial availability record to track ownership
+    // This links the space to the owner (required for my-listings to work)
+    const now = new Date()
+    const oneYearFromNow = new Date()
+    oneYearFromNow.setFullYear(now.getFullYear() + 1)
+    
+    await prisma.availability.create({
+      data: {
+        owner_id: parseInt(payload.userId),
+        space_id: parkingSpace.space_id,
+        available_start: now,
+        available_end: oneYearFromNow,
+        is_available: true,
+        availability_reason: 'Initial listing creation',
+        created_at: now,
+        updated_at: now,
+      },
+    })
+
     return NextResponse.json(
       {
         message: 'Parking space created successfully',
