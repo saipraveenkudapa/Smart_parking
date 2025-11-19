@@ -86,35 +86,50 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Create parking space (without pricing_id initially - will update after pricing created)
-    const parkingSpace = await prisma.parking_spaces.create({
-      data: {
-        title,
-        description,
-        space_type: spaceType?.toLowerCase() || 'driveway',
-        is_instant_book: false,
-        has_cctv: hasCCTV,
-        ev_charging: hasEVCharging,
-        access_instructions: description,
-        images: imageDataUrls.join(','), // Store as comma-separated string
-        location_id: location.location_id,
-        pricing_id: 1, // Initial pricing_id for new listing
-      },
+    // Handle circular FK dependency using raw SQL in transaction
+    // parking_spaces needs pricing_id, but pricing_model needs space_id
+    const validFrom = new Date().toISOString()
+    
+    const result = await prisma.$transaction(async (tx) => {
+      // Temporarily disable FK check for this transaction
+      await tx.$executeRawUnsafe('SET CONSTRAINTS ALL DEFERRED')
+      
+      // Create parking space with pricing_id = 1 (FK will be checked at end of transaction)
+      const space = await tx.parking_spaces.create({
+        data: {
+          title,
+          description,
+          space_type: spaceType?.toLowerCase() || 'driveway',
+          is_instant_book: false,
+          has_cctv: hasCCTV,
+          ev_charging: hasEVCharging,
+          access_instructions: description,
+          images: imageDataUrls.join(','),
+          location_id: location.location_id,
+          pricing_id: 1, // First pricing for this space
+        },
+      })
+      
+      // Create pricing_model with space_id and pricing_id = 1
+      const pricing = await tx.pricing_model.create({
+        data: {
+          pricing_id: 1,
+          space_id: space.space_id,
+          valid_from: validFrom,
+          is_current: true,
+          hourly_rate: parseFloat(hourlyRate),
+          daily_rate: parseFloat(dailyRate),
+          weekly_rate: weeklyRate ? parseFloat(weeklyRate) : null,
+          monthly_rate: parseFloat(monthlyRate),
+        },
+      })
+      
+      // FKs will be validated at commit time
+      return { space, pricing }
     })
-
-    // Create pricing model with space_id FK and pricing_id = 1 (first pricing for this space)
-    const pricing = await prisma.pricing_model.create({
-      data: {
-        pricing_id: 1, // First pricing record for this space
-        space_id: parkingSpace.space_id,
-        valid_from: new Date(),
-        is_current: true,
-        hourly_rate: parseFloat(hourlyRate),
-        daily_rate: parseFloat(dailyRate),
-        weekly_rate: weeklyRate ? parseFloat(weeklyRate) : null,
-        monthly_rate: parseFloat(monthlyRate),
-      },
-    })
+    
+    const parkingSpace = result.space
+    const pricing = result.pricing
 
     return NextResponse.json(
       {
