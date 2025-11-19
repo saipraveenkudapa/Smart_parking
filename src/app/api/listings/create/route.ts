@@ -86,19 +86,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Create pricing model with all pricing types (hourly, daily, weekly, monthly)
-    const pricing = await prisma.pricing_model.create({
-      data: {
-        valid_from: new Date(),
-        is_current: true,
-        hourly_rate: parseFloat(hourlyRate),
-        daily_rate: parseFloat(dailyRate),
-        weekly_rate: parseFloat(weeklyRate),
-        monthly_rate: parseFloat(monthlyRate),
-      },
-    })
-
-    // Create parking space with foreign keys
+    // Create parking space (without pricing_id initially - will update after pricing created)
     const parkingSpace = await prisma.parking_spaces.create({
       data: {
         title,
@@ -110,7 +98,21 @@ export async function POST(req: NextRequest) {
         access_instructions: description,
         images: imageDataUrls.join(','), // Store as comma-separated string
         location_id: location.location_id,
-        pricing_id: pricing.pricing_id,
+        pricing_id: 1, // Initial pricing_id for new listing
+      },
+    })
+
+    // Create pricing model with space_id FK and pricing_id = 1 (first pricing for this space)
+    const pricing = await prisma.pricing_model.create({
+      data: {
+        pricing_id: 1, // First pricing record for this space
+        space_id: parkingSpace.space_id,
+        valid_from: new Date(),
+        is_current: true,
+        hourly_rate: parseFloat(hourlyRate),
+        daily_rate: parseFloat(dailyRate),
+        weekly_rate: weeklyRate ? parseFloat(weeklyRate) : null,
+        monthly_rate: parseFloat(monthlyRate),
       },
     })
 

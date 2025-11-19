@@ -23,6 +23,7 @@ model availability {
   parking_spaces      parking_spaces? @relation(fields: [space_id], references: [space_id], onDelete: NoAction, onUpdate: NoAction, map: "fact_availability_space_id_fkey")
   bookings            bookings[]
 
+  @@map("availability")
   @@schema("park_connect")
 }
 
@@ -47,6 +48,7 @@ model bookings {
   reviews_bookings_review_idToreviews  reviews?      @relation("bookings_review_idToreviews", fields: [review_id], references: [review_id], onDelete: NoAction, onUpdate: NoAction, map: "fact_bookings_review_id_fkey")
   reviews_reviews_booking_idTobookings reviews[]     @relation("reviews_booking_idTobookings")
 
+  @@map("bookings")
   @@schema("park_connect")
 }
 
@@ -59,6 +61,7 @@ model favorites {
   users          users?          @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_favorites_user_id_fkey")
 
   @@unique([user_id, space_id], map: "dim_favorites_user_space_unique")
+  @@map("favorites")
   @@schema("park_connect")
 }
 
@@ -73,12 +76,12 @@ model parking_spaces {
   access_instructions String?
   images              String?
   location_id         Int
-  pricing_id          Int?           @unique
+  pricing_id          Int
   availability        availability[]
   favorites           favorites[]
   reviews             reviews[]
+  pricing_models      pricing_model[]
   space_location      space_location @relation(fields: [location_id], references: [location_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_parking_spaces_location_id_fkey")
-  pricing_model       pricing_model? @relation(fields: [pricing_id], references: [pricing_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("park_connect")
 }
@@ -91,21 +94,24 @@ model payout {
   transaction_reference String?    @db.VarChar
   bookings              bookings[]
 
+  @@map("payout")
   @@schema("park_connect")
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model pricing_model {
-  pricing_id     Int             @id @default(autoincrement())
-  valid_from     DateTime        @db.Timestamptz(6)
+  valid_from     DateTime        @unique @db.Timestamptz(6)
+  pricing_id     Int             @unique
+  space_id       Int
   hourly_rate    Decimal         @db.Decimal
-  daily_rate     Decimal         @db.Decimal
+  daily_rate     Decimal         @default(0) @db.Decimal
   weekly_rate    Decimal         @db.Decimal
   monthly_rate   Decimal         @db.Decimal
   valid_to       DateTime?       @db.Timestamp(6)
   is_current     Boolean
-  parking_spaces parking_spaces?
+  parking_spaces parking_spaces  @relation(fields: [space_id], references: [space_id], onDelete: NoAction, onUpdate: NoAction, map: "pricing_model_space_id_fkey")
 
+  @@id([valid_from, pricing_id], map: "pricing_model_pkey")
   @@schema("park_connect")
 }
 
@@ -125,6 +131,7 @@ model reviews {
   bookings_reviews_booking_idTobookings bookings?       @relation("reviews_booking_idTobookings", fields: [booking_id], references: [booking_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reviews_booking")
   parking_spaces                        parking_spaces? @relation(fields: [space_id], references: [space_id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@map("reviews")
   @@schema("park_connect")
 }
 
@@ -165,6 +172,7 @@ model users {
   reviews_reviews_reviewer_idTousers reviews[]      @relation("reviews_reviewer_idTousers")
   vehicle                            vehicle[]
 
+  @@map("users")
   @@schema("park_connect")
 }
 
@@ -179,5 +187,6 @@ model vehicle {
   vehicle_type  String? @db.VarChar
   users         users?  @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_vehicle_user_id_fkey")
 
+  @@map("vehicle")
   @@schema("park_connect")
 }
