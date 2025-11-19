@@ -78,7 +78,7 @@ model parking_spaces {
   favorites           favorites[]
   reviews             reviews[]
   space_location      space_location @relation(fields: [location_id], references: [location_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_parking_spaces_location_id_fkey")
-  pricing_model       pricing_model?
+  pricing_model       pricing_model? @relation(fields: [pricing_id], references: [pricing_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("park_connect")
 }
@@ -96,15 +96,15 @@ model payout {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model pricing_model {
-  valid_from     DateTime       @db.Timestamptz(6)
-  hourly_rate    Decimal        @db.Decimal
-  daily_rate     Decimal        @db.Decimal
-  weekly_rate    Decimal        @db.Decimal
-  monthly_rate   Decimal        @db.Decimal
-  valid_to       DateTime?      @db.Timestamp(6)
+  pricing_id     Int             @id @default(autoincrement())
+  valid_from     DateTime        @db.Timestamptz(6)
+  hourly_rate    Decimal         @db.Decimal
+  daily_rate     Decimal         @db.Decimal
+  weekly_rate    Decimal         @db.Decimal
+  monthly_rate   Decimal         @db.Decimal
+  valid_to       DateTime?       @db.Timestamp(6)
   is_current     Boolean
-  pricing_id     Int            @id @default(autoincrement())
-  parking_spaces parking_spaces @relation(fields: [pricing_id], references: [pricing_id], onDelete: NoAction, onUpdate: NoAction)
+  parking_spaces parking_spaces?
 
   @@schema("park_connect")
 }
