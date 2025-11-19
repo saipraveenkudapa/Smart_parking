@@ -5,6 +5,7 @@ import Link from 'next/link'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -19,7 +20,7 @@ export default function ForgotPasswordPage() {
       const response = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, phoneNumber }),
       })
 
       const data = await response.json()
@@ -28,8 +29,9 @@ export default function ForgotPasswordPage() {
         throw new Error(data.error || 'Failed to send reset link')
       }
 
-      setMessage(data.message || 'Password reset link sent to your email and phone!')
+      setMessage(data.message || 'Password reset link sent to your email!')
       setEmail('')
+      setPhoneNumber('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -46,7 +48,7 @@ export default function ForgotPasswordPage() {
           </Link>
           <h2 className="mt-4 text-2xl font-bold text-gray-900">Forgot Password?</h2>
           <p className="mt-2 text-sm text-gray-600">
-            Enter your email and we'll send you a reset link
+            Enter your email and phone number for verification
           </p>
         </div>
 
@@ -65,7 +67,7 @@ export default function ForgotPasswordPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address
+              Email Address *
             </label>
             <input
               type="email"
@@ -75,6 +77,23 @@ export default function ForgotPasswordPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="your.email@example.com"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phone Number * (for verification)
+            </label>
+            <input
+              type="tel"
+              required
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="+1234567890"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Must match the phone number on your account
+            </p>
           </div>
 
           <button
