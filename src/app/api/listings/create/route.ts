@@ -86,26 +86,17 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Handle circular FK dependency: parking_spaces.pricing_id → pricing_model.pricing_id
-    // AND pricing_model.space_id → parking_spaces.space_id
-    // Solution: Create pricing_model FIRST with dummy space_id=0, then space, then update pricing
+    // Handle circular FK dependency: 
+    // parking_spaces.pricing_id → pricing_model.pricing_id (UNIQUE)
+    // pricing_model.space_id → parking_spaces.space_id
+    // Solution: Disable trigger checks temporarily within transaction
     const validFrom = new Date().toISOString()
     
     const result = await prisma.$transaction(async (tx) => {
-      // Step 1: Create pricing_model with dummy space_id (will update later)
-      // We use space_id = 0 as placeholder (assumes no space with ID 0 exists)
-      await tx.$executeRaw`
-        INSERT INTO park_connect.pricing_model (
-          pricing_id, space_id, valid_from, is_current,
-          hourly_rate, daily_rate, weekly_rate, monthly_rate
-        ) VALUES (
-          ${1}, ${0}, ${validFrom}::timestamptz, ${true},
-          ${parseFloat(hourlyRate)}, ${parseFloat(dailyRate)}, 
-          ${weeklyRate ? parseFloat(weeklyRate) : 0}, ${parseFloat(monthlyRate)}
-        )
-      `
+      // Disable FK checks for this session only
+      await tx.$executeRawUnsafe('SET session_replication_role = replica')
       
-      // Step 2: Create parking_space with pricing_id = 1 (now exists!)
+      // Insert parking_space with pricing_id = 1
       const spaceResult = await tx.$queryRaw<Array<{ space_id: number }>>`
         INSERT INTO park_connect.parking_spaces (
           title, description, space_type, is_instant_book, 
@@ -120,12 +111,20 @@ export async function POST(req: NextRequest) {
       
       const spaceId = spaceResult[0].space_id
       
-      // Step 3: Update pricing_model with actual space_id
+      // Insert pricing_model with actual space_id
       await tx.$executeRaw`
-        UPDATE park_connect.pricing_model 
-        SET space_id = ${spaceId}
-        WHERE pricing_id = ${1} AND valid_from = ${validFrom}::timestamptz
+        INSERT INTO park_connect.pricing_model (
+          pricing_id, space_id, valid_from, is_current,
+          hourly_rate, daily_rate, weekly_rate, monthly_rate
+        ) VALUES (
+          ${1}, ${spaceId}, ${validFrom}::timestamptz, ${true},
+          ${parseFloat(hourlyRate)}, ${parseFloat(dailyRate)}, 
+          ${weeklyRate ? parseFloat(weeklyRate) : 0}, ${parseFloat(monthlyRate)}
+        )
       `
+      
+      // Re-enable FK checks
+      await tx.$executeRawUnsafe('SET session_replication_role = DEFAULT')
       
       // Fetch the created records using Prisma for proper typing
       const space = await tx.parking_spaces.findUnique({
