@@ -181,6 +181,7 @@ export async function POST(req: NextRequest) {
 
     // Map response for API compatibility
     const response = {
+      id: booking.booking_id, // for frontend compatibility
       bookingId: booking.booking_id,
       spaceId: booking.availability.space_id,
       driverId: booking.driver_id,
