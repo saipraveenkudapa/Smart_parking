@@ -136,12 +136,21 @@ export async function POST(req: NextRequest) {
     const totalAmount = subtotal + serviceFee
     const ownerPayout = subtotal - (subtotal * 0.05) // Owner gets 95% of subtotal
 
+    // Create payout record first (required by bookings FK)
+    const payout = await prisma.payout.create({
+      data: {
+        method: 'pending',
+        status: 'pending',
+      },
+    })
+
     // Create the booking (using bookings)
     // Note: bookings links to availability_id, not directly to space_id
     const booking = await prisma.bookings.create({
       data: {
         availability_id: availability.availability_id,
         driver_id: userId,
+        payout_id: payout.payout_id,
         start_time: start,
         end_time: end,
         duration_hours: durationHours,

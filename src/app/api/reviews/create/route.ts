@@ -29,9 +29,16 @@ export async function POST(request: NextRequest) {
     const reviewerId = parseInt(decoded.userId)
 
     const body = await request.json()
-    const { spaceId, revieweeId, rating, comments, reviewType } = body
+    const { spaceId, revieweeId, rating, comments, reviewType, bookingId } = body
 
     // Validate required fields
+    if (!bookingId) {
+      return NextResponse.json(
+        { error: 'Booking ID is required' },
+        { status: 400 }
+      )
+    }
+
     if (!rating || rating < 1 || rating > 5) {
       return NextResponse.json(
         { error: 'Rating must be between 1 and 5' },
@@ -99,16 +106,24 @@ export async function POST(request: NextRequest) {
     // Create the review
     const review = await prisma.reviews.create({
       data: {
+        booking_id: parseInt(bookingId),
         reviewer_id: reviewerId,
-        reviewee_id: reviewType === 'USER' ? parseInt(revieweeId) : null,
-        space_id: reviewType === 'SPACE' ? parseInt(spaceId) : null,
+        reviewee_id: parseInt(revieweeId),
+        space_id: reviewType === 'SPACE' && spaceId ? parseInt(spaceId) : null,
         review_type: reviewType,
         rating: parseInt(rating),
-        comments: comments || null,
+        comments: comments || '',
         review_date: new Date()
       },
       include: {
         users_reviews_reviewer_idTousers: {
+          select: {
+            user_id: true,
+            full_name: true,
+            email: true
+          }
+        },
+        users_reviews_reviewee_idTousers: {
           select: {
             user_id: true,
             full_name: true,
@@ -127,8 +142,12 @@ export async function POST(request: NextRequest) {
         comments: review.comments,
         reviewDate: review.review_date,
         reviewer: {
-          id: review.users_reviews_reviewer_idTousers?.user_id,
-          name: review.users_reviews_reviewer_idTousers?.full_name
+          id: review.users_reviews_reviewer_idTousers.user_id,
+          name: review.users_reviews_reviewer_idTousers.full_name
+        },
+        reviewee: {
+          id: review.users_reviews_reviewee_idTousers.user_id,
+          name: review.users_reviews_reviewee_idTousers.full_name
         }
       }
     }, { status: 201 })
