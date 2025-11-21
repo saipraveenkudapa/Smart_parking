@@ -500,35 +500,6 @@ export default function EditListingPage() {
                 />
               </div>
 
-              {/* Availability Dates */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Availability Period
-                </label>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">Available From</label>
-                    <input
-                      type="date"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                      value={formData.availableFrom}
-                      onChange={(e) => setFormData({ ...formData, availableFrom: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">Available To</label>
-                    <input
-                      type="date"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                      value={formData.availableTo}
-                      onChange={(e) => setFormData({ ...formData, availableTo: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Leave blank for continuous availability
-                </p>
-              </div>
 
               {/* Features */}
               <div>
