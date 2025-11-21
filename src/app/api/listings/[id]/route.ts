@@ -243,11 +243,18 @@ export async function GET(
       )
     }
 
+
+    // Fetch parking space and location
     const parkingSpace = await prisma.parking_spaces.findUnique({
       where: { space_id: spaceId },
       include: {
         space_location: true,
       },
+    })
+
+    // Fetch availability (for is_available, available_from, available_to, isGated, isCovered)
+    const availability = await prisma.availability.findFirst({
+      where: { space_id: spaceId },
     })
 
     if (!parkingSpace) {
@@ -294,6 +301,9 @@ export async function GET(
       monthlyPrice: pricing ? Number(pricing.monthly_rate) : 0,
       hasCCTV: parkingSpace.has_cctv || false,
       hasEVCharging: parkingSpace.ev_charging || false,
+      isActive: availability?.is_available ?? true,
+      availableFrom: availability?.available_start ? availability.available_start.toISOString().split('T')[0] : '',
+      availableTo: availability?.available_end ? availability.available_end.toISOString().split('T')[0] : '',
       isInstantBook: parkingSpace.is_instant_book,
       images: imageArray,
       accessInstructions: parkingSpace.access_instructions,

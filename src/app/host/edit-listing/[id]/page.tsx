@@ -32,6 +32,7 @@ export default function EditListingPage() {
     hasEVCharging: false,
     availableFrom: '',
     availableTo: '',
+    isActive: true,
   })
 
   const [isLoading, setIsLoading] = useState(true)
@@ -83,6 +84,7 @@ export default function EditListingPage() {
         hasEVCharging: listing.hasEVCharging,
         availableFrom: listing.availableFrom || '',
         availableTo: listing.availableTo || '',
+        isActive: typeof listing.isActive === 'boolean' ? listing.isActive : true,
       })
     } catch (err: any) {
       console.error('Fetch error:', err)
@@ -145,6 +147,7 @@ export default function EditListingPage() {
         hasEVCharging: formData.hasEVCharging,
         availableFrom: formData.availableFrom,
         availableTo: formData.availableTo,
+        isActive: formData.isActive,
       }
 
       const response = await fetch(`/api/listings/${listingId}`, {
@@ -546,6 +549,23 @@ export default function EditListingPage() {
                 </div>
               </div>
 
+              {/* Listing Active Toggle */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Listing Status
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                    checked={formData.isActive}
+                    onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
+                  />
+                  <span className="ml-2 text-gray-700">
+                    {formData.isActive ? 'Active (Bookable)' : 'Inactive (Not Bookable)'}
+                  </span>
+                </label>
+              </div>
               {/* Availability Dates */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">

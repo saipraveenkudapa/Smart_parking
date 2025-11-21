@@ -137,8 +137,15 @@ export default function ListingDetailsPage() {
 
       const data = await response.json()
 
-      if (!response.ok || !data.booking) {
+      if (!response.ok) {
         throw new Error(data.error || 'Failed to create booking')
+      }
+
+      if (!data.booking) {
+        // Log the full response for debugging
+        console.error('Booking API response missing booking object:', data)
+        setError('Booking failed: No booking object returned from server. Please try again or contact support.')
+        return
       }
 
       // Redirect to payment page instead of showing success modal
@@ -191,7 +198,10 @@ export default function ListingDetailsPage() {
   }
 
   const user = getUser()
-  const isOwnListing = user?.userId === listing.host.id
+  // Defensive: listing.host may be undefined if backend does not provide it
+  const isOwnListing = user?.userId && listing.host && listing.host.id
+    ? user.userId === listing.host.id
+    : false
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -303,9 +313,15 @@ export default function ListingDetailsPage() {
                     <span className="text-2xl">👤</span>
                   </div>
                   <div>
-                    <p className="font-medium">{listing.host.fullName}</p>
-                    {listing.host.phoneVerified && (
-                      <p className="text-sm text-green-600">✓ Phone Verified</p>
+                    {listing.host ? (
+                      <>
+                        <p className="font-medium">{listing.host.fullName}</p>
+                        {listing.host.phoneVerified && (
+                          <p className="text-sm text-green-600">✓ Phone Verified</p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="font-medium text-gray-400">Host info unavailable</p>
                     )}
                   </div>
                 </div>
@@ -339,6 +355,12 @@ export default function ListingDetailsPage() {
                         </div>
                       )}
                       <form onSubmit={handleBooking} className="space-y-4">
+                            {/* Show error if booking fails */}
+                            {error && (
+                              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+                                {error}
+                              </div>
+                            )}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Start Date *
