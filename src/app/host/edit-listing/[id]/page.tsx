@@ -37,6 +37,7 @@ export default function EditListingPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [useRecommendedPrices, setUseRecommendedPrices] = useState(false)
 
   useEffect(() => {
     if (!requireAuth('/host/edit-listing/' + listingId)) {
@@ -313,9 +314,58 @@ export default function EditListingPage() {
 
               {/* Pricing */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Pricing *
-                </label>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Pricing *
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                      checked={useRecommendedPrices}
+                      onChange={(e) => {
+                        setUseRecommendedPrices(e.target.checked)
+                        if (e.target.checked) {
+                          // Use hourly as base if present, else daily, else weekly, else monthly
+                          let hourly = parseFloat(formData.hourlyPrice)
+                          let daily = parseFloat(formData.dailyPrice)
+                          let weekly = parseFloat(formData.weeklyPrice)
+                          let monthly = parseFloat(formData.monthlyPrice)
+                          if (!isNaN(hourly) && hourly > 0) {
+                            daily = (hourly * 5)
+                            weekly = (daily * 4)
+                            monthly = (weekly * 3)
+                          } else if (!isNaN(daily) && daily > 0) {
+                            hourly = (daily / 5)
+                            weekly = (daily * 4)
+                            monthly = (weekly * 3)
+                          } else if (!isNaN(weekly) && weekly > 0) {
+                            daily = (weekly / 4)
+                            hourly = (daily / 5)
+                            monthly = (weekly * 3)
+                          } else if (!isNaN(monthly) && monthly > 0) {
+                            weekly = (monthly / 3)
+                            daily = (weekly / 4)
+                            hourly = (daily / 5)
+                          } else {
+                            hourly = 5
+                            daily = 25
+                            weekly = 100
+                            monthly = 300
+                          }
+                          setFormData({
+                            ...formData,
+                            hourlyPrice: hourly.toFixed(2),
+                            dailyPrice: daily.toFixed(2),
+                            weeklyPrice: weekly.toFixed(2),
+                            monthlyPrice: monthly.toFixed(2),
+                          })
+                        }
+                      }}
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Use Recommended Prices</span>
+                  </label>
+                </div>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs text-gray-600 mb-1">Hourly Rate (USD)</label>
@@ -327,7 +377,23 @@ export default function EditListingPage() {
                       placeholder="e.g., 5.00"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
                       value={formData.hourlyPrice}
-                      onChange={(e) => setFormData({ ...formData, hourlyPrice: e.target.value })}
+                      onChange={(e) => {
+                        const hourly = e.target.value
+                        setFormData({ ...formData, hourlyPrice: hourly })
+                        if (useRecommendedPrices && hourly) {
+                          const hourlyNum = parseFloat(hourly)
+                          const daily = (hourlyNum * 5).toFixed(2)
+                          const weekly = (parseFloat(daily) * 4).toFixed(2)
+                          const monthly = (parseFloat(weekly) * 3).toFixed(2)
+                          setFormData({
+                            ...formData,
+                            hourlyPrice: hourly,
+                            dailyPrice: daily,
+                            weeklyPrice: weekly,
+                            monthlyPrice: monthly,
+                          })
+                        }
+                      }}
                     />
                   </div>
                   <div>
@@ -340,7 +406,23 @@ export default function EditListingPage() {
                       placeholder="e.g., 30.00"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
                       value={formData.dailyPrice}
-                      onChange={(e) => setFormData({ ...formData, dailyPrice: e.target.value })}
+                      onChange={(e) => {
+                        const daily = e.target.value
+                        setFormData({ ...formData, dailyPrice: daily })
+                        if (useRecommendedPrices && daily) {
+                          const dailyNum = parseFloat(daily)
+                          const hourly = (dailyNum / 5).toFixed(2)
+                          const weekly = (dailyNum * 4).toFixed(2)
+                          const monthly = (parseFloat(weekly) * 3).toFixed(2)
+                          setFormData({
+                            ...formData,
+                            hourlyPrice: hourly,
+                            dailyPrice: daily,
+                            weeklyPrice: weekly,
+                            monthlyPrice: monthly,
+                          })
+                        }
+                      }}
                     />
                   </div>
                   <div>
@@ -352,7 +434,23 @@ export default function EditListingPage() {
                       placeholder="Optional"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
                       value={formData.weeklyPrice}
-                      onChange={(e) => setFormData({ ...formData, weeklyPrice: e.target.value })}
+                      onChange={(e) => {
+                        const weekly = e.target.value
+                        setFormData({ ...formData, weeklyPrice: weekly })
+                        if (useRecommendedPrices && weekly) {
+                          const weeklyNum = parseFloat(weekly)
+                          const daily = (weeklyNum / 4).toFixed(2)
+                          const hourly = (parseFloat(daily) / 5).toFixed(2)
+                          const monthly = (weeklyNum * 3).toFixed(2)
+                          setFormData({
+                            ...formData,
+                            hourlyPrice: hourly,
+                            dailyPrice: daily,
+                            weeklyPrice: weekly,
+                            monthlyPrice: monthly,
+                          })
+                        }
+                      }}
                     />
                   </div>
                   <div>
@@ -365,11 +463,28 @@ export default function EditListingPage() {
                       placeholder="e.g., 200.00"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
                       value={formData.monthlyPrice}
-                      onChange={(e) => setFormData({ ...formData, monthlyPrice: e.target.value })}
+                      onChange={(e) => {
+                        const monthly = e.target.value
+                        setFormData({ ...formData, monthlyPrice: monthly })
+                        if (useRecommendedPrices && monthly) {
+                          const monthlyNum = parseFloat(monthly)
+                          const weekly = (monthlyNum / 3).toFixed(2)
+                          const daily = (parseFloat(weekly) / 4).toFixed(2)
+                          const hourly = (parseFloat(daily) / 5).toFixed(2)
+                          setFormData({
+                            ...formData,
+                            hourlyPrice: hourly,
+                            dailyPrice: daily,
+                            weeklyPrice: weekly,
+                            monthlyPrice: monthly,
+                          })
+                        }
+                      }}
                     />
                   </div>
                 </div>
               </div>
+
 
               {/* Description */}
               <div>
@@ -383,6 +498,36 @@ export default function EditListingPage() {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
+              </div>
+
+              {/* Availability Dates */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Availability Period
+                </label>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Available From</label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      value={formData.availableFrom}
+                      onChange={(e) => setFormData({ ...formData, availableFrom: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Available To</label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      value={formData.availableTo}
+                      onChange={(e) => setFormData({ ...formData, availableTo: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Leave blank for continuous availability
+                </p>
               </div>
 
               {/* Features */}
