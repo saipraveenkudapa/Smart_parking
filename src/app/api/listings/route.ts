@@ -38,6 +38,27 @@ export async function GET(req: NextRequest) {
 
     console.log(`Found ${parkingSpaces.length} parking spaces in database`)
 
+    // Get space IDs for pricing lookup
+    const spaceIds = parkingSpaces.map(space => space.space_id)
+
+    // Fetch pricing for all spaces
+    const pricings = await prisma.pricing_model.findMany({
+      where: {
+        space_id: {
+          in: spaceIds,
+        },
+      },
+      orderBy: {
+        valid_from: 'desc',
+      },
+      distinct: ['space_id'],
+    })
+
+    // Create a map of space_id to pricing
+    const pricingMap = new Map(
+      pricings.map((p: typeof pricings[0]) => [p.space_id, p])
+    )
+
     // Filter by location criteria (since they're in joined table)
     let filteredSpaces = parkingSpaces
 
@@ -92,29 +113,48 @@ export async function GET(req: NextRequest) {
     }
 
     // Format response to match frontend expectations
-    const listings = filteredSpaces.map((space: typeof parkingSpaces[0]) => ({
-      id: space.space_id.toString(),
-      title: space.title,
-      address: space.space_location?.address || '',
-      city: space.space_location?.city || '',
-      state: space.space_location?.state || '',
-      zipCode: space.space_location?.zip_code || '',
-      latitude: space.space_location?.latitude ? parseFloat(space.space_location.latitude.toString()) : null,
-      longitude: space.space_location?.longitude ? parseFloat(space.space_location.longitude.toString()) : null,
-      spaceType: space.space_type || 'driveway',
-      vehicleSize: 'standard', // Not in DB - default value
-      monthlyPrice: 0, // pricing_model not included due to complex primary key
-      description: space.description,
-      isGated: false, // Not in DB - default value
-      hasCCTV: space.has_cctv || false,
-      isCovered: false, // Not in DB - default value
-      hasEVCharging: space.ev_charging || false,
-      images: space.images ? space.images.split(',') : [],
-      host: {
-        fullName: 'Host', // Would need to join users table via availability
-        phoneVerified: false,
-      },
-    }))
+    const listings = filteredSpaces.map((space: typeof parkingSpaces[0]) => {
+      const pricing = pricingMap.get(space.space_id)
+      
+      // Parse images - handle different formats
+      let imageArray: string[] = []
+      if (space.images) {
+        const trimmed = space.images.trim()
+        if (trimmed.includes('|||')) {
+          // New format with ||| delimiter
+          imageArray = trimmed.split('|||').filter((img: string) => img.trim())
+        } else {
+          // Treat as single image (don't split by comma as base64 can contain commas)
+          imageArray = [trimmed]
+        }
+      }
+      
+      return {
+        id: space.space_id.toString(),
+        title: space.title,
+        address: space.space_location?.address || '',
+        city: space.space_location?.city || '',
+        state: space.space_location?.state || '',
+        zipCode: space.space_location?.zip_code || '',
+        latitude: space.space_location?.latitude ? parseFloat(space.space_location.latitude.toString()) : null,
+        longitude: space.space_location?.longitude ? parseFloat(space.space_location.longitude.toString()) : null,
+        spaceType: space.space_type || 'driveway',
+        vehicleSize: 'standard', // Not in DB - default value
+        monthlyPrice: pricing ? Number(pricing.monthly_rate) : 0,
+        hourlyPrice: pricing ? Number(pricing.hourly_rate) : 0,
+        dailyPrice: pricing ? Number(pricing.daily_rate) : 0,
+        description: space.description,
+        isGated: false, // Not in DB - default value
+        hasCCTV: space.has_cctv || false,
+        isCovered: false, // Not in DB - default value
+        hasEVCharging: space.ev_charging || false,
+        images: imageArray,
+        host: {
+          fullName: 'Host', // Would need to join users table via availability
+          phoneVerified: false,
+        },
+      }
+    })
 
     console.log(`Returning ${listings.length} listings after filtering`)
 
