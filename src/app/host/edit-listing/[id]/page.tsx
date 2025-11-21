@@ -21,12 +21,17 @@ export default function EditListingPage() {
     longitude: undefined as number | undefined,
     spaceType: 'DRIVEWAY',
     vehicleSize: 'STANDARD',
+    hourlyPrice: '',
+    dailyPrice: '',
+    weeklyPrice: '',
     monthlyPrice: '',
     description: '',
     isGated: false,
     hasCCTV: false,
     isCovered: false,
     hasEVCharging: false,
+    availableFrom: '',
+    availableTo: '',
   })
 
   const [isLoading, setIsLoading] = useState(true)
@@ -66,12 +71,17 @@ export default function EditListingPage() {
         longitude: listing.longitude,
         spaceType: listing.spaceType,
         vehicleSize: listing.vehicleSize,
-        monthlyPrice: listing.monthlyPrice.toString(),
+        hourlyPrice: listing.hourlyPrice?.toString() || '',
+        dailyPrice: listing.dailyPrice?.toString() || '',
+        weeklyPrice: listing.weeklyPrice?.toString() || '',
+        monthlyPrice: listing.monthlyPrice?.toString() || '',
         description: listing.description,
         isGated: listing.isGated,
         hasCCTV: listing.hasCCTV,
         isCovered: listing.isCovered,
         hasEVCharging: listing.hasEVCharging,
+        availableFrom: listing.availableFrom || '',
+        availableTo: listing.availableTo || '',
       })
     } catch (err: any) {
       console.error('Fetch error:', err)
@@ -123,12 +133,17 @@ export default function EditListingPage() {
         longitude: formData.longitude,
         spaceType: formData.spaceType,
         vehicleSize: formData.vehicleSize,
+        hourlyPrice: parseFloat(formData.hourlyPrice),
+        dailyPrice: parseFloat(formData.dailyPrice),
+        weeklyPrice: formData.weeklyPrice ? parseFloat(formData.weeklyPrice) : 0,
         monthlyPrice: parseFloat(formData.monthlyPrice),
         description: formData.description,
         isGated: formData.isGated,
         hasCCTV: formData.hasCCTV,
         isCovered: formData.isCovered,
         hasEVCharging: formData.hasEVCharging,
+        availableFrom: formData.availableFrom,
+        availableTo: formData.availableTo,
       }
 
       const response = await fetch(`/api/listings/${listingId}`, {
@@ -296,20 +311,64 @@ export default function EditListingPage() {
                 </div>
               </div>
 
-              {/* Monthly Price */}
+              {/* Pricing */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Monthly Price (USD) *
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Pricing *
                 </label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  step="0.01"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  value={formData.monthlyPrice}
-                  onChange={(e) => setFormData({ ...formData, monthlyPrice: e.target.value })}
-                />
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Hourly Rate (USD)</label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step="0.01"
+                      placeholder="e.g., 5.00"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      value={formData.hourlyPrice}
+                      onChange={(e) => setFormData({ ...formData, hourlyPrice: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Daily Rate (USD)</label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step="0.01"
+                      placeholder="e.g., 30.00"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      value={formData.dailyPrice}
+                      onChange={(e) => setFormData({ ...formData, dailyPrice: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Weekly Rate (USD)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Optional"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      value={formData.weeklyPrice}
+                      onChange={(e) => setFormData({ ...formData, weeklyPrice: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Monthly Rate (USD)</label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step="0.01"
+                      placeholder="e.g., 200.00"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      value={formData.monthlyPrice}
+                      onChange={(e) => setFormData({ ...formData, monthlyPrice: e.target.value })}
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Description */}
@@ -369,6 +428,36 @@ export default function EditListingPage() {
                     <span className="ml-2 text-gray-700">EV Charging Available</span>
                   </label>
                 </div>
+              </div>
+
+              {/* Availability Dates */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Availability Period
+                </label>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Available From</label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      value={formData.availableFrom}
+                      onChange={(e) => setFormData({ ...formData, availableFrom: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Available To</label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      value={formData.availableTo}
+                      onChange={(e) => setFormData({ ...formData, availableTo: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Leave blank for continuous availability
+                </p>
               </div>
 
               {/* Submit */}
