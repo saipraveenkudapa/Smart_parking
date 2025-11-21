@@ -70,7 +70,22 @@ export async function GET(req: NextRequest) {
         const space = avail.parking_spaces!
         const pricing = pricingMap.get(space.space_id)
         
-        console.log('Space:', space.space_id, 'Title:', space.title, 'Images:', space.images)
+        // Parse images - handle both comma-separated and single image
+        let imageArray: string[] = []
+        if (space.images) {
+          // If images contain commas, split them
+          if (space.images.includes(',')) {
+            imageArray = space.images.split(',').filter((img: string) => img.trim())
+          } else if (space.images.trim()) {
+            // Single image
+            imageArray = [space.images.trim()]
+          }
+        }
+        
+        console.log('Space:', space.space_id, 'Title:', space.title, 'Images count:', imageArray.length)
+        if (imageArray.length > 0) {
+          console.log('First image length:', imageArray[0].length, 'starts with:', imageArray[0].substring(0, 50))
+        }
         console.log('Pricing:', pricing ? { hourly: pricing.hourly_rate, monthly: pricing.monthly_rate } : 'No pricing')
         
         return {
@@ -90,7 +105,7 @@ export async function GET(req: NextRequest) {
           isCovered: false, // Not in database schema
           hasEVCharging: space.ev_charging || false,
           isActive: avail.is_available || false,
-          images: space.images ? space.images.split(',').filter((img: string) => img.trim()) : [],
+          images: imageArray,
           createdAt: avail.created_at?.toISOString() || new Date().toISOString(),
           updatedAt: avail.updated_at?.toISOString() || new Date().toISOString(),
         }

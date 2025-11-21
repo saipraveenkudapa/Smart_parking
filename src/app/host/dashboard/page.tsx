@@ -94,6 +94,11 @@ export default function HostDashboard() {
         return
       }
 
+      console.log('Fetched listings:', data.listings)
+      if (data.listings && data.listings.length > 0) {
+        console.log('First listing images:', data.listings[0].images)
+      }
+      
       setListings(data.listings || [])
     } catch (err: any) {
       console.error('Fetch error:', err)
