@@ -97,6 +97,13 @@ export default function HostDashboard() {
       console.log('Fetched listings:', data.listings)
       if (data.listings && data.listings.length > 0) {
         console.log('First listing images:', data.listings[0].images)
+        console.log('Number of images:', data.listings[0].images?.length)
+        if (data.listings[0].images?.length > 0) {
+          console.log('First image preview:', data.listings[0].images[0]?.substring(0, 100))
+          if (data.listings[0].images.length > 1) {
+            console.log('Second image preview:', data.listings[0].images[1]?.substring(0, 100))
+          }
+        }
       }
       
       setListings(data.listings || [])
@@ -379,6 +386,11 @@ export default function HostDashboard() {
                         src={listing.images[0]}
                         alt={listing.title}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          console.error('Image load error for listing:', listing.id, 'Image length:', listing.images[0]?.length)
+                          e.currentTarget.style.display = 'none'
+                        }}
+                        onLoad={() => console.log('Image loaded successfully for listing:', listing.id)}
                       />
                     ) : (
                       <div className="w-full h-full bg-linear-to-br from-green-400 to-green-600 flex items-center justify-center">

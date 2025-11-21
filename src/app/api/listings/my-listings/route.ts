@@ -70,14 +70,23 @@ export async function GET(req: NextRequest) {
         const space = avail.parking_spaces!
         const pricing = pricingMap.get(space.space_id)
         
-        // Parse images - handle both comma-separated and single image
+        // Parse images - use ||| delimiter for new, but handle old comma-separated data
         let imageArray: string[] = []
         if (space.images) {
-          // If images contain commas, split them
-          if (space.images.includes(',')) {
-            imageArray = space.images.split(',').filter((img: string) => img.trim())
-          } else if (space.images.trim()) {
-            // Single image
+          if (space.images.includes('|||')) {
+            // New format with ||| delimiter
+            imageArray = space.images.split('|||').filter((img: string) => img.trim())
+          } else if (space.images.startsWith('data:image/')) {
+            // Single image (starts with data:image/)
+            imageArray = [space.images.trim()]
+          } else if (space.images.includes(',data:image/')) {
+            // Old format - split by ',data:image/' and reconstruct
+            const parts = space.images.split(',data:image/')
+            imageArray = parts.map((part, index) => 
+              index === 0 ? part : 'data:image/' + part
+            ).filter((img: string) => img.trim())
+          } else {
+            // Fallback - treat as single image
             imageArray = [space.images.trim()]
           }
         }

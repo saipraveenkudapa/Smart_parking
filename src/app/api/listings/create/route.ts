@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
           location_id, pricing_id
         ) VALUES (
           ${title}, ${description}, ${spaceType?.toLowerCase() || 'driveway'}, ${false},
-          ${hasCCTV}, ${hasEVCharging}, ${description}, ${imageDataUrls.join(',')},
+          ${hasCCTV}, ${hasEVCharging}, ${description}, ${imageDataUrls.join('|||')},
           ${location.location_id}, ${nextPricingId}
         ) RETURNING space_id
       `
