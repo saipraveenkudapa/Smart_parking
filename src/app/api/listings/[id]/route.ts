@@ -40,12 +40,134 @@ export async function PATCH(
       )
     }
 
-    // TODO: Need to verify ownership through fact_availability table
-    // For now, return not implemented
-    return NextResponse.json(
-      { error: 'Listing updates not yet implemented for new schema' },
-      { status: 501 }
-    )
+    // Verify ownership through availability table
+    const availability = await prisma.availability.findFirst({
+      where: {
+        space_id: spaceId,
+        owner_id: parseInt(payload.userId),
+      },
+    })
+
+    if (!availability) {
+      return NextResponse.json(
+        { error: 'Not authorized to edit this listing' },
+        { status: 403 }
+      )
+    }
+
+    // Handle toggle active status
+    if (body.isActive !== undefined) {
+      await prisma.availability.updateMany({
+        where: {
+          space_id: spaceId,
+          owner_id: parseInt(payload.userId),
+        },
+        data: {
+          is_available: body.isActive,
+        },
+      })
+
+      return NextResponse.json({
+        message: 'Listing status updated successfully',
+        isActive: body.isActive,
+      })
+    }
+
+    // Handle full listing update
+    const {
+      title,
+      description,
+      address,
+      city,
+      state,
+      zipCode,
+      latitude,
+      longitude,
+      spaceType,
+      hasCCTV,
+      hasEVCharging,
+      hourlyPrice,
+      dailyPrice,
+      weeklyPrice,
+      monthlyPrice,
+    } = body
+
+    // Update location
+    const parkingSpace = await prisma.parking_spaces.findUnique({
+      where: { space_id: spaceId },
+      select: { location_id: true },
+    })
+
+    if (parkingSpace?.location_id) {
+      await prisma.space_location.update({
+        where: { location_id: parkingSpace.location_id },
+        data: {
+          ...(address && { address }),
+          ...(city && { city }),
+          ...(state && { state }),
+          ...(zipCode && { zip_code: zipCode }),
+          ...(latitude && { latitude: latitude.toString() }),
+          ...(longitude && { longitude: longitude.toString() }),
+        },
+      })
+    }
+
+    // Update parking space
+    await prisma.parking_spaces.update({
+      where: { space_id: spaceId },
+      data: {
+        ...(title && { title }),
+        ...(description && { description }),
+        ...(spaceType && { space_type: spaceType.toLowerCase() }),
+        ...(hasCCTV !== undefined && { has_cctv: hasCCTV }),
+        ...(hasEVCharging !== undefined && { ev_charging: hasEVCharging }),
+      },
+    })
+
+    // Update pricing if provided
+    if (hourlyPrice !== undefined || dailyPrice !== undefined || monthlyPrice !== undefined) {
+      // Mark current pricing as not current
+      await prisma.pricing_model.updateMany({
+        where: {
+          space_id: spaceId,
+          is_current: true,
+        },
+        data: {
+          is_current: false,
+        },
+      })
+
+      // Get next pricing_id
+      const currentSpace = await prisma.parking_spaces.findUnique({
+        where: { space_id: spaceId },
+        select: { pricing_id: true },
+      })
+      const nextPricingId = (currentSpace?.pricing_id || 0) + 1
+
+      // Create new pricing record
+      await prisma.pricing_model.create({
+        data: {
+          pricing_id: nextPricingId,
+          space_id: spaceId,
+          valid_from: new Date(),
+          is_current: true,
+          hourly_rate: hourlyPrice ? parseFloat(hourlyPrice) : 0,
+          daily_rate: dailyPrice ? parseFloat(dailyPrice) : 0,
+          weekly_rate: weeklyPrice ? parseFloat(weeklyPrice) : 0,
+          monthly_rate: monthlyPrice ? parseFloat(monthlyPrice) : 0,
+        },
+      })
+
+      // Update parking_spaces with new pricing_id
+      await prisma.parking_spaces.update({
+        where: { space_id: spaceId },
+        data: { pricing_id: nextPricingId },
+      })
+    }
+
+    return NextResponse.json({
+      message: 'Listing updated successfully',
+    })
   } catch (error) {
     console.error('Update listing error:', error)
     return NextResponse.json(
@@ -135,6 +257,25 @@ export async function GET(
       )
     }
 
+    // Fetch pricing data
+    const pricing = await prisma.pricing_model.findFirst({
+      where: {
+        space_id: spaceId,
+        is_current: true,
+      },
+    })
+
+    // Parse images - handle different formats
+    let imageArray: string[] = []
+    if (parkingSpace.images) {
+      const trimmed = parkingSpace.images.trim()
+      if (trimmed.includes('|||')) {
+        imageArray = trimmed.split('|||').filter((img: string) => img.trim())
+      } else {
+        imageArray = [trimmed]
+      }
+    }
+
     // Map to maintain frontend compatibility
     const listing = {
       id: parkingSpace.space_id.toString(),
@@ -147,11 +288,14 @@ export async function GET(
       latitude: parkingSpace.space_location?.latitude ? parseFloat(parkingSpace.space_location.latitude.toString()) : 0,
       longitude: parkingSpace.space_location?.longitude ? parseFloat(parkingSpace.space_location.longitude.toString()) : 0,
       spaceType: parkingSpace.space_type,
-      monthlyPrice: 0, // pricing_model not included due to complex primary key
+      hourlyPrice: pricing ? Number(pricing.hourly_rate) : 0,
+      dailyPrice: pricing ? Number(pricing.daily_rate) : 0,
+      weeklyPrice: pricing ? Number(pricing.weekly_rate) : 0,
+      monthlyPrice: pricing ? Number(pricing.monthly_rate) : 0,
       hasCCTV: parkingSpace.has_cctv || false,
       hasEVCharging: parkingSpace.ev_charging || false,
       isInstantBook: parkingSpace.is_instant_book,
-      images: parkingSpace.images ? parkingSpace.images.split(',') : [],
+      images: imageArray,
       accessInstructions: parkingSpace.access_instructions,
     }
 
