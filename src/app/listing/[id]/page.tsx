@@ -45,8 +45,10 @@ export default function ListingDetailsPage() {
   const [showBookingForm, setShowBookingForm] = useState(false)
   const [bookingData, setBookingData] = useState({
     startDate: '',
+    startTime: '',
     endDate: '',
     vehicleId: '',
+    durationType: '1h', // '30m' | '1h' | '1w' | '1m' | 'custom'
   })
   const [vehicles, setVehicles] = useState<any[]>([])
   const [loadingVehicles, setLoadingVehicles] = useState(false)
@@ -121,6 +123,64 @@ export default function ListingDetailsPage() {
 
     try {
       const token = localStorage.getItem('token')
+
+      // Build ISO start and end timestamps based on durationType
+      let startISO = ''
+      let endISO = ''
+
+      if (!bookingData.startDate) {
+        setError('Please select a start date')
+        setBookingSubmitting(false)
+        return
+      }
+
+      // Helper to build Date from date string and optional time
+      const buildDate = (dateStr: string, timeStr?: string) => {
+        if (!timeStr) timeStr = '00:00'
+        // create an ISO-like string in local timezone
+        return new Date(`${dateStr}T${timeStr}:00`)
+      }
+
+      const startDt = buildDate(bookingData.startDate, bookingData.startTime || '12:00')
+
+      if (bookingData.durationType === 'custom') {
+        if (!bookingData.endDate) {
+          setError('Please select an end date for custom bookings')
+          setBookingSubmitting(false)
+          return
+        }
+        // For custom, assume end at 23:59 of endDate if no time provided
+        const endDt = buildDate(bookingData.endDate, '23:59')
+        if (endDt <= startDt) {
+          setError('End date must be after start date')
+          setBookingSubmitting(false)
+          return
+        }
+        startISO = startDt.toISOString()
+        endISO = endDt.toISOString()
+      } else {
+        // Preset durations
+        let endDt = new Date(startDt.getTime())
+        switch (bookingData.durationType) {
+          case '30m':
+            endDt.setMinutes(endDt.getMinutes() + 30)
+            break
+          case '1h':
+            endDt.setHours(endDt.getHours() + 1)
+            break
+          case '1w':
+            endDt.setDate(endDt.getDate() + 7)
+            break
+          case '1m':
+            endDt.setMonth(endDt.getMonth() + 1)
+            break
+          default:
+            endDt.setHours(endDt.getHours() + 1)
+        }
+        startISO = startDt.toISOString()
+        endISO = endDt.toISOString()
+      }
+
       const response = await fetch('/api/bookings', {
         method: 'POST',
         headers: {
@@ -129,8 +189,8 @@ export default function ListingDetailsPage() {
         },
         body: JSON.stringify({
           listingId,
-          startDate: bookingData.startDate,
-          endDate: bookingData.endDate,
+          startDate: startISO,
+          endDate: endISO,
           vehicleId: bookingData.vehicleId,
         }),
       })
@@ -363,30 +423,88 @@ export default function ListingDetailsPage() {
                             )}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Start Date *
+                            Booking Length *
                           </label>
-                          <input
-                            type="date"
-                            required
-                            min={new Date().toISOString().split('T')[0]}
+                          <select
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                            value={bookingData.startDate}
-                            onChange={(e) => setBookingData({ ...bookingData, startDate: e.target.value })}
-                          />
+                            value={bookingData.durationType}
+                            onChange={(e) => setBookingData({ ...bookingData, durationType: e.target.value })}
+                          >
+                            <option value="30m">30 minutes</option>
+                            <option value="1h">1 hour</option>
+                            <option value="1w">1 week</option>
+                            <option value="1m">1 month</option>
+                            <option value="custom">Custom dates</option>
+                          </select>
                         </div>
+
+                        {/* Start date/time */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            End Date *
+                            Start Date *
                           </label>
-                          <input
-                            type="date"
-                            required
-                            min={bookingData.startDate || new Date().toISOString().split('T')[0]}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                            value={bookingData.endDate}
-                            onChange={(e) => setBookingData({ ...bookingData, endDate: e.target.value })}
-                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="date"
+                              required
+                              min={new Date().toISOString().split('T')[0]}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                              value={bookingData.startDate}
+                              onChange={(e) => setBookingData({ ...bookingData, startDate: e.target.value })}
+                            />
+                            {/* show time input for presets (not custom) and for custom optionally */}
+                            <input
+                              type="time"
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                              value={bookingData.startTime}
+                              onChange={(e) => setBookingData({ ...bookingData, startTime: e.target.value })}
+                              disabled={false}
+                            />
+                          </div>
                         </div>
+
+                        {/* End date for custom, otherwise display computed end */}
+                        {bookingData.durationType === 'custom' ? (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              End Date *
+                            </label>
+                            <input
+                              type="date"
+                              required
+                              min={bookingData.startDate || new Date().toISOString().split('T')[0]}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                              value={bookingData.endDate}
+                              onChange={(e) => setBookingData({ ...bookingData, endDate: e.target.value })}
+                            />
+                          </div>
+                        ) : (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Estimated End</label>
+                            <div className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
+                              {bookingData.startDate ? (
+                                (() => {
+                                  try {
+                                    const d = new Date(`${bookingData.startDate}T${bookingData.startTime || '12:00'}:00`)
+                                    const end = new Date(d.getTime())
+                                    switch (bookingData.durationType) {
+                                      case '30m': end.setMinutes(end.getMinutes() + 30); break
+                                      case '1h': end.setHours(end.getHours() + 1); break
+                                      case '1w': end.setDate(end.getDate() + 7); break
+                                      case '1m': end.setMonth(end.getMonth() + 1); break
+                                      default: end.setHours(end.getHours() + 1)
+                                    }
+                                    return end.toLocaleString()
+                                  } catch (err) {
+                                    return 'Select start date'
+                                  }
+                                })()
+                              ) : (
+                                'Select start date'
+                              )}
+                            </div>
+                          </div>
+                        )}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Select Vehicle *
