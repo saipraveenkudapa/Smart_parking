@@ -28,6 +28,8 @@ export default function ListSpacePage() {
     hasCCTV: false,
     isCovered: false,
     hasEVCharging: false,
+    availableFrom: '',
+    availableTo: '',
   })
 
   const [images, setImages] = useState<File[]>([])
@@ -113,6 +115,10 @@ export default function ListSpacePage() {
       formDataToSend.append('hasCCTV', formData.hasCCTV.toString())
       formDataToSend.append('isCovered', formData.isCovered.toString())
       formDataToSend.append('hasEVCharging', formData.hasEVCharging.toString())
+      
+      // Add availability dates
+      if (formData.availableFrom) formDataToSend.append('availableFrom', formData.availableFrom)
+      if (formData.availableTo) formDataToSend.append('availableTo', formData.availableTo)
       
       // Add images
       images.forEach((image) => {
@@ -455,6 +461,42 @@ export default function ListSpacePage() {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
+              </div>
+
+              {/* Availability Dates */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Availability Period
+                </label>
+                <p className="text-sm text-gray-500 mb-3">
+                  Set when your parking space will be available (optional - defaults to starting now and available for 1 year)
+                </p>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Available From
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      value={formData.availableFrom}
+                      onChange={(e) => setFormData({ ...formData, availableFrom: e.target.value })}
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Available To
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      value={formData.availableTo}
+                      onChange={(e) => setFormData({ ...formData, availableTo: e.target.value })}
+                      min={formData.availableFrom || new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Parking Space Images */}

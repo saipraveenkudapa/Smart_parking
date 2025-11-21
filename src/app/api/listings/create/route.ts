@@ -46,6 +46,8 @@ export async function POST(req: NextRequest) {
     const hasCCTV = formData.get('hasCCTV') === 'true'
     const isCovered = formData.get('isCovered') === 'true'
     const hasEVCharging = formData.get('hasEVCharging') === 'true'
+    const availableFrom = formData.get('availableFrom') as string | null
+    const availableTo = formData.get('availableTo') as string | null
 
     // Validate required fields
     if (!title || !address || !city || !state || !zipCode || !hourlyRate || !dailyRate || !monthlyRate || !description) {
@@ -150,12 +152,16 @@ export async function POST(req: NextRequest) {
     const oneYearFromNow = new Date()
     oneYearFromNow.setFullYear(now.getFullYear() + 1)
     
+    // Use custom dates if provided, otherwise default to now and one year from now
+    const availableStart = availableFrom ? new Date(availableFrom) : now
+    const availableEnd = availableTo ? new Date(availableTo) : oneYearFromNow
+    
     await prisma.availability.create({
       data: {
         owner_id: parseInt(payload.userId),
         space_id: parkingSpace.space_id,
-        available_start: now,
-        available_end: oneYearFromNow,
+        available_start: availableStart,
+        available_end: availableEnd,
         is_available: true,
         availability_reason: 'Initial listing creation',
         created_at: now,
