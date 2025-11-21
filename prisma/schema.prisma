@@ -11,16 +11,16 @@ datasource db {
 
 model availability {
   availability_id     Int             @id(map: "fact_availability_pkey") @default(autoincrement())
-  owner_id            Int?
-  space_id            Int?
-  available_start     DateTime?       @db.Timestamp(6)
-  available_end       DateTime?       @db.Timestamp(6)
-  is_available        Boolean?
+  owner_id            Int
+  space_id            Int
+  available_start     DateTime        @db.Timestamp(6)
+  available_end       DateTime        @db.Timestamp(6)
+  is_available        Boolean
   availability_reason String?         @db.VarChar
-  created_at          DateTime?       @db.Timestamp(6)
-  updated_at          DateTime?       @db.Timestamp(6)
-  users               users?          @relation(fields: [owner_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fact_availability_owner_id_fkey")
-  parking_spaces      parking_spaces? @relation(fields: [space_id], references: [space_id], onDelete: NoAction, onUpdate: NoAction, map: "fact_availability_space_id_fkey")
+  created_at          DateTime        @db.Timestamp(6)
+  updated_at          DateTime        @db.Timestamp(6)
+  users               users           @relation(fields: [owner_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fact_availability_owner_id_fkey")
+  parking_spaces      parking_spaces  @relation(fields: [space_id], references: [space_id], onDelete: NoAction, onUpdate: NoAction, map: "fact_availability_space_id_fkey")
   bookings            bookings[]
 
   @@map("availability")
@@ -29,23 +29,21 @@ model availability {
 
 model bookings {
   booking_id                           Int           @id(map: "fact_bookings_pkey") @default(autoincrement())
-  availability_id                      Int?
-  driver_id                            Int?
-  payout_id                            Int?
-  review_id                            Int?
-  start_time                           DateTime?     @db.Timestamp(6)
-  end_time                             DateTime?     @db.Timestamp(6)
+  availability_id                      Int
+  driver_id                            Int
+  payout_id                            Int
+  start_time                           DateTime      @db.Timestamp(6)
+  end_time                             DateTime      @db.Timestamp(6)
   duration_hours                       Decimal?      @db.Decimal
-  total_amount                         Decimal?      @db.Decimal
+  total_amount                         Decimal       @db.Decimal
   service_fee                          Decimal?      @db.Decimal
-  owner_payout                         Decimal?      @db.Decimal
-  booking_status                       String?       @db.VarChar
+  owner_payout                         Decimal       @db.Decimal
+  booking_status                       String        @db.VarChar
   payment_status                       String?       @db.VarChar
   cancellation_reason                  String?
-  availability                         availability? @relation(fields: [availability_id], references: [availability_id], onDelete: NoAction, onUpdate: NoAction, map: "fact_bookings_availability_id_fkey")
-  users                                users?        @relation(fields: [driver_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fact_bookings_driver_id_fkey")
-  payout                               payout?       @relation(fields: [payout_id], references: [payout_id], onDelete: NoAction, onUpdate: NoAction, map: "fact_bookings_payout_id_fkey")
-  reviews_bookings_review_idToreviews  reviews?      @relation("bookings_review_idToreviews", fields: [review_id], references: [review_id], onDelete: NoAction, onUpdate: NoAction, map: "fact_bookings_review_id_fkey")
+  availability                         availability  @relation(fields: [availability_id], references: [availability_id], onDelete: NoAction, onUpdate: NoAction, map: "fact_bookings_availability_id_fkey")
+  users                                users         @relation(fields: [driver_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fact_bookings_driver_id_fkey")
+  payout                               payout        @relation(fields: [payout_id], references: [payout_id], onDelete: NoAction, onUpdate: NoAction, map: "fact_bookings_payout_id_fkey")
   reviews_reviews_booking_idTobookings reviews[]     @relation("reviews_booking_idTobookings")
 
   @@map("bookings")
@@ -76,7 +74,7 @@ model parking_spaces {
   access_instructions String?
   images              String?
   location_id         Int
-  pricing_id          Int
+  pricing_id          Int            @unique
   availability        availability[]
   favorites           favorites[]
   reviews             reviews[]
@@ -117,18 +115,17 @@ model pricing_model {
 
 model reviews {
   review_id                             Int             @id(map: "dim_reviews_pkey") @default(autoincrement())
-  booking_id                            Int?
-  reviewer_id                           Int?
-  reviewee_id                           Int?
+  booking_id                            Int
+  reviewer_id                           Int
+  reviewee_id                           Int
   space_id                              Int?
   review_type                           String?         @db.VarChar
-  rating                                Int?
-  review_date                           DateTime?       @default(now()) @db.Timestamp(6)
-  comments                              String?
-  bookings_bookings_review_idToreviews  bookings[]      @relation("bookings_review_idToreviews")
-  users_reviews_reviewee_idTousers      users?          @relation("reviews_reviewee_idTousers", fields: [reviewee_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_reviews_reviewee_id_fkey")
-  users_reviews_reviewer_idTousers      users?          @relation("reviews_reviewer_idTousers", fields: [reviewer_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_reviews_reviewer_id_fkey")
-  bookings_reviews_booking_idTobookings bookings?       @relation("reviews_booking_idTobookings", fields: [booking_id], references: [booking_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reviews_booking")
+  rating                                Int
+  review_date                           DateTime        @default(now()) @db.Timestamp(6)
+  comments                              String
+  users_reviews_reviewee_idTousers      users           @relation("reviews_reviewee_idTousers", fields: [reviewee_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_reviews_reviewee_id_fkey")
+  users_reviews_reviewer_idTousers      users           @relation("reviews_reviewer_idTousers", fields: [reviewer_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "dim_reviews_reviewer_id_fkey")
+  bookings_reviews_booking_idTobookings bookings        @relation("reviews_booking_idTobookings", fields: [booking_id], references: [booking_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_reviews_booking")
   parking_spaces                        parking_spaces? @relation(fields: [space_id], references: [space_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("reviews")

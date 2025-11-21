@@ -98,7 +98,13 @@ export async function POST(req: NextRequest) {
       // Disable FK checks for this session only
       await tx.$executeRawUnsafe('SET session_replication_role = replica')
       
-      // Insert parking_space with pricing_id = 1
+      // Get next available pricing_id (max + 1)
+      const maxPricingResult = await tx.$queryRaw<Array<{ max_pricing_id: number | null }>>`
+        SELECT MAX(pricing_id) as max_pricing_id FROM park_connect.pricing_model
+      `
+      const nextPricingId = (maxPricingResult[0]?.max_pricing_id || 0) + 1
+      
+      // Insert parking_space with unique pricing_id
       const spaceResult = await tx.$queryRaw<Array<{ space_id: number }>>`
         INSERT INTO park_connect.parking_spaces (
           title, description, space_type, is_instant_book, 
@@ -107,19 +113,19 @@ export async function POST(req: NextRequest) {
         ) VALUES (
           ${title}, ${description}, ${spaceType?.toLowerCase() || 'driveway'}, ${false},
           ${hasCCTV}, ${hasEVCharging}, ${description}, ${imageDataUrls.join(',')},
-          ${location.location_id}, ${1}
+          ${location.location_id}, ${nextPricingId}
         ) RETURNING space_id
       `
       
       const spaceId = spaceResult[0].space_id
       
-      // Insert pricing_model with actual space_id
+      // Insert pricing_model with actual space_id and unique pricing_id
       await tx.$executeRaw`
         INSERT INTO park_connect.pricing_model (
           pricing_id, space_id, valid_from, is_current,
           hourly_rate, daily_rate, weekly_rate, monthly_rate
         ) VALUES (
-          ${1}, ${spaceId}, ${validFrom}::timestamptz, ${true},
+          ${nextPricingId}, ${spaceId}, ${validFrom}::timestamptz, ${true},
           ${parseFloat(hourlyRate)}, ${parseFloat(dailyRate)}, 
           ${weeklyRate ? parseFloat(weeklyRate) : 0}, ${parseFloat(monthlyRate)}
         )
@@ -136,7 +142,7 @@ export async function POST(req: NextRequest) {
       const pricing = await tx.pricing_model.findFirst({
         where: { 
           space_id: spaceId,
-          pricing_id: 1
+          is_current: true
         }
       })
       
