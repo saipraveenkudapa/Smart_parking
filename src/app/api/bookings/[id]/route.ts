@@ -120,7 +120,6 @@ export async function PATCH(
       driverId: updatedBooking.driver_id,
       startTime: updatedBooking.start_time,
       endTime: updatedBooking.end_time,
-      durationHours: updatedBooking.duration_hours,
       totalAmount: updatedBooking.total_amount,
       serviceFee: updatedBooking.service_fee,
       ownerPayout: updatedBooking.owner_payout,

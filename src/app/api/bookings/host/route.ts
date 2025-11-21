@@ -62,7 +62,6 @@ export async function GET(req: NextRequest) {
       driverId: booking.driver_id,
       startTime: booking.start_time,
       endTime: booking.end_time,
-      durationHours: booking.duration_hours,
       totalAmount: booking.total_amount,
       serviceFee: booking.service_fee,
       ownerPayout: booking.owner_payout,

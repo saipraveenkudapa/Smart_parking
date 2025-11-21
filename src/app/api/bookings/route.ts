@@ -153,7 +153,6 @@ export async function POST(req: NextRequest) {
         payout_id: payout.payout_id,
         start_time: start,
         end_time: end,
-        duration_hours: durationHours,
         total_amount: parseFloat(totalAmount.toFixed(2)),
         service_fee: parseFloat(serviceFee.toFixed(2)),
         owner_payout: parseFloat(ownerPayout.toFixed(2)),
@@ -183,11 +182,10 @@ export async function POST(req: NextRequest) {
     // Map response for API compatibility
     const response = {
       bookingId: booking.booking_id,
-      spaceId: booking.availability?.space_id,
+      spaceId: booking.availability.space_id,
       driverId: booking.driver_id,
       startTime: booking.start_time,
       endTime: booking.end_time,
-      durationHours: booking.duration_hours,
       totalAmount: booking.total_amount,
       serviceFee: booking.service_fee,
       ownerPayout: booking.owner_payout,
@@ -278,7 +276,6 @@ export async function GET(req: NextRequest) {
       driverId: booking.driver_id,
       startTime: booking.start_time,
       endTime: booking.end_time,
-      durationHours: booking.duration_hours,
       totalAmount: booking.total_amount,
       serviceFee: booking.service_fee,
       ownerPayout: booking.owner_payout,

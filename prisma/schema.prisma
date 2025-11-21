@@ -34,7 +34,6 @@ model bookings {
   payout_id                            Int
   start_time                           DateTime      @db.Timestamp(6)
   end_time                             DateTime      @db.Timestamp(6)
-  duration_hours                       Decimal?      @db.Decimal
   total_amount                         Decimal       @db.Decimal
   service_fee                          Decimal?      @db.Decimal
   owner_payout                         Decimal       @db.Decimal
