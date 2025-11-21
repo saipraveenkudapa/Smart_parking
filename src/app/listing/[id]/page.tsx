@@ -137,7 +137,7 @@ export default function ListingDetailsPage() {
 
       const data = await response.json()
 
-      if (!response.ok) {
+      if (!response.ok || !data.booking) {
         throw new Error(data.error || 'Failed to create booking')
       }
 
