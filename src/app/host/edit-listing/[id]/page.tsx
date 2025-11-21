@@ -185,7 +185,7 @@ export default function EditListingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-green-50 to-white">
       <Header />
 
       <main className="container mx-auto px-4 py-16">
