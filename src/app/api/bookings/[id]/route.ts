@@ -109,10 +109,7 @@ export async function PATCH(
     }
     if (paymentStatus) {
       updateData.payment_status = paymentStatus
-      // Optionally record paidAt timestamp when payment completed
-      if (paymentStatus.toLowerCase() === 'completed' || paymentStatus.toLowerCase() === 'paid') {
-        updateData.paid_at = new Date()
-      }
+      // Do not set paid_at, as the field does not exist in the schema
     }
 
     const updatedBooking = await prisma.bookings.update({
