@@ -389,8 +389,7 @@ export default function ListingDetailsPage() {
               {/* Location */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-2">📍 Location</h3>
-                <p className="text-gray-700">{listing.address}</p>
-                <p className="text-gray-600">{listing.city}, {listing.state} {listing.zipCode}</p>
+                <p className="text-gray-700">Distance: (to be calculated)</p>
               </div>
 
               {/* Space Details */}
