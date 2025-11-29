@@ -4,6 +4,28 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { isAuthenticated, getUser } from '@/lib/clientAuth'
+
+// Helper to check if user has an approved booking for this listing that has ended
+async function userHasCompletedBooking(listingId: string): Promise<boolean> {
+  try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) return false;
+    const res = await fetch('/api/bookings', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (!data.bookings) return false;
+    const now = new Date();
+    return data.bookings.some((b: any) =>
+      b.listing.id?.toString() === listingId &&
+      b.status === 'APPROVED' &&
+      b.endDate && new Date(b.endDate) < now
+    );
+  } catch {
+    return false;
+  }
+}
 import Header from '@/components/Header'
 import Reviews from '@/components/Reviews'
 
@@ -44,6 +66,7 @@ export default function ListingDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showBookingForm, setShowBookingForm] = useState(false)
+  const [canShowReviews, setCanShowReviews] = useState(false)
   const [bookingData, setBookingData] = useState({
     startDate: '',
     startTime: '',
@@ -60,7 +83,16 @@ export default function ListingDetailsPage() {
   const [bookingErrors, setBookingErrors] = useState<{ startDate?: string; endDate?: string; vehicleId?: string }>({})
 
   useEffect(() => {
-    fetchListing()
+    (async () => {
+      await fetchListing();
+      // Check if user can see reviews (has completed booking)
+      if (isAuthenticated()) {
+        const ok = await userHasCompletedBooking(listingId)
+        setCanShowReviews(ok)
+      } else {
+        setCanShowReviews(false)
+      }
+    })();
   }, [listingId])
 
   useEffect(() => {
@@ -458,14 +490,17 @@ export default function ListingDetailsPage() {
                 </div>
               </div>
 
-              {/* Reviews Section */}
-              <div className="mb-6">
-                <Reviews 
-                  targetId={parseInt(listingId)} 
-                  targetType="SPACE"
-                  allowNewReview={isAuthenticated() && !isOwnListing}
-                />
-              </div>
+
+              {/* Reviews Section: Only show if user has completed booking */}
+              {canShowReviews && (
+                <div className="mb-6">
+                  <Reviews 
+                    targetId={parseInt(listingId)} 
+                    targetType="SPACE"
+                    allowNewReview={isAuthenticated() && !isOwnListing && canShowReviews}
+                  />
+                </div>
+              )}
 
               {/* Booking Section */}
               {!isOwnListing && listing.isActive && (
