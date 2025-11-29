@@ -270,30 +270,27 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    // Map response for API compatibility
+    // Map response for frontend compatibility
     const mappedBookings = bookings.map((booking: typeof bookings[0]) => ({
-      bookingId: booking.booking_id,
-      spaceId: booking.availability?.space_id,
-      driverId: booking.driver_id,
-      startTime: booking.start_time,
-      endTime: booking.end_time,
-      totalAmount: booking.total_amount,
-      serviceFee: booking.service_fee,
-      ownerPayout: booking.owner_payout,
-      bookingStatus: booking.booking_status,
-      paymentStatus: booking.payment_status,
-      space: {
-        title: booking.availability?.parking_spaces?.title,
-        address: booking.availability?.parking_spaces?.space_location?.address,
-        city: booking.availability?.parking_spaces?.space_location?.city,
-        state: booking.availability?.parking_spaces?.space_location?.state,
-        zipCode: booking.availability?.parking_spaces?.space_location?.zip_code,
-        hourlyRate: null, // pricing_model not included due to complex primary key
-        monthlyRate: null,
-        owner: {
-          fullName: booking.availability?.users?.full_name,
-          phoneNumber: booking.availability?.users?.phone_number,
-          isVerified: booking.availability?.users?.is_verified,
+      id: booking.booking_id.toString(),
+      startDate: booking.start_time,
+      endDate: booking.end_time,
+      vehicleDetails: '', // Not available in schema, set as empty or fetch if possible
+      status: (booking.booking_status || '').toUpperCase(),
+      createdAt: booking.created_at || booking.start_time,
+      listing: {
+        id: booking.availability?.space_id?.toString() || '',
+        title: booking.availability?.parking_spaces?.title || '',
+        address: booking.availability?.parking_spaces?.space_location?.address || '',
+        city: booking.availability?.parking_spaces?.space_location?.city || '',
+        state: booking.availability?.parking_spaces?.space_location?.state || '',
+        zipCode: booking.availability?.parking_spaces?.space_location?.zip_code || '',
+        monthlyPrice: booking.availability?.parking_spaces?.monthly_price || 0,
+        host: {
+          id: booking.availability?.users?.user_id?.toString() || '',
+          fullName: booking.availability?.users?.full_name || '',
+          email: '', // Not available in current include, set as empty or fetch if possible
+          phoneNumber: booking.availability?.users?.phone_number || '',
         },
       },
     }))
