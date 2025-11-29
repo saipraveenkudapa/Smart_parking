@@ -389,10 +389,7 @@ function SearchResults() {
 
                   {/* Location */}
                   <p className="text-sm text-gray-600 mb-2">
-                    📍 {listing.address}
-                  </p>
-                  <p className="text-xs text-gray-500 mb-2">
-                    {listing.city}, {listing.state} {listing.zipCode}
+                    📍 Distance: (to be calculated)
                   </p>
                   
                   {/* Distance */}
