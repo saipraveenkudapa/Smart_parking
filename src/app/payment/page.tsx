@@ -33,14 +33,31 @@ function PaymentContent() {
     setProcessing(true)
 
     // Simulate payment processing
-    setTimeout(() => {
+    setTimeout(async () => {
       setProcessing(false)
       setPaymentSuccess(true)
-      
-      // Redirect to success page after 2 seconds
+
+      // If bookingId is present, notify backend that payment completed
+      try {
+        const token = localStorage.getItem('token')
+        if (bookingId && token) {
+          await fetch(`/api/bookings/${bookingId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ paymentStatus: 'completed' }),
+          })
+        }
+      } catch (err) {
+        console.error('Failed to update payment status for booking:', err)
+      }
+
+      // Redirect to bookings after a short delay
       setTimeout(() => {
         router.push(`/renter/bookings`)
-      }, 2000)
+      }, 1500)
     }, 2000)
   }
 

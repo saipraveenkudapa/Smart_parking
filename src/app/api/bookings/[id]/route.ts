@@ -28,7 +28,7 @@ export async function PATCH(
 
     const { id } = await params
     const body = await req.json()
-    const { status } = body
+    const { status, paymentStatus } = body
 
     // Convert to integer
     const bookingId = parseInt(id)
@@ -40,7 +40,7 @@ export async function PATCH(
     }
 
     const validStatuses = ['confirmed', 'cancelled', 'completed']
-    if (!status || !validStatuses.includes(status.toLowerCase())) {
+    if (status && !validStatuses.includes(status.toLowerCase())) {
       return NextResponse.json(
         { error: 'Invalid status. Must be confirmed, cancelled, or completed' },
         { status: 400 }
@@ -70,31 +70,54 @@ export async function PATCH(
 
     // Check permissions
     // Owner can confirm/complete, driver can cancel
-    if (status.toLowerCase() === 'cancelled') {
+    if (status) {
+      if (status.toLowerCase() === 'cancelled') {
+        if (booking.driver_id !== userId) {
+          return NextResponse.json(
+            { error: 'Only the driver can cancel this booking' },
+            { status: 403 }
+          )
+        }
+      } else {
+        if (booking.availability?.owner_id !== userId) {
+          return NextResponse.json(
+            { error: 'Only the parking space owner can confirm or complete this booking' },
+            { status: 403 }
+          )
+        }
+      }
+    }
+
+    // Allow driver to update payment status (e.g., after completing payment)
+    if (paymentStatus) {
+      // Only the driver who created the booking can update paymentStatus
       if (booking.driver_id !== userId) {
         return NextResponse.json(
-          { error: 'Only the driver can cancel this booking' },
-          { status: 403 }
-        )
-      }
-    } else {
-      if (booking.availability?.owner_id !== userId) {
-        return NextResponse.json(
-          { error: 'Only the parking space owner can confirm or complete this booking' },
+          { error: 'Only the booking driver can update payment status' },
           { status: 403 }
         )
       }
     }
 
     // Update the booking
+    const updateData: any = {}
+    if (status) {
+      updateData.booking_status = status.toLowerCase()
+      if (status.toLowerCase() === 'cancelled') {
+        updateData.cancellation_reason = 'Cancelled by user'
+      }
+    }
+    if (paymentStatus) {
+      updateData.payment_status = paymentStatus
+      // Optionally record paidAt timestamp when payment completed
+      if (paymentStatus.toLowerCase() === 'completed' || paymentStatus.toLowerCase() === 'paid') {
+        updateData.paid_at = new Date()
+      }
+    }
+
     const updatedBooking = await prisma.bookings.update({
       where: { booking_id: bookingId },
-      data: {
-        booking_status: status.toLowerCase(),
-        ...(status.toLowerCase() === 'cancelled' && {
-          cancellation_reason: 'Cancelled by user',
-        }),
-      },
+      data: updateData,
       include: {
         availability: {
           include: {
