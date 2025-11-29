@@ -155,8 +155,14 @@ export async function PATCH(
       },
     }
 
+    let message = 'Booking updated successfully';
+    if (status) {
+      message = `Booking ${status.toLowerCase()} successfully`;
+    } else if (paymentStatus) {
+      message = 'Payment status updated successfully';
+    }
     return NextResponse.json({
-      message: `Booking ${status.toLowerCase()} successfully`,
+      message,
       booking: response,
     })
   } catch (error) {
