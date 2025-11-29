@@ -32,6 +32,7 @@ interface Listing {
     phoneNumber: string
     phoneVerified: boolean
   }
+  distance?: number | null
 }
 
 export default function ListingDetailsPage() {
@@ -389,7 +390,11 @@ export default function ListingDetailsPage() {
               {/* Location */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-2">📍 Location</h3>
-                <p className="text-gray-700">Distance: (to be calculated)</p>
+                {typeof listing.distance === 'number' ? (
+                  <p className="text-gray-700">{listing.distance} miles away</p>
+                ) : (
+                  <p className="text-gray-700">&nbsp;</p>
+                )}
               </div>
 
               {/* Space Details */}

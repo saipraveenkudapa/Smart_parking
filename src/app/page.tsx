@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import AddressAutocomplete from '@/components/AddressAutocomplete'
 
+
+interface Listing {
   id: string
   title: string
   address: string
@@ -20,6 +22,8 @@ import AddressAutocomplete from '@/components/AddressAutocomplete'
   longitude?: number | null
 }
 
+
+export default function HomePage() {
   const router = useRouter()
   const [searchLocation, setSearchLocation] = useState('')
   const [featuredListings, setFeaturedListings] = useState<Listing[]>([])
@@ -101,7 +105,7 @@ import AddressAutocomplete from '@/components/AddressAutocomplete'
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-blue-50">
+    <div className="min-h-screen bg-linear-to-b from-green-50 via-white to-blue-50">
       <Header />
 
       {/* Hero Section */}
@@ -174,7 +178,7 @@ import AddressAutocomplete from '@/components/AddressAutocomplete'
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 {featuredListings.map((listing) => (
                   <div key={listing.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-shadow">
-                    <div className="h-48 bg-gradient-to-br from-green-400 to-green-600 relative">
+                    <div className="h-48 bg-linear-to-br from-green-400 to-green-600 relative">
                       {listing.images && listing.images.length > 0 ? (
                         <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover" />
                       ) : (
@@ -225,7 +229,7 @@ import AddressAutocomplete from '@/components/AddressAutocomplete'
       </section>
 
       {/* How It Works */}
-      <section className="py-16 bg-gradient-to-b from-white to-green-50">
+      <section className="py-16 bg-linear-to-b from-white to-green-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">How Park-Connect Works</h2>
@@ -285,17 +289,17 @@ import AddressAutocomplete from '@/components/AddressAutocomplete'
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose Park-Connect?</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <div className="bg-gradient-to-br from-green-50 to-green-100 p-8 rounded-xl text-center">
+            <div className="bg-linear-to-br from-green-50 to-green-100 p-8 rounded-xl text-center">
               <div className="text-5xl mb-4">💰</div>
               <h3 className="text-2xl font-bold mb-3">Save Money</h3>
               <p className="text-gray-700">Up to 50% cheaper than traditional parking lots and garages.</p>
             </div>
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-8 rounded-xl text-center">
+            <div className="bg-linear-to-br from-blue-50 to-blue-100 p-8 rounded-xl text-center">
               <div className="text-5xl mb-4">🔒</div>
               <h3 className="text-2xl font-bold mb-3">Secure & Safe</h3>
               <p className="text-gray-700">Verified users, secure payments, and trusted community.</p>
             </div>
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-8 rounded-xl text-center">
+            <div className="bg-linear-to-br from-purple-50 to-purple-100 p-8 rounded-xl text-center">
               <div className="text-5xl mb-4">📱</div>
               <h3 className="text-2xl font-bold mb-3">Easy to Use</h3>
               <p className="text-gray-700">Book in minutes with our simple and intuitive platform.</p>
@@ -305,7 +309,7 @@ import AddressAutocomplete from '@/components/AddressAutocomplete'
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-gradient-to-r from-green-600 to-blue-600 text-white">
+      <section className="py-20 bg-linear-to-r from-green-600 to-blue-600 text-white">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-4xl font-bold mb-6">Ready to Get Started?</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">Join thousands of users finding affordable parking or earning passive income.</p>

@@ -27,6 +27,7 @@ interface Booking {
       email: string
       phoneNumber: string
     }
+    distance?: number | null
   }
 }
 
@@ -179,10 +180,11 @@ export default function RenterBookingsPage() {
                         <h3 className="text-xl font-bold">{booking.listing.title}</h3>
                         {getStatusBadge(booking.status)}
                       </div>
-                      
-                      <p className="text-gray-600 mb-2">
-                        📍 Distance: <span className="font-semibold">(to be calculated)</span>
-                      </p>
+                      {typeof booking.listing.distance === 'number' ? (
+                        <p className="text-gray-600 mb-2">📍 {booking.listing.distance} miles away</p>
+                      ) : (
+                        <p className="text-gray-600 mb-2">&nbsp;</p>
+                      )}
                       
                       <p className="text-2xl font-bold text-green-600 mb-4">
                         ${booking.listing.monthlyPrice}/month
