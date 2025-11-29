@@ -143,11 +143,7 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Only show available spaces count */}
-        <div className="text-center mb-16">
-          <div className="text-4xl font-bold text-green-600 mb-2">{featuredListings.length}+</div>
-          <p className="text-gray-600">Available Spaces</p>
-        </div>
+        {/* Available spaces count removed as per request */}
       </section>
 
       {/* Available Parking Spaces */}
