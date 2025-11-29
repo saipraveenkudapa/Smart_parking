@@ -433,18 +433,7 @@ function SearchResults() {
                     {listing.description}
                   </p>
 
-                  {/* Host Info */}
-                  <div className="flex items-center gap-2 mb-3 pb-3 border-b">
-                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                      <span className="text-sm">👤</span>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{listing.host.fullName}</p>
-                      {listing.host.phoneVerified && (
-                        <p className="text-xs text-green-600">✓ Verified</p>
-                      )}
-                    </div>
-                  </div>
+                  {/* Host Info removed as per request */}
 
                   {/* Actions */}
                   <Link 
