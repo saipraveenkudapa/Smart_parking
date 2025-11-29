@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import AddressAutocomplete from '@/components/AddressAutocomplete'
 
-interface Listing {
   id: string
   title: string
   address: string
@@ -17,18 +16,48 @@ interface Listing {
   hasCCTV: boolean
   hasEVCharging: boolean
   images?: string[]
+  latitude?: number | null
+  longitude?: number | null
 }
 
-export default function HomePage() {
   const router = useRouter()
   const [searchLocation, setSearchLocation] = useState('')
   const [featuredListings, setFeaturedListings] = useState<Listing[]>([])
   const [loadingListings, setLoadingListings] = useState(true)
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
 
   useEffect(() => {
     // Fetch available parking spaces
     fetchFeaturedListings()
+    // Get user geolocation
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          })
+        },
+        (error) => {
+          setUserLocation(null)
+        }
+      )
+    }
   }, [])
+  // Haversine formula to calculate miles between two lat/lng
+  function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371 // km
+    const dLat = (lat2 - lat1) * (Math.PI / 180)
+    const dLon = (lon2 - lon1) * (Math.PI / 180)
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    const distance = R * c // km
+    return Math.round(distance * 0.621371 * 10) / 10 // miles, 1 decimal
+  }
 
   const fetchFeaturedListings = async () => {
     try {
@@ -156,7 +185,9 @@ export default function HomePage() {
                     </div>
                     <div className="p-5">
                       <h3 className="text-xl font-bold mb-2 line-clamp-1">{listing.title}</h3>
-                      <p className="text-sm text-gray-600 mb-3">📍 Distance: (to be calculated)</p>
+                      {userLocation && listing.latitude && listing.longitude && (
+                        <p className="text-sm text-gray-600 mb-3">📍 {calculateDistance(userLocation.lat, userLocation.lng, listing.latitude, listing.longitude)} miles away</p>
+                      )}
                       <div className="flex gap-2 mb-3">
                         <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">{listing.spaceType}</span>
                         {listing.hasCCTV && <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">📹 CCTV</span>}
