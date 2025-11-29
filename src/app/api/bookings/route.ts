@@ -277,7 +277,7 @@ export async function GET(req: NextRequest) {
       endDate: booking.end_time,
       vehicleDetails: '', // Not available in schema, set as empty or fetch if possible
       status: (booking.booking_status || '').toUpperCase(),
-      createdAt: booking.created_at || booking.start_time,
+      createdAt: booking.start_time, // bookings does not have created_at, use start_time
       listing: {
         id: booking.availability?.space_id?.toString() || '',
         title: booking.availability?.parking_spaces?.title || '',
@@ -285,11 +285,11 @@ export async function GET(req: NextRequest) {
         city: booking.availability?.parking_spaces?.space_location?.city || '',
         state: booking.availability?.parking_spaces?.space_location?.state || '',
         zipCode: booking.availability?.parking_spaces?.space_location?.zip_code || '',
-        monthlyPrice: booking.availability?.parking_spaces?.monthly_price || 0,
+        monthlyPrice: 0, // Not in schema, set as 0 or fetch if needed
         host: {
-          id: booking.availability?.users?.user_id?.toString() || '',
+          id: '', // Not available in current include, set as empty
           fullName: booking.availability?.users?.full_name || '',
-          email: '', // Not available in current include, set as empty or fetch if possible
+          email: '', // Not available in current include, set as empty
           phoneNumber: booking.availability?.users?.phone_number || '',
         },
       },
