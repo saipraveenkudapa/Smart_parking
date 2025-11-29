@@ -181,7 +181,7 @@ export default function RenterBookingsPage() {
                       </div>
                       
                       <p className="text-gray-600 mb-2">
-                        📍 {booking.listing.address}, {booking.listing.city}, {booking.listing.state} {booking.listing.zipCode}
+                        📍 Distance: <span className="font-semibold">(to be calculated)</span>
                       </p>
                       
                       <p className="text-2xl font-bold text-green-600 mb-4">

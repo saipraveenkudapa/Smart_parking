@@ -55,6 +55,8 @@ export default function ListingDetailsPage() {
   const [bookingSubmitting, setBookingSubmitting] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [bookingDetails, setBookingDetails] = useState<any>(null)
+  const [bookingPreview, setBookingPreview] = useState({ startISO: '', endISO: '' })
+  const [bookingErrors, setBookingErrors] = useState<{ startDate?: string; endDate?: string; vehicleId?: string }>({})
 
   useEffect(() => {
     fetchListing()
@@ -65,6 +67,64 @@ export default function ListingDetailsPage() {
       fetchVehicles()
     }
   }, [showBookingForm])
+
+  // Update booking preview and inline validation whenever bookingData changes
+  useEffect(() => {
+    const errors: { startDate?: string; endDate?: string; vehicleId?: string } = {}
+
+    // Helper to build Date from date string and optional time
+    const buildDate = (dateStr: string, timeStr?: string) => {
+      if (!timeStr) timeStr = '00:00'
+      return new Date(`${dateStr}T${timeStr}:00`)
+    }
+
+    let startISO = ''
+    let endISO = ''
+
+    if (!bookingData.startDate) {
+      errors.startDate = 'Start date is required'
+    } else {
+      const startDt = buildDate(bookingData.startDate, bookingData.startTime || '12:00')
+      if (isNaN(startDt.getTime())) {
+        errors.startDate = 'Invalid start date/time'
+      } else {
+        startISO = startDt.toISOString()
+
+        if (bookingData.durationType === 'custom') {
+          if (!bookingData.endDate) {
+            errors.endDate = 'End date is required for custom bookings'
+          } else {
+            const endDt = buildDate(bookingData.endDate, '23:59')
+            if (isNaN(endDt.getTime())) {
+              errors.endDate = 'Invalid end date'
+            } else if (endDt <= startDt) {
+              errors.endDate = 'End date must be after start date'
+            } else {
+              endISO = endDt.toISOString()
+            }
+          }
+        } else {
+          const endDt = new Date(startDt.getTime())
+          switch (bookingData.durationType) {
+            case '30m': endDt.setMinutes(endDt.getMinutes() + 30); break
+            case '1h': endDt.setHours(endDt.getHours() + 1); break
+            case '1w': endDt.setDate(endDt.getDate() + 7); break
+            case '1m': endDt.setMonth(endDt.getMonth() + 1); break
+            default: endDt.setHours(endDt.getHours() + 1)
+          }
+          endISO = endDt.toISOString()
+        }
+      }
+    }
+
+    // vehicle requirement validation at preview time (user feedback)
+    if (!bookingData.vehicleId) {
+      errors.vehicleId = 'Please select a vehicle to book with'
+    }
+
+    setBookingErrors(errors)
+    setBookingPreview({ startISO, endISO })
+  }, [bookingData])
 
   const fetchVehicles = async () => {
     setLoadingVehicles(true)
@@ -120,6 +180,13 @@ export default function ListingDetailsPage() {
 
     setBookingSubmitting(true)
     setError('')
+
+    // Prevent submit if inline validation errors exist
+    if (Object.keys(bookingErrors).length > 0) {
+      setError('Please fix validation errors before submitting')
+      setBookingSubmitting(false)
+      return
+    }
 
     try {
       const token = localStorage.getItem('token')
@@ -461,6 +528,9 @@ export default function ListingDetailsPage() {
                               disabled={false}
                             />
                           </div>
+                          {bookingErrors.startDate && (
+                            <p className="text-red-600 text-sm mt-1">{bookingErrors.startDate}</p>
+                          )}
                         </div>
 
                         {/* End date for custom, otherwise display computed end */}
@@ -477,6 +547,9 @@ export default function ListingDetailsPage() {
                               value={bookingData.endDate}
                               onChange={(e) => setBookingData({ ...bookingData, endDate: e.target.value })}
                             />
+                            {bookingErrors.endDate && (
+                              <p className="text-red-600 text-sm mt-1">{bookingErrors.endDate}</p>
+                            )}
                           </div>
                         ) : (
                           <div>
@@ -503,6 +576,17 @@ export default function ListingDetailsPage() {
                                 'Select start date'
                               )}
                             </div>
+                            {/* ISO preview */}
+                            <div className="mt-2 text-xs text-gray-600">
+                              <div><strong>ISO Preview:</strong></div>
+                              <div className="bg-gray-100 rounded px-2 py-1 mt-1 text-xs break-all">
+                                <div>Start: {bookingPreview.startISO || '—'}</div>
+                                <div>End: {bookingPreview.endISO || '—'}</div>
+                              </div>
+                              {bookingErrors.endDate && (
+                                <p className="text-red-600 text-sm mt-1">{bookingErrors.endDate}</p>
+                              )}
+                            </div>
                           </div>
                         )}
                         <div>
@@ -524,6 +608,7 @@ export default function ListingDetailsPage() {
                               </Link>
                             </div>
                           ) : (
+                            <>
                             <select
                               required
                               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
@@ -538,6 +623,10 @@ export default function ListingDetailsPage() {
                                 </option>
                               ))}
                             </select>
+                            {bookingErrors.vehicleId && (
+                              <p className="text-red-600 text-sm mt-1">{bookingErrors.vehicleId}</p>
+                            )}
+                            </>
                           )}
                         </div>
                         <div className="flex gap-2">
