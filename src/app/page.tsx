@@ -143,20 +143,10 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid md:grid-cols-3 gap-8 mb-16 max-w-4xl mx-auto">
-          <div className="text-center">
-            <div className="text-4xl font-bold text-green-600 mb-2">{featuredListings.length}+</div>
-            <p className="text-gray-600">Available Spaces</p>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-green-600 mb-2">50%</div>
-            <p className="text-gray-600">Cost Savings</p>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-green-600 mb-2">100%</div>
-            <p className="text-gray-600">Verified Listings</p>
-          </div>
+        {/* Only show available spaces count */}
+        <div className="text-center mb-16">
+          <div className="text-4xl font-bold text-green-600 mb-2">{featuredListings.length}+</div>
+          <p className="text-gray-600">Available Spaces</p>
         </div>
       </section>
 
@@ -282,31 +272,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Features */}
-      <section className="py-16 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose Park-Connect?</h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <div className="bg-linear-to-br from-green-50 to-green-100 p-8 rounded-xl text-center">
-              <div className="text-5xl mb-4">💰</div>
-              <h3 className="text-2xl font-bold mb-3">Save Money</h3>
-              <p className="text-gray-700">Up to 50% cheaper than traditional parking lots and garages.</p>
-            </div>
-            <div className="bg-linear-to-br from-blue-50 to-blue-100 p-8 rounded-xl text-center">
-              <div className="text-5xl mb-4">🔒</div>
-              <h3 className="text-2xl font-bold mb-3">Secure & Safe</h3>
-              <p className="text-gray-700">Verified users, secure payments, and trusted community.</p>
-            </div>
-            <div className="bg-linear-to-br from-purple-50 to-purple-100 p-8 rounded-xl text-center">
-              <div className="text-5xl mb-4">📱</div>
-              <h3 className="text-2xl font-bold mb-3">Easy to Use</h3>
-              <p className="text-gray-700">Book in minutes with our simple and intuitive platform.</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Features section removed as per request */}
 
       {/* CTA */}
       <section className="py-20 bg-linear-to-r from-green-600 to-blue-600 text-white">
