@@ -94,12 +94,9 @@ model Listing {
   longitude       Float?
   
   spaceType       SpaceType
-  vehicleSize     VehicleSize
   monthlyPrice    Float
   
-  isGated         Boolean     @default(false)
   hasCCTV         Boolean     @default(false)
-  isCovered       Boolean     @default(false)
   hasEVCharging   Boolean     @default(false)
   
   images          String[]    @default([])
@@ -237,13 +234,10 @@ curl -X POST http://localhost:3000/api/listings/create \
     "state": "NY",
     "zipCode": "10001",
     "spaceType": "GARAGE",
-    "vehicleSize": "STANDARD",
     "monthlyPrice": 250.00,
     "description": "Safe and secure covered parking",
     "features": {
-      "isGated": true,
       "hasCCTV": true,
-      "isCovered": true,
       "hasEVCharging": false
     }
   }'

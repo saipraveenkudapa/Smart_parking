@@ -32,7 +32,12 @@ export async function GET(req: NextRequest) {
     const parkingSpaces = await prisma.parking_spaces.findMany({
       where: {
         status: 1, // Only show active listings
-        ...(spaceType && { space_type: spaceType.toLowerCase() }),
+        ...(spaceType && {
+          space_type: {
+            equals: spaceType.toUpperCase(),
+            mode: 'insensitive',
+          },
+        }),
       },
       include: {
         space_location: true,
@@ -163,15 +168,12 @@ export async function GET(req: NextRequest) {
         zipCode: space.space_location?.zip_code || '',
         latitude: space.space_location?.latitude ? parseFloat(space.space_location.latitude.toString()) : null,
         longitude: space.space_location?.longitude ? parseFloat(space.space_location.longitude.toString()) : null,
-        spaceType: space.space_type || 'driveway',
-        vehicleSize: 'standard', // Not in DB - default value
+        spaceType: (space.space_type || 'DRIVEWAY').toUpperCase(),
         monthlyPrice: pricing ? Number(pricing.monthly_rate) : 0,
         hourlyPrice: pricing ? Number(pricing.hourly_rate) : 0,
         dailyPrice: pricing ? Number(pricing.daily_rate) : 0,
         description: space.description,
-        isGated: false, // Not in DB - default value
         hasCCTV: space.has_cctv || false,
-        isCovered: false, // Not in DB - default value
         hasEVCharging: space.ev_charging || false,
         images: imageArray,
         host: {

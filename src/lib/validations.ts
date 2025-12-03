@@ -27,14 +27,11 @@ export const listingSchema = z.object({
   state: z.string().min(2, 'State is required'),
   zipCode: z.string().regex(/^\d{5,6}$/, 'Invalid ZIP code'),
   spaceType: z.enum(['GARAGE', 'DRIVEWAY', 'CARPORT', 'STREET', 'LOT']),
-  vehicleSize: z.enum(['MOTORCYCLE', 'STANDARD', 'SUV', 'TRUCK']),
   accessInstructions: z.string().min(10, 'Access instructions are required'),
   monthlyPrice: z.number().min(1, 'Price must be greater than 0'),
   securityDeposit: z.number().min(0, 'Security deposit cannot be negative'),
   availableFrom: z.string().or(z.date()),
-  isGated: z.boolean().optional(),
   hasCCTV: z.boolean().optional(),
-  isCovered: z.boolean().optional(),
   hasEVCharging: z.boolean().optional(),
 })
 

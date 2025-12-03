@@ -35,16 +35,14 @@ export async function POST(req: NextRequest) {
     const zipCode = formData.get('zipCode') as string
     const latitude = formData.get('latitude') as string | null
     const longitude = formData.get('longitude') as string | null
-    const spaceType = formData.get('spaceType') as string
-    const vehicleSize = formData.get('vehicleSize') as string
+    const spaceType = (formData.get('spaceType') as string) || 'DRIVEWAY'
+    const normalizedSpaceType = spaceType.toUpperCase()
     const hourlyRate = formData.get('hourlyRate') as string
     const dailyRate = formData.get('dailyRate') as string
     const weeklyRate = formData.get('weeklyRate') as string
     const monthlyRate = formData.get('monthlyRate') as string
     const description = formData.get('description') as string
-    const isGated = formData.get('isGated') === 'true'
     const hasCCTV = formData.get('hasCCTV') === 'true'
-    const isCovered = formData.get('isCovered') === 'true'
     const hasEVCharging = formData.get('hasEVCharging') === 'true'
     const availableFrom = formData.get('availableFrom') as string | null
     const availableTo = formData.get('availableTo') as string | null
@@ -111,7 +109,7 @@ export async function POST(req: NextRequest) {
           has_cctv, ev_charging, access_instructions, images, 
           location_id, pricing_id, status
         ) VALUES (
-          ${title}, ${description}, ${spaceType?.toLowerCase() || 'driveway'}, ${false},
+          ${title}, ${description}, ${normalizedSpaceType}, ${false},
           ${hasCCTV}, ${hasEVCharging}, ${description}, ${imageDataUrls.join('|||')},
           ${location.location_id}, ${nextPricingId}, ${1}
         ) RETURNING space_id
@@ -182,7 +180,7 @@ export async function POST(req: NextRequest) {
           id: parkingSpace.space_id,
           title: parkingSpace.title,
           description: parkingSpace.description,
-          spaceType: parkingSpace.space_type,
+          spaceType: normalizedSpaceType,
           location: {
             address: location.address,
             city: location.city,

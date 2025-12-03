@@ -14,12 +14,9 @@ interface Listing {
   state: string
   zipCode: string
   spaceType: string
-  vehicleSize: string
   monthlyPrice: number
   description: string
-  isGated: boolean
   hasCCTV: boolean
-  isCovered: boolean
   hasEVCharging: boolean
   isActive: boolean
   images: string[]
@@ -117,9 +114,7 @@ export default function HostDashboard() {
 
   const getFeatureBadges = (listing: Listing) => {
     const features = []
-    if (listing.isGated) features.push('Gated')
     if (listing.hasCCTV) features.push('CCTV')
-    if (listing.isCovered) features.push('Covered')
     if (listing.hasEVCharging) features.push('EV Charging')
     return features
   }
@@ -434,9 +429,6 @@ export default function HostDashboard() {
                     <div className="flex gap-2 mb-3 text-xs">
                       <span className="px-2 py-1 bg-gray-100 rounded">
                         {listing.spaceType}
-                      </span>
-                      <span className="px-2 py-1 bg-gray-100 rounded">
-                        {listing.vehicleSize}
                       </span>
                     </div>
 

@@ -20,15 +20,12 @@ export default function EditListingPage() {
     latitude: undefined as number | undefined,
     longitude: undefined as number | undefined,
     spaceType: 'DRIVEWAY',
-    vehicleSize: 'STANDARD',
     hourlyPrice: '',
     dailyPrice: '',
     weeklyPrice: '',
     monthlyPrice: '',
     description: '',
-    isGated: false,
     hasCCTV: false,
-    isCovered: false,
     hasEVCharging: false,
     availableFrom: '',
     availableTo: '',
@@ -71,15 +68,12 @@ export default function EditListingPage() {
         latitude: listing.latitude,
         longitude: listing.longitude,
         spaceType: listing.spaceType,
-        vehicleSize: listing.vehicleSize,
         hourlyPrice: listing.hourlyPrice?.toString() || '',
         dailyPrice: listing.dailyPrice?.toString() || '',
         weeklyPrice: listing.weeklyPrice?.toString() || '',
         monthlyPrice: listing.monthlyPrice?.toString() || '',
         description: listing.description,
-        isGated: listing.isGated,
         hasCCTV: listing.hasCCTV,
-        isCovered: listing.isCovered,
         hasEVCharging: listing.hasEVCharging,
         availableFrom: listing.availableFrom || '',
         availableTo: listing.availableTo || '',
@@ -134,15 +128,12 @@ export default function EditListingPage() {
         latitude: formData.latitude,
         longitude: formData.longitude,
         spaceType: formData.spaceType,
-        vehicleSize: formData.vehicleSize,
         hourlyPrice: parseFloat(formData.hourlyPrice),
         dailyPrice: parseFloat(formData.dailyPrice),
         weeklyPrice: formData.weeklyPrice ? parseFloat(formData.weeklyPrice) : 0,
         monthlyPrice: parseFloat(formData.monthlyPrice),
         description: formData.description,
-        isGated: formData.isGated,
         hasCCTV: formData.hasCCTV,
-        isCovered: formData.isCovered,
         hasEVCharging: formData.hasEVCharging,
         availableFrom: formData.availableFrom,
         availableTo: formData.availableTo,
@@ -278,40 +269,22 @@ export default function EditListingPage() {
               </div>
 
               {/* Space Details */}
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Space Type *
-                  </label>
-                  <select
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                    value={formData.spaceType}
-                    onChange={(e) => setFormData({ ...formData, spaceType: e.target.value })}
-                  >
-                    <option value="DRIVEWAY">Driveway</option>
-                    <option value="GARAGE">Garage</option>
-                    <option value="CARPORT">Carport</option>
-                    <option value="STREET">Street Parking</option>
-                    <option value="LOT">Parking Lot</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Vehicle Size *
-                  </label>
-                  <select
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                    value={formData.vehicleSize}
-                    onChange={(e) => setFormData({ ...formData, vehicleSize: e.target.value })}
-                  >
-                    <option value="MOTORCYCLE">Motorcycle</option>
-                    <option value="STANDARD">Standard Car</option>
-                    <option value="SUV">SUV</option>
-                    <option value="TRUCK">Truck</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Space Type *
+                </label>
+                <select
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  value={formData.spaceType}
+                  onChange={(e) => setFormData({ ...formData, spaceType: e.target.value })}
+                >
+                  <option value="DRIVEWAY">Driveway</option>
+                  <option value="GARAGE">Garage</option>
+                  <option value="CARPORT">Carport</option>
+                  <option value="STREET">Street Parking</option>
+                  <option value="LOT">Parking Lot</option>
+                </select>
               </div>
 
               {/* Pricing */}
@@ -405,28 +378,10 @@ export default function EditListingPage() {
                     <input
                       type="checkbox"
                       className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                      checked={formData.isGated}
-                      onChange={(e) => setFormData({ ...formData, isGated: e.target.checked })}
-                    />
-                    <span className="ml-2 text-gray-700">Gated/Secure Entry</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                       checked={formData.hasCCTV}
                       onChange={(e) => setFormData({ ...formData, hasCCTV: e.target.checked })}
                     />
                     <span className="ml-2 text-gray-700">CCTV/Security Camera</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                      checked={formData.isCovered}
-                      onChange={(e) => setFormData({ ...formData, isCovered: e.target.checked })}
-                    />
-                    <span className="ml-2 text-gray-700">Covered/Indoor</span>
                   </label>
                   <label className="flex items-center">
                     <input

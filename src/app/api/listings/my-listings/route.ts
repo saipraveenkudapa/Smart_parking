@@ -96,14 +96,11 @@ export async function GET(req: NextRequest) {
           city: space.space_location?.city || '',
           state: space.space_location?.state || '',
           zipCode: space.space_location?.zip_code || '',
-          spaceType: space.space_type || 'Unknown',
-          vehicleSize: 'Any', // Not in database schema
+          spaceType: (space.space_type || 'DRIVEWAY').toUpperCase(),
           monthlyPrice: pricing ? Number(pricing.monthly_rate) : 0,
           hourlyPrice: pricing ? Number(pricing.hourly_rate) : 0,
           description: space.description || '',
-          isGated: false, // Not in database schema
           hasCCTV: space.has_cctv || false,
-          isCovered: false, // Not in database schema
           hasEVCharging: space.ev_charging || false,
           isActive: space.status === 1,
           images: imageArray,

@@ -18,15 +18,12 @@ export default function ListSpacePage() {
     latitude: undefined as number | undefined,
     longitude: undefined as number | undefined,
     spaceType: 'DRIVEWAY',
-    vehicleSize: 'STANDARD',
     hourlyRate: '',
     dailyRate: '',
     weeklyRate: '',
     monthlyRate: '',
     description: '',
-    isGated: false,
     hasCCTV: false,
-    isCovered: false,
     hasEVCharging: false,
     availableFrom: '',
     availableTo: '',
@@ -105,15 +102,12 @@ export default function ListSpacePage() {
       if (formData.longitude) formDataToSend.append('longitude', formData.longitude.toString())
       
       formDataToSend.append('spaceType', formData.spaceType)
-      formDataToSend.append('vehicleSize', formData.vehicleSize)
       formDataToSend.append('hourlyRate', formData.hourlyRate)
       formDataToSend.append('dailyRate', formData.dailyRate)
       formDataToSend.append('weeklyRate', formData.weeklyRate)
       formDataToSend.append('monthlyRate', formData.monthlyRate)
       formDataToSend.append('description', formData.description)
-      formDataToSend.append('isGated', formData.isGated.toString())
       formDataToSend.append('hasCCTV', formData.hasCCTV.toString())
-      formDataToSend.append('isCovered', formData.isCovered.toString())
       formDataToSend.append('hasEVCharging', formData.hasEVCharging.toString())
       
       // Add availability dates
@@ -248,40 +242,22 @@ export default function ListSpacePage() {
               </div>
 
               {/* Space Details */}
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Space Type *
-                  </label>
-                  <select
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                    value={formData.spaceType}
-                    onChange={(e) => setFormData({ ...formData, spaceType: e.target.value })}
-                  >
-                    <option value="DRIVEWAY">Driveway</option>
-                    <option value="GARAGE">Garage</option>
-                    <option value="CARPORT">Carport</option>
-                    <option value="STREET">Street Parking</option>
-                    <option value="LOT">Parking Lot</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Vehicle Size *
-                  </label>
-                  <select
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                    value={formData.vehicleSize}
-                    onChange={(e) => setFormData({ ...formData, vehicleSize: e.target.value })}
-                  >
-                    <option value="MOTORCYCLE">Motorcycle</option>
-                    <option value="STANDARD">Standard Car</option>
-                    <option value="SUV">SUV</option>
-                    <option value="TRUCK">Truck</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Space Type *
+                </label>
+                <select
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  value={formData.spaceType}
+                  onChange={(e) => setFormData({ ...formData, spaceType: e.target.value })}
+                >
+                  <option value="DRIVEWAY">Driveway</option>
+                  <option value="GARAGE">Garage</option>
+                  <option value="CARPORT">Carport</option>
+                  <option value="STREET">Street Parking</option>
+                  <option value="LOT">Parking Lot</option>
+                </select>
               </div>
 
               {/* Pricing - All Types */}
@@ -568,28 +544,10 @@ export default function ListSpacePage() {
                     <input
                       type="checkbox"
                       className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                      checked={formData.isGated}
-                      onChange={(e) => setFormData({ ...formData, isGated: e.target.checked })}
-                    />
-                    <span className="ml-2 text-gray-700">Gated/Secure Entry</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                       checked={formData.hasCCTV}
                       onChange={(e) => setFormData({ ...formData, hasCCTV: e.target.checked })}
                     />
                     <span className="ml-2 text-gray-700">CCTV/Security Camera</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                      checked={formData.isCovered}
-                      onChange={(e) => setFormData({ ...formData, isCovered: e.target.checked })}
-                    />
-                    <span className="ml-2 text-gray-700">Covered/Indoor</span>
                   </label>
                   <label className="flex items-center">
                     <input

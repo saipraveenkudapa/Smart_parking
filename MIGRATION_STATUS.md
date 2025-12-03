@@ -41,7 +41,7 @@
 
 ### 2. List Space Page
 - [ ] `/app/list-space/page.tsx` - Update form fields (accessInstructions, isInstantBook)
-- [ ] Remove isGated, isCovered fields (not in schema)
+- [x] Remove isGated, isCovered fields (not in schema)
 - [ ] Update pricing form to support multiple rate options
 
 ### 3. Search & Listing Pages
@@ -94,7 +94,7 @@
 
 2. **Decimal to Float**: Converting Prisma Decimal types to Float for JSON. Consider using string representation for precision.
 
-3. **Missing Fields**: Old schema had `isGated`, `isCovered` - decide if these should be added back or remove from frontend.
+3. **Frontend Fields**: Old schema extras (`isGated`, `isCovered`, `vehicleSize`) removed from UI to match DB.
 
 4. **Payment Integration**: Payment page is simplified to card-only. Actual payment processing not implemented.
 

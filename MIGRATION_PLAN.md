@@ -69,7 +69,7 @@ This document outlines the migration from the current Prisma-managed schema to t
 | `latitude` | `latitude` | ✅ Same | Now Decimal(10,8) |
 | `longitude` | `longitude` | ✅ Same | Now Decimal(11,8) |
 | `spaceType` (Enum) | `space_type` (String) | ✅ Changed | Lowercase string |
-| `vehicleSize` | `vehicle_type_allowed` | ✅ Renamed | |
+| `vehicleSize` | ❌ Removed | ⚠️ | UI field dropped (not in DB) |
 | `accessInstructions` | `access_instructions` | ✅ Snake case | |
 | `monthlyPrice` | `monthly_rate` | ✅ Renamed | Now Decimal(10,2) |
 | `price` | ➕ Multiple rates | ✅ Changed | Split into hourly/daily/weekly/monthly |
@@ -77,8 +77,8 @@ This document outlines the migration from the current Prisma-managed schema to t
 | `isActive` | `status` | ✅ Changed | 'active', 'inactive', 'maintenance' |
 | `hasCCTV` | `has_cctv` | ✅ Snake case | |
 | `hasEVCharging` | `ev_charging` | ✅ Renamed | |
-| `isGated` | ❌ Not in new schema | ⚠️ | Can be added if needed |
-| `isCovered` | ❌ Not in new schema | ⚠️ | Can be added if needed |
+| `isGated` | ❌ Removed | ✅ | Dropped from UI to match schema |
+| `isCovered` | ❌ Removed | ✅ | Dropped from UI to match schema |
 | ➕ N/A | `is_instant_book` | ✅ New | Boolean |
 
 ### **Bookings Table**

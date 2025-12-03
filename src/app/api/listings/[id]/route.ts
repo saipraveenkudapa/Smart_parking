@@ -55,24 +55,6 @@ export async function PATCH(
       )
     }
 
-    // Handle toggle active status
-    if (body.isActive !== undefined) {
-      await prisma.availability.updateMany({
-        where: {
-          space_id: spaceId,
-          owner_id: parseInt(payload.userId),
-        },
-        data: {
-          is_available: body.isActive,
-        },
-      })
-
-      return NextResponse.json({
-        message: 'Listing status updated successfully',
-        isActive: body.isActive,
-      })
-    }
-
     // Handle full listing update
     const {
       title,
@@ -91,7 +73,36 @@ export async function PATCH(
       weeklyPrice,
       monthlyPrice,
       isActive,
+      availableFrom,
+      availableTo,
     } = body
+
+    // Update availability window / status if any related fields were provided
+    const availabilityUpdates: Record<string, any> = {}
+    if (isActive !== undefined) {
+      availabilityUpdates.is_available = isActive
+    }
+    if (availableFrom) {
+      const startDate = new Date(availableFrom)
+      if (!isNaN(startDate.getTime())) {
+        availabilityUpdates.available_start = startDate
+      }
+    }
+    if (availableTo) {
+      const endDate = new Date(availableTo)
+      if (!isNaN(endDate.getTime())) {
+        availabilityUpdates.available_end = endDate
+      }
+    }
+    if (Object.keys(availabilityUpdates).length > 0) {
+      await prisma.availability.updateMany({
+        where: {
+          space_id: spaceId,
+          owner_id: parseInt(payload.userId),
+        },
+        data: availabilityUpdates,
+      })
+    }
 
     // Update location
     const parkingSpace = await prisma.parking_spaces.findUnique({
@@ -100,17 +111,24 @@ export async function PATCH(
     })
 
     if (parkingSpace?.location_id) {
-      await prisma.space_location.update({
-        where: { location_id: parkingSpace.location_id },
-        data: {
-          ...(address && { address }),
-          ...(city && { city }),
-          ...(state && { state }),
-          ...(zipCode && { zip_code: zipCode }),
-          ...(latitude && { latitude: latitude.toString() }),
-          ...(longitude && { longitude: longitude.toString() }),
-        },
-      })
+      const locationUpdates: Record<string, any> = {}
+      if (address !== undefined) locationUpdates.address = address
+      if (city !== undefined) locationUpdates.city = city
+      if (state !== undefined) locationUpdates.state = state
+      if (zipCode !== undefined) locationUpdates.zip_code = zipCode
+      if (latitude !== undefined && latitude !== null && !Number.isNaN(Number(latitude))) {
+        locationUpdates.latitude = latitude.toString()
+      }
+      if (longitude !== undefined && longitude !== null && !Number.isNaN(Number(longitude))) {
+        locationUpdates.longitude = longitude.toString()
+      }
+
+      if (Object.keys(locationUpdates).length > 0) {
+        await prisma.space_location.update({
+          where: { location_id: parkingSpace.location_id },
+          data: locationUpdates,
+        })
+      }
     }
 
     // Update parking space
@@ -119,7 +137,7 @@ export async function PATCH(
       data: {
         ...(title && { title }),
         ...(description && { description }),
-        ...(spaceType && { space_type: spaceType.toLowerCase() }),
+        ...(spaceType && { space_type: spaceType.toUpperCase() }),
         ...(hasCCTV !== undefined && { has_cctv: hasCCTV }),
         ...(hasEVCharging !== undefined && { ev_charging: hasEVCharging }),
         ...(isActive !== undefined && { status: isActive ? 1 : 0 }),
@@ -153,10 +171,10 @@ export async function PATCH(
           space_id: spaceId,
           valid_from: new Date(),
           is_current: true,
-          hourly_rate: hourlyPrice ? parseFloat(hourlyPrice) : 0,
-          daily_rate: dailyPrice ? parseFloat(dailyPrice) : 0,
-          weekly_rate: weeklyPrice ? parseFloat(weeklyPrice) : 0,
-          monthly_rate: monthlyPrice ? parseFloat(monthlyPrice) : 0,
+          hourly_rate: hourlyPrice !== undefined ? Number(hourlyPrice) : 0,
+          daily_rate: dailyPrice !== undefined ? Number(dailyPrice) : 0,
+          weekly_rate: weeklyPrice !== undefined ? Number(weeklyPrice) : 0,
+          monthly_rate: monthlyPrice !== undefined ? Number(monthlyPrice) : 0,
         },
       })
 
@@ -359,7 +377,7 @@ export async function GET(
       },
     })
 
-    // Fetch availability (for is_available, available_from, available_to, isGated, isCovered)
+    // Fetch availability (for is_available, available_from, available_to)
     const availability = await prisma.availability.findFirst({
       where: { space_id: spaceId },
     })
@@ -401,7 +419,7 @@ export async function GET(
       zipCode: parkingSpace.space_location?.zip_code || '',
       latitude: parkingSpace.space_location?.latitude ? parseFloat(parkingSpace.space_location.latitude.toString()) : 0,
       longitude: parkingSpace.space_location?.longitude ? parseFloat(parkingSpace.space_location.longitude.toString()) : 0,
-      spaceType: parkingSpace.space_type,
+      spaceType: (parkingSpace.space_type || 'DRIVEWAY').toUpperCase(),
       hourlyPrice: pricing ? Number(pricing.hourly_rate) : 0,
       dailyPrice: pricing ? Number(pricing.daily_rate) : 0,
       weeklyPrice: pricing ? Number(pricing.weekly_rate) : 0,

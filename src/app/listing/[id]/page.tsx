@@ -4,30 +4,28 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { isAuthenticated, getUser } from '@/lib/clientAuth'
+import Header from '@/components/Header'
+import Reviews from '@/components/Reviews'
 
-// Helper to check if user has an approved booking for this listing that has ended
-async function userHasCompletedBooking(listingId: string): Promise<boolean> {
+async function userHasCompletedBooking(listingId: string) {
   try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (!token) return false;
-    const res = await fetch('/api/bookings', {
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    if (!res.ok) return false;
-    const data = await res.json();
-    if (!data.bookings) return false;
-    const now = new Date();
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+    if (!token) return false
+
+    const res = await fetch('/api/bookings')
+    const data = await res.json()
+    if (!data.bookings) return false
+
+    const now = new Date()
     return data.bookings.some((b: any) =>
       b.listing.id?.toString() === listingId &&
       b.status === 'APPROVED' &&
       b.endDate && new Date(b.endDate) < now
-    );
+    )
   } catch {
-    return false;
+    return false
   }
 }
-import Header from '@/components/Header'
-import Reviews from '@/components/Reviews'
 
 interface Listing {
   id: string
@@ -38,11 +36,8 @@ interface Listing {
   state: string
   zipCode: string
   spaceType: string
-  vehicleSize: string
   monthlyPrice: number
-  isGated: boolean
   hasCCTV: boolean
-  isCovered: boolean
   hasEVCharging: boolean
   isActive: boolean
   images?: string[]
@@ -324,9 +319,7 @@ export default function ListingDetailsPage() {
   const getFeatureBadges = () => {
     if (!listing) return []
     const features = []
-    if (listing.isGated) features.push('🔒 Gated')
     if (listing.hasCCTV) features.push('📹 CCTV')
-    if (listing.isCovered) features.push('🏠 Covered')
     if (listing.hasEVCharging) features.push('⚡ EV Charging')
     return features
   }
@@ -440,10 +433,16 @@ export default function ListingDetailsPage() {
                   </span>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold mb-2">Vehicle Size</h3>
-                  <span className="inline-block px-3 py-1 bg-gray-100 rounded">
-                    {listing.vehicleSize}
-                  </span>
+                  <h3 className="text-lg font-semibold mb-2">Availability</h3>
+                  {listing.availableFrom || listing.availableTo ? (
+                    <p className="text-gray-700">
+                      {listing.availableFrom ? new Date(listing.availableFrom).toLocaleDateString() : 'Now'}
+                      {' '}–{' '}
+                      {listing.availableTo ? new Date(listing.availableTo).toLocaleDateString() : 'Open ended'}
+                    </p>
+                  ) : (
+                    <p className="text-gray-700">Available continuously</p>
+                  )}
                 </div>
               </div>
 

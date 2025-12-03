@@ -233,9 +233,9 @@ curl http://localhost:3000/api/auth/verify-email?token=YOUR_TOKEN
 
 ### Listings Table
 - Location: address, city, state, zipCode, coordinates
-- Details: title, description, spaceType, vehicleSize
-- Security: isGated, hasCCTV, isCovered, hasEVCharging
-- Pricing: monthlyPrice, securityDeposit
+- Details: title, description, spaceType
+- Security: hasCCTV, hasEVCharging
+- Pricing: hourly, daily, weekly, monthly rates
 
 ### Bookings Table
 - Rental details: startDate, endDate, vehicleDetails
