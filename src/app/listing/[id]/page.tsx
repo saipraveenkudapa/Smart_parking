@@ -7,23 +7,43 @@ import { isAuthenticated, getUser } from '@/lib/clientAuth'
 import Header from '@/components/Header'
 import Reviews from '@/components/Reviews'
 
-async function userHasCompletedBooking(listingId: string) {
+async function fetchBookingAccess(listingId: string) {
   try {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-    if (!token) return false
+    if (!token) {
+      return { hasApproved: false, hasCompleted: false }
+    }
 
-    const res = await fetch('/api/bookings')
+    const res = await fetch('/api/bookings', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    if (!res.ok) {
+      return { hasApproved: false, hasCompleted: false }
+    }
+
     const data = await res.json()
-    if (!data.bookings) return false
+    if (!Array.isArray(data.bookings)) {
+      return { hasApproved: false, hasCompleted: false }
+    }
 
     const now = new Date()
-    return data.bookings.some((b: any) =>
-      b.listing.id?.toString() === listingId &&
+    const hasApproved = data.bookings.some((b: any) =>
+      b.listing?.id?.toString() === listingId &&
+      b.status === 'APPROVED'
+    )
+    const hasCompleted = data.bookings.some((b: any) =>
+      b.listing?.id?.toString() === listingId &&
       b.status === 'APPROVED' &&
       b.endDate && new Date(b.endDate) < now
     )
-  } catch {
-    return false
+
+    return { hasApproved, hasCompleted }
+  } catch (error) {
+    console.error('Booking access check error:', error)
+    return { hasApproved: false, hasCompleted: false }
   }
 }
 
@@ -78,16 +98,18 @@ export default function ListingDetailsPage() {
   const [bookingDetails, setBookingDetails] = useState<any>(null)
   const [bookingPreview, setBookingPreview] = useState({ startISO: '', endISO: '' })
   const [bookingErrors, setBookingErrors] = useState<{ startDate?: string; endDate?: string; vehicleId?: string }>({})
+  const [canViewAddress, setCanViewAddress] = useState(false)
 
   useEffect(() => {
     (async () => {
       await fetchListing();
-      // Check if user can see reviews (has completed booking)
       if (isAuthenticated()) {
-        const ok = await userHasCompletedBooking(listingId)
-        setCanShowReviews(ok)
+        const { hasApproved, hasCompleted } = await fetchBookingAccess(listingId)
+        setCanViewAddress(hasApproved)
+        setCanShowReviews(hasCompleted)
       } else {
         setCanShowReviews(false)
+        setCanViewAddress(false)
       }
     })();
   }, [listingId])
@@ -362,6 +384,7 @@ export default function ListingDetailsPage() {
   const isOwnListing = user?.userId && listing.host && listing.host.id
     ? user.userId === listing.host.id
     : false
+  const canSeeAddress = isOwnListing || canViewAddress
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -422,10 +445,27 @@ export default function ListingDetailsPage() {
               {/* Location */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-2">📍 Location</h3>
-                {typeof listing.distance === 'number' ? (
-                  <p className="text-gray-700">{listing.distance} miles away</p>
+                {canSeeAddress ? (
+                  <>
+                    <p className="text-gray-800 font-semibold">{listing.address}</p>
+                    <p className="text-gray-700">
+                      {listing.city}, {listing.state} {listing.zipCode}
+                    </p>
+                    {typeof listing.distance === 'number' && (
+                      <p className="text-gray-500 text-sm mt-1">{listing.distance} miles away</p>
+                    )}
+                  </>
                 ) : (
-                  <p className="text-gray-700">&nbsp;</p>
+                  <>
+                    {typeof listing.distance === 'number' ? (
+                      <p className="text-gray-700">{listing.distance} miles away</p>
+                    ) : (
+                      <p className="text-gray-700">&nbsp;</p>
+                    )}
+                    <p className="text-sm text-gray-500 mt-2">
+                      Exact address is shared once your booking is approved by the host.
+                    </p>
+                  </>
                 )}
               </div>
 
