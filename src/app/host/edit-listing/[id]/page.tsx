@@ -335,26 +335,26 @@ export default function EditListingPage() {
                           let weekly = parseFloat(formData.weeklyPrice)
                           let monthly = parseFloat(formData.monthlyPrice)
                           if (!isNaN(hourly) && hourly > 0) {
-                            daily = (hourly * 5)
-                            weekly = (daily * 4)
-                            monthly = (weekly * 3)
+                            daily = (hourly * 24)
+                            weekly = (daily * 7)
+                            monthly = (weekly * 4)
                           } else if (!isNaN(daily) && daily > 0) {
-                            hourly = (daily / 5)
-                            weekly = (daily * 4)
-                            monthly = (weekly * 3)
+                            hourly = (daily / 24)
+                            weekly = (daily * 7)
+                            monthly = (weekly * 4)
                           } else if (!isNaN(weekly) && weekly > 0) {
-                            daily = (weekly / 4)
-                            hourly = (daily / 5)
-                            monthly = (weekly * 3)
+                            daily = (weekly / 7)
+                            hourly = (daily / 24)
+                            monthly = (weekly * 4)
                           } else if (!isNaN(monthly) && monthly > 0) {
-                            weekly = (monthly / 3)
-                            daily = (weekly / 4)
-                            hourly = (daily / 5)
+                            weekly = (monthly / 4)
+                            daily = (weekly / 7)
+                            hourly = (daily / 24)
                           } else {
                             hourly = 5
-                            daily = 25
-                            weekly = 100
-                            monthly = 300
+                            daily = 120
+                            weekly = 840
+                            monthly = 3360
                           }
                           setFormData({
                             ...formData,
@@ -385,9 +385,9 @@ export default function EditListingPage() {
                         setFormData({ ...formData, hourlyPrice: hourly })
                         if (useRecommendedPrices && hourly) {
                           const hourlyNum = parseFloat(hourly)
-                          const daily = (hourlyNum * 5).toFixed(2)
-                          const weekly = (parseFloat(daily) * 4).toFixed(2)
-                          const monthly = (parseFloat(weekly) * 3).toFixed(2)
+                          const daily = (hourlyNum * 24).toFixed(2)
+                          const weekly = (parseFloat(daily) * 7).toFixed(2)
+                          const monthly = (parseFloat(weekly) * 4).toFixed(2)
                           setFormData({
                             ...formData,
                             hourlyPrice: hourly,
@@ -414,9 +414,9 @@ export default function EditListingPage() {
                         setFormData({ ...formData, dailyPrice: daily })
                         if (useRecommendedPrices && daily) {
                           const dailyNum = parseFloat(daily)
-                          const hourly = (dailyNum / 5).toFixed(2)
-                          const weekly = (dailyNum * 4).toFixed(2)
-                          const monthly = (parseFloat(weekly) * 3).toFixed(2)
+                          const hourly = (dailyNum / 24).toFixed(2)
+                          const weekly = (dailyNum * 7).toFixed(2)
+                          const monthly = (parseFloat(weekly) * 4).toFixed(2)
                           setFormData({
                             ...formData,
                             hourlyPrice: hourly,
@@ -442,9 +442,9 @@ export default function EditListingPage() {
                         setFormData({ ...formData, weeklyPrice: weekly })
                         if (useRecommendedPrices && weekly) {
                           const weeklyNum = parseFloat(weekly)
-                          const daily = (weeklyNum / 4).toFixed(2)
-                          const hourly = (parseFloat(daily) / 5).toFixed(2)
-                          const monthly = (weeklyNum * 3).toFixed(2)
+                          const daily = (weeklyNum / 7).toFixed(2)
+                          const hourly = (parseFloat(daily) / 24).toFixed(2)
+                          const monthly = (weeklyNum * 4).toFixed(2)
                           setFormData({
                             ...formData,
                             hourlyPrice: hourly,
@@ -471,9 +471,9 @@ export default function EditListingPage() {
                         setFormData({ ...formData, monthlyPrice: monthly })
                         if (useRecommendedPrices && monthly) {
                           const monthlyNum = parseFloat(monthly)
-                          const weekly = (monthlyNum / 3).toFixed(2)
-                          const daily = (parseFloat(weekly) / 4).toFixed(2)
-                          const hourly = (parseFloat(daily) / 5).toFixed(2)
+                          const weekly = (monthlyNum / 4).toFixed(2)
+                          const daily = (parseFloat(weekly) / 7).toFixed(2)
+                          const hourly = (parseFloat(daily) / 24).toFixed(2)
                           setFormData({
                             ...formData,
                             hourlyPrice: hourly,
