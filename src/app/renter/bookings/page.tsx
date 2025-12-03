@@ -213,6 +213,13 @@ export default function RenterBookingsPage() {
                           <>
                             <p className="text-sm text-gray-600">📧 {booking.listing.host.email}</p>
                             <p className="text-sm text-gray-600">📱 {booking.listing.host.phoneNumber}</p>
+                            <div className="mt-4">
+                              <p className="text-sm text-gray-500 mb-1">Parking Address</p>
+                              <p className="font-medium">{booking.listing.address}</p>
+                              <p className="text-sm text-gray-600">
+                                {booking.listing.city}, {booking.listing.state} {booking.listing.zipCode}
+                              </p>
+                            </div>
                           </>
                         )}
                       </div>
