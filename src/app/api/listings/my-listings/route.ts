@@ -114,16 +114,32 @@ export async function GET(req: NextRequest) {
 
     console.log('Returning', listings.length, 'listings')
     
-    return NextResponse.json({
-      listings,
-      count: listings.length,
-    })
+    return NextResponse.json(
+      {
+        listings,
+        count: listings.length,
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
+    )
   } catch (error) {
     console.error('Fetch my listings error:', error)
     console.error('Error details:', JSON.stringify(error, null, 2))
     return NextResponse.json(
       { error: 'Failed to fetch listings' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
     )
   }
 }

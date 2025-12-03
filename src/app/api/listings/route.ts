@@ -182,11 +182,20 @@ export async function GET(req: NextRequest) {
 
     console.log(`Returning ${listings.length} listings after filtering`)
 
-    return NextResponse.json({
-      success: true,
-      listings,
-      count: listings.length,
-    })
+    return NextResponse.json(
+      {
+        success: true,
+        listings,
+        count: listings.length,
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
+    )
   } catch (error) {
     console.error('Fetch listings error:', error)
     console.error('Error details:', error instanceof Error ? error.message : 'Unknown error')
@@ -200,7 +209,14 @@ export async function GET(req: NextRequest) {
         listings: [], // Return empty array instead of error
         count: 0
       },
-      { status: 200 } // Return 200 instead of 500 to prevent frontend errors on empty data
+      { 
+        status: 200, // Return 200 instead of 500 to prevent frontend errors on empty data
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
     )
   }
 }
