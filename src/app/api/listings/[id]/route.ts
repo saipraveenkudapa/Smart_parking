@@ -121,6 +121,7 @@ export async function PATCH(
         ...(spaceType && { space_type: spaceType.toLowerCase() }),
         ...(hasCCTV !== undefined && { has_cctv: hasCCTV }),
         ...(hasEVCharging !== undefined && { ev_charging: hasEVCharging }),
+        ...(isActive !== undefined && { status: isActive ? 1 : 0 }),
       },
     })
 
@@ -295,9 +296,10 @@ export async function DELETE(
       where: { space_id: spaceId },
     })
 
-    // 6. Delete the parking space
-    await prisma.parking_spaces.delete({
+    // 6. Soft delete the parking space (set status = 0 instead of deleting)
+    await prisma.parking_spaces.update({
       where: { space_id: spaceId },
+      data: { status: 0 },
     })
 
     // 7. Delete the location (if it exists and is not shared)
@@ -361,7 +363,7 @@ export async function GET(
       where: { space_id: spaceId },
     })
 
-    if (!parkingSpace) {
+    if (!parkingSpace || parkingSpace.status === 0) {
       return NextResponse.json(
         { error: 'Parking space not found' },
         { status: 404 }
@@ -405,7 +407,7 @@ export async function GET(
       monthlyPrice: pricing ? Number(pricing.monthly_rate) : 0,
       hasCCTV: parkingSpace.has_cctv || false,
       hasEVCharging: parkingSpace.ev_charging || false,
-      isActive: availability?.is_available ?? true,
+      isActive: parkingSpace.status === 1,
       availableFrom: availability?.available_start ? availability.available_start.toISOString().split('T')[0] : '',
       availableTo: availability?.available_end ? availability.available_end.toISOString().split('T')[0] : '',
       isInstantBook: parkingSpace.is_instant_book,

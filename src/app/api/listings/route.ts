@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
     // Fetch parking spaces with joined location and availability
     const parkingSpaces = await prisma.parking_spaces.findMany({
       where: {
+        status: 1, // Only show active listings
         ...(spaceType && { space_type: spaceType.toLowerCase() }),
       },
       include: {

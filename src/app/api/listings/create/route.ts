@@ -109,11 +109,11 @@ export async function POST(req: NextRequest) {
         INSERT INTO park_connect.parking_spaces (
           title, description, space_type, is_instant_book, 
           has_cctv, ev_charging, access_instructions, images, 
-          location_id, pricing_id
+          location_id, pricing_id, status
         ) VALUES (
           ${title}, ${description}, ${spaceType?.toLowerCase() || 'driveway'}, ${false},
           ${hasCCTV}, ${hasEVCharging}, ${description}, ${imageDataUrls.join('|||')},
-          ${location.location_id}, ${nextPricingId}
+          ${location.location_id}, ${nextPricingId}, ${1}
         ) RETURNING space_id
       `
       

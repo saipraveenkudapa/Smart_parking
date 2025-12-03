@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
           hasCCTV: space.has_cctv || false,
           isCovered: false, // Not in database schema
           hasEVCharging: space.ev_charging || false,
-          isActive: avail.is_available || false,
+          isActive: space.status === 1,
           images: imageArray,
           createdAt: avail.created_at?.toISOString() || new Date().toISOString(),
           updatedAt: avail.updated_at?.toISOString() || new Date().toISOString(),
