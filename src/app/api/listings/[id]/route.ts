@@ -178,7 +178,6 @@ export async function PATCH(
 }
 
 // DELETE - Delete parking space
-// NOTE: dim_parking_spaces doesn't have owner_id in park_connect schema
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -212,11 +211,97 @@ export async function DELETE(
       )
     }
 
-    // TODO: Need to verify ownership through fact_availability table
-    return NextResponse.json(
-      { error: 'Listing deletion not yet implemented for new schema' },
-      { status: 501 }
-    )
+    // Verify ownership through availability table
+    const availability = await prisma.availability.findFirst({
+      where: {
+        space_id: spaceId,
+        owner_id: parseInt(payload.userId),
+      },
+    })
+
+    if (!availability) {
+      return NextResponse.json(
+        { error: 'Not authorized to delete this listing' },
+        { status: 403 }
+      )
+    }
+
+    // Check for active bookings
+    const activeBookings = await prisma.bookings.findFirst({
+      where: {
+        availability: {
+          space_id: spaceId,
+        },
+        booking_status: {
+          in: ['CONFIRMED', 'PENDING'],
+        },
+      },
+    })
+
+    if (activeBookings) {
+      return NextResponse.json(
+        { error: 'Cannot delete listing with active bookings' },
+        { status: 400 }
+      )
+    }
+
+    // Get location_id and pricing_id before deletion
+    const parkingSpace = await prisma.parking_spaces.findUnique({
+      where: { space_id: spaceId },
+      select: { location_id: true, pricing_id: true },
+    })
+
+    // Delete in order (respecting foreign key constraints):
+    // 1. Delete reviews
+    await prisma.reviews.deleteMany({
+      where: { space_id: spaceId },
+    })
+
+    // 2. Delete favorites
+    await prisma.favorites.deleteMany({
+      where: { space_id: spaceId },
+    })
+
+    // 3. Delete bookings related to this space's availability
+    await prisma.bookings.deleteMany({
+      where: {
+        availability: {
+          space_id: spaceId,
+        },
+      },
+    })
+
+    // 4. Delete availability records
+    await prisma.availability.deleteMany({
+      where: { space_id: spaceId },
+    })
+
+    // 5. Delete pricing models
+    await prisma.pricing_model.deleteMany({
+      where: { space_id: spaceId },
+    })
+
+    // 6. Delete the parking space
+    await prisma.parking_spaces.delete({
+      where: { space_id: spaceId },
+    })
+
+    // 7. Delete the location (if it exists and is not shared)
+    if (parkingSpace?.location_id) {
+      const otherSpacesWithLocation = await prisma.parking_spaces.count({
+        where: { location_id: parkingSpace.location_id },
+      })
+      
+      if (otherSpacesWithLocation === 0) {
+        await prisma.space_location.delete({
+          where: { location_id: parkingSpace.location_id },
+        })
+      }
+    }
+
+    return NextResponse.json({
+      message: 'Listing deleted successfully',
+    })
   } catch (error) {
     console.error('Delete listing error:', error)
     return NextResponse.json(
