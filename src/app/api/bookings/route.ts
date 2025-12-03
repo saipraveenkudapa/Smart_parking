@@ -2,6 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 
+const mapStatusToUi = (status?: string) => {
+  const normalized = (status || '').toLowerCase()
+  switch (normalized) {
+    case 'confirmed':
+    case 'completed':
+      return 'APPROVED'
+    case 'cancelled':
+      return 'CANCELLED'
+    case 'rejected':
+      return 'REJECTED'
+    default:
+      return 'PENDING'
+  }
+}
+
 // POST - Create a booking request
 export async function POST(req: NextRequest) {
   try {
@@ -390,7 +405,7 @@ export async function GET(req: NextRequest) {
         startDate: booking.start_time,
         endDate: booking.end_time,
         vehicleDetails: '', // Not available in schema, set as empty or fetch if possible
-        status: (booking.booking_status || '').toUpperCase(),
+        status: mapStatusToUi(booking.booking_status),
         createdAt: booking.start_time, // bookings does not have created_at, use start_time
         listing: {
           id: booking.availability?.space_id?.toString() || '',
