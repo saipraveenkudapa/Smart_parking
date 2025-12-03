@@ -38,7 +38,6 @@ export default function EditListingPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [useRecommendedPrices, setUseRecommendedPrices] = useState(false)
 
   useEffect(() => {
     if (!requireAuth('/host/edit-listing/' + listingId)) {
@@ -321,54 +320,10 @@ export default function EditListingPage() {
                   <label className="block text-sm font-medium text-gray-700">
                     Pricing *
                   </label>
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                      checked={useRecommendedPrices}
-                      onChange={(e) => {
-                        setUseRecommendedPrices(e.target.checked)
-                        if (e.target.checked) {
-                          // Use hourly as base if present, else daily, else weekly, else monthly
-                          let hourly = parseFloat(formData.hourlyPrice)
-                          let daily = parseFloat(formData.dailyPrice)
-                          let weekly = parseFloat(formData.weeklyPrice)
-                          let monthly = parseFloat(formData.monthlyPrice)
-                          if (!isNaN(hourly) && hourly > 0) {
-                            daily = (hourly * 24)
-                            weekly = (daily * 7)
-                            monthly = (weekly * 4)
-                          } else if (!isNaN(daily) && daily > 0) {
-                            hourly = (daily / 24)
-                            weekly = (daily * 7)
-                            monthly = (weekly * 4)
-                          } else if (!isNaN(weekly) && weekly > 0) {
-                            daily = (weekly / 7)
-                            hourly = (daily / 24)
-                            monthly = (weekly * 4)
-                          } else if (!isNaN(monthly) && monthly > 0) {
-                            weekly = (monthly / 4)
-                            daily = (weekly / 7)
-                            hourly = (daily / 24)
-                          } else {
-                            hourly = 5
-                            daily = 120
-                            weekly = 840
-                            monthly = 3360
-                          }
-                          setFormData({
-                            ...formData,
-                            hourlyPrice: hourly.toFixed(2),
-                            dailyPrice: daily.toFixed(2),
-                            weeklyPrice: weekly.toFixed(2),
-                            monthlyPrice: monthly.toFixed(2),
-                          })
-                        }
-                      }}
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Use Recommended Prices</span>
-                  </label>
                 </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  Set your pricing rates. All rates are independent and stored in the database.
+                </p>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs text-gray-600 mb-1">Hourly Rate (USD)</label>
@@ -380,23 +335,7 @@ export default function EditListingPage() {
                       placeholder="e.g., 5.00"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
                       value={formData.hourlyPrice}
-                      onChange={(e) => {
-                        const hourly = e.target.value
-                        setFormData({ ...formData, hourlyPrice: hourly })
-                        if (useRecommendedPrices && hourly) {
-                          const hourlyNum = parseFloat(hourly)
-                          const daily = (hourlyNum * 24).toFixed(2)
-                          const weekly = (parseFloat(daily) * 7).toFixed(2)
-                          const monthly = (parseFloat(weekly) * 4).toFixed(2)
-                          setFormData({
-                            ...formData,
-                            hourlyPrice: hourly,
-                            dailyPrice: daily,
-                            weeklyPrice: weekly,
-                            monthlyPrice: monthly,
-                          })
-                        }
-                      }}
+                      onChange={(e) => setFormData({ ...formData, hourlyPrice: e.target.value })}
                     />
                   </div>
                   <div>
@@ -409,23 +348,7 @@ export default function EditListingPage() {
                       placeholder="e.g., 30.00"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
                       value={formData.dailyPrice}
-                      onChange={(e) => {
-                        const daily = e.target.value
-                        setFormData({ ...formData, dailyPrice: daily })
-                        if (useRecommendedPrices && daily) {
-                          const dailyNum = parseFloat(daily)
-                          const hourly = (dailyNum / 24).toFixed(2)
-                          const weekly = (dailyNum * 7).toFixed(2)
-                          const monthly = (parseFloat(weekly) * 4).toFixed(2)
-                          setFormData({
-                            ...formData,
-                            hourlyPrice: hourly,
-                            dailyPrice: daily,
-                            weeklyPrice: weekly,
-                            monthlyPrice: monthly,
-                          })
-                        }
-                      }}
+                      onChange={(e) => setFormData({ ...formData, dailyPrice: e.target.value })}
                     />
                   </div>
                   <div>
@@ -437,23 +360,7 @@ export default function EditListingPage() {
                       placeholder="Optional"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
                       value={formData.weeklyPrice}
-                      onChange={(e) => {
-                        const weekly = e.target.value
-                        setFormData({ ...formData, weeklyPrice: weekly })
-                        if (useRecommendedPrices && weekly) {
-                          const weeklyNum = parseFloat(weekly)
-                          const daily = (weeklyNum / 7).toFixed(2)
-                          const hourly = (parseFloat(daily) / 24).toFixed(2)
-                          const monthly = (weeklyNum * 4).toFixed(2)
-                          setFormData({
-                            ...formData,
-                            hourlyPrice: hourly,
-                            dailyPrice: daily,
-                            weeklyPrice: weekly,
-                            monthlyPrice: monthly,
-                          })
-                        }
-                      }}
+                      onChange={(e) => setFormData({ ...formData, weeklyPrice: e.target.value })}
                     />
                   </div>
                   <div>
@@ -466,23 +373,7 @@ export default function EditListingPage() {
                       placeholder="e.g., 200.00"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
                       value={formData.monthlyPrice}
-                      onChange={(e) => {
-                        const monthly = e.target.value
-                        setFormData({ ...formData, monthlyPrice: monthly })
-                        if (useRecommendedPrices && monthly) {
-                          const monthlyNum = parseFloat(monthly)
-                          const weekly = (monthlyNum / 4).toFixed(2)
-                          const daily = (parseFloat(weekly) / 7).toFixed(2)
-                          const hourly = (parseFloat(daily) / 24).toFixed(2)
-                          setFormData({
-                            ...formData,
-                            hourlyPrice: hourly,
-                            dailyPrice: daily,
-                            weeklyPrice: weekly,
-                            monthlyPrice: monthly,
-                          })
-                        }
-                      }}
+                      onChange={(e) => setFormData({ ...formData, monthlyPrice: e.target.value })}
                     />
                   </div>
                 </div>
