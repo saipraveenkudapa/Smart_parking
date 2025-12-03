@@ -139,10 +139,10 @@ export async function PATCH(
       )
     }
 
-    const validStatuses = ['confirmed', 'cancelled', 'completed']
+    const validStatuses = ['confirmed', 'cancelled', 'completed', 'rejected']
     if (status && !validStatuses.includes(status.toLowerCase())) {
       return NextResponse.json(
-        { error: 'Invalid status. Must be confirmed, cancelled, or completed' },
+        { error: 'Invalid status. Must be confirmed, cancelled, completed, or rejected' },
         { status: 400 }
       )
     }
@@ -171,10 +171,21 @@ export async function PATCH(
     // Check permissions
     // Owner can confirm/complete, driver can cancel
     if (status) {
-      if (status.toLowerCase() === 'cancelled') {
-        if (booking.driver_id !== userId) {
+      const statusLower = status.toLowerCase()
+
+      if (statusLower === 'cancelled') {
+        // Allow driver to cancel their own booking
+        // Also allow owner to cancel if they need to terminate the booking before confirmation
+        if (booking.driver_id !== userId && booking.availability?.owner_id !== userId) {
           return NextResponse.json(
-            { error: 'Only the driver can cancel this booking' },
+            { error: 'Only the driver or parking space owner can cancel this booking' },
+            { status: 403 }
+          )
+        }
+      } else if (statusLower === 'rejected') {
+        if (booking.availability?.owner_id !== userId) {
+          return NextResponse.json(
+            { error: 'Only the parking space owner can reject this booking' },
             { status: 403 }
           )
         }
@@ -202,9 +213,17 @@ export async function PATCH(
     // Update the booking
     const updateData: any = {}
     if (status) {
-      updateData.booking_status = status.toLowerCase()
-      if (status.toLowerCase() === 'cancelled') {
-        updateData.cancellation_reason = 'Cancelled by user'
+      const statusLower = status.toLowerCase()
+      updateData.booking_status = statusLower
+
+      if (statusLower === 'cancelled') {
+        updateData.cancellation_reason = booking.driver_id === userId
+          ? 'Cancelled by driver'
+          : 'Cancelled by owner'
+      }
+
+      if (statusLower === 'rejected') {
+        updateData.cancellation_reason = 'Rejected by owner'
       }
     }
     if (paymentStatus) {

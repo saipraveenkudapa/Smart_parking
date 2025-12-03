@@ -45,6 +45,32 @@ interface Booking {
   }
 }
 
+type ApiBookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed'
+
+const mapApiStatusToUi = (status?: string): Booking['status'] => {
+  const normalized = status?.toUpperCase()
+
+  switch (normalized) {
+    case 'CONFIRMED':
+    case 'COMPLETED':
+      return 'APPROVED'
+    case 'CANCELLED':
+      return 'CANCELLED'
+    case 'REJECTED':
+      return 'REJECTED'
+    case 'PENDING':
+    default:
+      return 'PENDING'
+  }
+}
+
+const mapUiStatusToApi = (status: 'APPROVED' | 'REJECTED'): ApiBookingStatus => {
+  if (status === 'APPROVED') {
+    return 'confirmed'
+  }
+  return 'rejected'
+}
+
 export default function HostDashboard() {
   const router = useRouter()
   const [listings, setListings] = useState<Listing[]>([])
@@ -209,7 +235,12 @@ export default function HostDashboard() {
         throw new Error(data.error || 'Failed to fetch bookings')
       }
 
-      setBookings(data.bookings)
+      const normalizedBookings: Booking[] = (data.bookings || []).map((booking: any) => ({
+        ...booking,
+        status: mapApiStatusToUi(booking.status),
+      }))
+
+      setBookings(normalizedBookings)
     } catch (err: any) {
       console.error('Fetch bookings error:', err)
     } finally {
@@ -228,7 +259,7 @@ export default function HostDashboard() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status: mapUiStatusToApi(status) }),
       })
 
       const data = await response.json()
