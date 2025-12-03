@@ -55,30 +55,25 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    // Map response for API compatibility
+    // Map response so the dashboard can render booking requests without another transform
     const mappedBookings = bookings.map((booking: typeof bookings[0]) => ({
-      bookingId: booking.booking_id,
-      spaceId: booking.availability?.space_id,
-      driverId: booking.driver_id,
-      startTime: booking.start_time,
-      endTime: booking.end_time,
-      totalAmount: booking.total_amount,
-      serviceFee: booking.service_fee,
-      ownerPayout: booking.owner_payout,
-      bookingStatus: booking.booking_status,
-      paymentStatus: booking.payment_status,
-      space: {
-        title: booking.availability?.parking_spaces?.title,
-        address: booking.availability?.parking_spaces?.space_location?.address,
-        city: booking.availability?.parking_spaces?.space_location?.city,
-        hourlyRate: null, // pricing_model not included due to complex primary key
-        monthlyRate: null,
+      id: booking.booking_id.toString(),
+      startDate: booking.start_time,
+      endDate: booking.end_time,
+      vehicleDetails: 'Vehicle details unavailable',
+      status: (booking.booking_status || '').toUpperCase(),
+      createdAt: booking.start_time,
+      renter: {
+        id: booking.driver_id.toString(),
+        fullName: booking.users?.full_name || 'Unknown Renter',
+        email: booking.users?.email || 'Not Provided',
+        phoneNumber: booking.users?.phone_number || 'Not Provided',
+        emailVerified: !!booking.users?.is_verified,
       },
-      driver: {
-        fullName: booking.users?.full_name,
-        email: booking.users?.email,
-        phoneNumber: booking.users?.phone_number,
-        isVerified: booking.users?.is_verified,
+      listing: {
+        id: booking.availability?.space_id?.toString() || '',
+        title: booking.availability?.parking_spaces?.title || 'Parking Space',
+        address: booking.availability?.parking_spaces?.space_location?.address || 'Address unavailable',
       },
     }))
 

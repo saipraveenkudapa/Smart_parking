@@ -2,6 +2,106 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 
+// GET - Retrieve a single booking (driver only)
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const authHeader = req.headers.get('authorization')
+    const token = authHeader?.replace('Bearer ', '')
+
+    if (!token) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    const payload = verifyToken(token)
+    if (!payload) {
+      return NextResponse.json(
+        { error: 'Invalid or expired token' },
+        { status: 401 }
+      )
+    }
+
+    const { id } = await params
+    const bookingId = parseInt(id)
+    if (isNaN(bookingId)) {
+      return NextResponse.json(
+        { error: 'Invalid booking ID' },
+        { status: 400 }
+      )
+    }
+
+    const booking = await prisma.bookings.findUnique({
+      where: { booking_id: bookingId },
+      include: {
+        availability: {
+          include: {
+            parking_spaces: {
+              include: {
+                space_location: true,
+              },
+            },
+          },
+        },
+        users: {
+          select: {
+            full_name: true,
+            email: true,
+          },
+        },
+      },
+    })
+
+    if (!booking) {
+      return NextResponse.json(
+        { error: 'Booking not found' },
+        { status: 404 }
+      )
+    }
+
+    const userId = parseInt(payload.userId)
+    if (booking.driver_id !== userId) {
+      return NextResponse.json(
+        { error: 'You do not have access to this booking' },
+        { status: 403 }
+      )
+    }
+
+    const response = {
+      bookingId: booking.booking_id,
+      driverId: booking.driver_id,
+      startTime: booking.start_time,
+      endTime: booking.end_time,
+      totalAmount: Number(booking.total_amount),
+      serviceFee: booking.service_fee != null ? Number(booking.service_fee) : null,
+      ownerPayout: Number(booking.owner_payout),
+      bookingStatus: booking.booking_status,
+      paymentStatus: booking.payment_status,
+      space: {
+        title: booking.availability?.parking_spaces?.title,
+        address: booking.availability?.parking_spaces?.space_location?.address,
+        city: booking.availability?.parking_spaces?.space_location?.city,
+      },
+      driver: {
+        fullName: booking.users?.full_name,
+        email: booking.users?.email,
+      },
+    }
+
+    return NextResponse.json({ booking: response })
+  } catch (error) {
+    console.error('Get booking error:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch booking' },
+      { status: 500 }
+    )
+  }
+}
+
 // PATCH - Update booking status (approve/reject/cancel)
 export async function PATCH(
   req: NextRequest,

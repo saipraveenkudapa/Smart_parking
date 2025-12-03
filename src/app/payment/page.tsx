@@ -13,6 +13,9 @@ function PaymentContent() {
   const amount = searchParams.get('amount')
   const listingTitle = searchParams.get('title')
 
+  const [bookingDetails, setBookingDetails] = useState<any | null>(null)
+  const [bookingLoading, setBookingLoading] = useState(!!bookingId)
+  const [bookingError, setBookingError] = useState('')
   const [processing, setProcessing] = useState(false)
   const [paymentSuccess, setPaymentSuccess] = useState(false)
   const [cardDetails, setCardDetails] = useState({
@@ -27,6 +30,60 @@ function PaymentContent() {
       return
     }
   }, [router])
+
+  useEffect(() => {
+    if (!bookingId) {
+      setBookingLoading(false)
+      return
+    }
+
+    const token = localStorage.getItem('token')
+    if (!token) {
+      setBookingError('Please log in to view your booking details.')
+      setBookingLoading(false)
+      return
+    }
+
+    const fetchBooking = async () => {
+      try {
+        const res = await fetch(`/api/bookings/${bookingId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to fetch booking details')
+        }
+        setBookingDetails(data.booking)
+        setBookingError('')
+      } catch (err: any) {
+        console.error('Failed to load booking details:', err)
+        setBookingError(err.message || 'Failed to load booking details')
+      } finally {
+        setBookingLoading(false)
+      }
+    }
+
+    fetchBooking()
+  }, [bookingId])
+
+  const safeNumber = (value: any) => {
+    const num = Number(value)
+    return Number.isFinite(num) ? num : 0
+  }
+
+  const resolvedAmount = bookingDetails
+    ? safeNumber(bookingDetails.totalAmount)
+    : safeNumber(amount)
+
+  const serviceFeeAmount = bookingDetails && bookingDetails.serviceFee != null
+    ? safeNumber(bookingDetails.serviceFee)
+    : resolvedAmount * 0.15
+
+  const bookingBaseAmount = Math.max(resolvedAmount - serviceFeeAmount, 0)
+  const displayTitle = bookingDetails?.space?.title || listingTitle || 'Parking Space'
+  const paymentDisabled = processing || bookingLoading || resolvedAmount <= 0
 
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -104,7 +161,7 @@ function PaymentContent() {
             <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6 text-left">
               <p className="text-sm text-green-800">
                 <strong>Transaction ID:</strong> TXN{Math.random().toString(36).substr(2, 9).toUpperCase()}<br/>
-                <strong>Amount Paid:</strong> ${amount}<br/>
+                <strong>Amount Paid:</strong> ${resolvedAmount.toFixed(2)}<br/>
                 <strong>Status:</strong> <span className="text-green-600 font-semibold">Completed</span>
               </p>
             </div>
@@ -134,6 +191,11 @@ function PaymentContent() {
             <div className="md:col-span-2">
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h1 className="text-2xl font-bold mb-6">Complete Payment</h1>
+                {bookingError && (
+                  <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+                    {bookingError}
+                  </div>
+                )}
 
                 {/* Payment Form */}
                 <form onSubmit={handlePayment}>
@@ -213,7 +275,7 @@ function PaymentContent() {
                   <div className="mt-6">
                     <button
                       type="submit"
-                      disabled={processing}
+                      disabled={paymentDisabled}
                       className="w-full bg-green-600 text-white py-4 rounded-lg hover:bg-green-700 font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {processing ? (
@@ -222,7 +284,7 @@ function PaymentContent() {
                           Processing Payment...
                         </span>
                       ) : (
-                        `Pay $${amount}`
+                        `Pay $${resolvedAmount.toFixed(2)}`
                       )}
                     </button>
                   </div>
@@ -245,39 +307,34 @@ function PaymentContent() {
                 
                 <div className="mb-4 pb-4 border-b">
                   <p className="text-sm text-gray-600 mb-2">Parking Space</p>
-                  <p className="font-medium">{listingTitle || 'Parking Space'}</p>
+                  <p className="font-medium">{displayTitle}</p>
                 </div>
 
-                <div className="space-y-3 mb-4 pb-4 border-b">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Booking Amount</span>
-                    <span className="font-medium">${amount}</span>
+                {bookingLoading ? (
+                  <p className="text-sm text-gray-500 mb-4">Loading latest pricing...</p>
+                ) : (
+                  <div className="space-y-3 mb-4 pb-4 border-b">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Booking Amount</span>
+                      <span className="font-medium">${bookingBaseAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Service Fee (15%)</span>
+                      <span className="font-medium">${serviceFeeAmount.toFixed(2)}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Platform Fee</span>
-                    <span className="font-medium">${(parseFloat(amount || '0') * 0.05).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tax (Sales, est. 7%)</span>
-                    <span className="font-medium">${(parseFloat(amount || '0') * 0.07).toFixed(2)}</span>
-                  </div>
-                </div>
+                )}
 
                 <div className="flex justify-between items-center mb-6">
                   <span className="text-lg font-semibold">Total Amount</span>
                   <span className="text-2xl font-bold text-green-600">
-                    {(() => {
-                      const amt = parseFloat(amount || '0');
-                      const platformFee = amt * 0.05;
-                      const tax = amt * 0.07;
-                      return `$${(amt + platformFee + tax).toFixed(2)}`;
-                    })()}
+                    ${resolvedAmount.toFixed(2)}
                   </span>
                 </div>
 
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                   <p className="text-xs text-green-800">
-                    🎉 <strong>Demo Mode:</strong> This is a demonstration payment page. No actual charges will be made.
+                    🎉 <strong>Demo Mode:</strong> This is a demonstration payment page. No actual charges will be made. Amounts shown come directly from the host's pricing model.
                   </p>
                 </div>
               </div>

@@ -69,7 +69,7 @@ export default function ListingDetailsPage() {
     startTime: '',
     endDate: '',
     vehicleId: '',
-    durationType: '1h', // '30m' | '1h' | '1w' | '1m' | 'custom'
+    durationType: '1h', // '30m' | '1h' | '1d' | '1w' | '1m' | 'custom'
   })
   const [vehicles, setVehicles] = useState<any[]>([])
   const [loadingVehicles, setLoadingVehicles] = useState(false)
@@ -138,6 +138,7 @@ export default function ListingDetailsPage() {
           switch (bookingData.durationType) {
             case '30m': endDt.setMinutes(endDt.getMinutes() + 30); break
             case '1h': endDt.setHours(endDt.getHours() + 1); break
+            case '1d': endDt.setDate(endDt.getDate() + 1); break
             case '1w': endDt.setDate(endDt.getDate() + 7); break
             case '1m': endDt.setMonth(endDt.getMonth() + 1); break
             default: endDt.setHours(endDt.getHours() + 1)
@@ -265,6 +266,9 @@ export default function ListingDetailsPage() {
           case '1h':
             endDt.setHours(endDt.getHours() + 1)
             break
+          case '1d':
+            endDt.setDate(endDt.getDate() + 1)
+            break
           case '1w':
             endDt.setDate(endDt.getDate() + 7)
             break
@@ -289,6 +293,7 @@ export default function ListingDetailsPage() {
           startDate: startISO,
           endDate: endISO,
           vehicleId: bookingData.vehicleId,
+          durationType: bookingData.durationType,
         }),
       })
 
@@ -531,14 +536,14 @@ export default function ListingDetailsPage() {
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Booking Duration *</label>
                           <div className="flex gap-2 mb-4">
-                            {['30m','1h','1w','1m','custom'].map(type => (
+                            {['30m','1h','1d','1w','1m','custom'].map(type => (
                               <button
                                 key={type}
                                 type="button"
                                 className={`px-4 py-2 rounded-lg font-semibold border transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 ${bookingData.durationType === type ? 'bg-green-600 text-white border-green-600' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-green-50'}`}
                                 onClick={() => setBookingData({ ...bookingData, durationType: type })}
                               >
-                                {type === '30m' ? '30 min' : type === '1h' ? 'Hourly' : type === '1w' ? 'Weekly' : type === '1m' ? 'Monthly' : 'Custom'}
+                                {type === '30m' ? '30 min' : type === '1h' ? 'Hourly' : type === '1d' ? 'Daily' : type === '1w' ? 'Weekly' : type === '1m' ? 'Monthly' : 'Custom'}
                               </button>
                             ))}
                           </div>
@@ -603,6 +608,7 @@ export default function ListingDetailsPage() {
                                     switch (bookingData.durationType) {
                                       case '30m': end.setMinutes(end.getMinutes() + 30); break
                                       case '1h': end.setHours(end.getHours() + 1); break
+                                      case '1d': end.setDate(end.getDate() + 1); break
                                       case '1w': end.setDate(end.getDate() + 7); break
                                       case '1m': end.setMonth(end.getMonth() + 1); break
                                       default: end.setHours(end.getHours() + 1)

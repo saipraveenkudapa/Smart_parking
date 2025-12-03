@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { listingId, startDate, endDate, vehicleId } = body
+    const { listingId, startDate, endDate, vehicleId, durationType } = body
 
     if (!listingId || !startDate || !endDate || !vehicleId) {
       return NextResponse.json(
@@ -92,6 +92,23 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const pricing = await prisma.pricing_model.findFirst({
+      where: {
+        space_id: availability.space_id,
+        is_current: true,
+      },
+      orderBy: {
+        valid_from: 'desc',
+      },
+    })
+
+    if (!pricing) {
+      return NextResponse.json(
+        { error: 'Pricing details are not configured for this parking space' },
+        { status: 400 }
+      )
+    }
+
     // Prevent user from booking their own space
     if (availability.owner_id === userId) {
       return NextResponse.json(
@@ -114,23 +131,105 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Calculate duration in hours
-    const durationHours = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60))
-    
-    // Calculate pricing (use default hourly rate since pricing_model has complex key)
-    const serviceFeePercentage = 0.15 // 15% service fee
-    const hourlyRate = 5.0 // Default hourly rate
-    const monthlyRate = 0
-    
-    // Use hourly rate if available, otherwise pro-rate monthly
-    let subtotal = 0
-    if (hourlyRate > 0) {
-      subtotal = hourlyRate * durationHours
-    } else if (monthlyRate > 0) {
-      // Pro-rate monthly to hourly (assuming 720 hours per month)
-      const hourlyFromMonthly = monthlyRate / 720
-      subtotal = hourlyFromMonthly * durationHours
+    const durationMs = end.getTime() - start.getTime()
+    const durationHours = durationMs / (1000 * 60 * 60)
+    const hoursInDay = 24
+    const hoursInWeek = hoursInDay * 7
+    const hoursInMonth = hoursInDay * 30
+
+    const hourlyRate = Number(pricing.hourly_rate) || 0
+    const dailyRate = Number(pricing.daily_rate) || 0
+    const weeklyRate = Number(pricing.weekly_rate) || 0
+    const monthlyRate = Number(pricing.monthly_rate) || 0
+
+    const billableHours = Math.max(durationHours, 0)
+    const billableDays = Math.max(1, Math.ceil(billableHours / hoursInDay))
+    const billableWeeks = Math.max(1, Math.ceil(billableHours / hoursInWeek))
+    const billableMonths = Math.max(1, Math.ceil(billableHours / hoursInMonth))
+
+    const hourlySubtotal = hourlyRate > 0 ? hourlyRate * billableHours : 0
+    const dailySubtotal = dailyRate > 0 ? dailyRate * billableDays : 0
+    const weeklySubtotal = weeklyRate > 0 ? weeklyRate * billableWeeks : 0
+    const monthlySubtotal = monthlyRate > 0 ? monthlyRate * billableMonths : 0
+
+    const normalizeType = (durationType || '').toLowerCase()
+    let billingBasis: 'hourly' | 'daily' | 'weekly' | 'monthly' = 'hourly'
+
+    switch (normalizeType) {
+      case '30m':
+      case '1h':
+        billingBasis = 'hourly'
+        break
+      case '1d':
+      case '24h':
+        billingBasis = 'daily'
+        break
+      case '1w':
+        billingBasis = 'weekly'
+        break
+      case '1m':
+        billingBasis = 'monthly'
+        break
+      default:
+        if (billableHours >= hoursInMonth) {
+          billingBasis = 'monthly'
+        } else if (billableHours >= hoursInWeek) {
+          billingBasis = 'weekly'
+        } else if (billableHours >= hoursInDay) {
+          billingBasis = 'daily'
+        } else {
+          billingBasis = 'hourly'
+        }
     }
+
+    const pickFirstNonZero = (...values: number[]) => {
+      return values.find((value) => value > 0) || 0
+    }
+
+    let subtotal = 0
+    switch (billingBasis) {
+      case 'hourly':
+        subtotal = pickFirstNonZero(
+          hourlySubtotal,
+          dailySubtotal,
+          weeklySubtotal,
+          monthlySubtotal,
+        )
+        break
+      case 'daily':
+        subtotal = pickFirstNonZero(
+          dailySubtotal,
+          hourlySubtotal,
+          weeklySubtotal,
+          monthlySubtotal,
+        )
+        break
+      case 'weekly':
+        subtotal = pickFirstNonZero(
+          weeklySubtotal,
+          dailySubtotal,
+          hourlySubtotal,
+          monthlySubtotal,
+        )
+        break
+      case 'monthly':
+        subtotal = pickFirstNonZero(
+          monthlySubtotal,
+          weeklySubtotal,
+          dailySubtotal,
+          hourlySubtotal,
+        )
+        break
+    }
+
+    if (subtotal <= 0) {
+      return NextResponse.json(
+        { error: 'Unable to calculate booking total. Please contact support.' },
+        { status: 400 }
+      )
+    }
+
+    const serviceFeePercentage = 0.15 // 15% service fee
 
     const serviceFee = subtotal * serviceFeePercentage
     const totalAmount = subtotal + serviceFee
@@ -187,9 +286,9 @@ export async function POST(req: NextRequest) {
       driverId: booking.driver_id,
       startTime: booking.start_time,
       endTime: booking.end_time,
-      totalAmount: booking.total_amount,
-      serviceFee: booking.service_fee,
-      ownerPayout: booking.owner_payout,
+      totalAmount: Number(booking.total_amount),
+      serviceFee: booking.service_fee != null ? Number(booking.service_fee) : null,
+      ownerPayout: Number(booking.owner_payout),
       bookingStatus: booking.booking_status,
       paymentStatus: booking.payment_status,
       space: {
