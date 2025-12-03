@@ -302,14 +302,19 @@ export async function DELETE(
 
     // 7. Delete the location (if it exists and is not shared)
     if (parkingSpace?.location_id) {
-      const otherSpacesWithLocation = await prisma.parking_spaces.count({
-        where: { location_id: parkingSpace.location_id },
-      })
-      
-      if (otherSpacesWithLocation === 0) {
-        await prisma.space_location.delete({
+      try {
+        const otherSpacesWithLocation = await prisma.parking_spaces.count({
           where: { location_id: parkingSpace.location_id },
         })
+        
+        if (otherSpacesWithLocation === 0) {
+          await prisma.space_location.delete({
+            where: { location_id: parkingSpace.location_id },
+          })
+        }
+      } catch (locationError) {
+        // Location deletion is not critical, log but don't fail
+        console.warn('Location cleanup failed:', locationError)
       }
     }
 
