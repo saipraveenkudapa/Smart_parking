@@ -45,7 +45,7 @@ interface Booking {
   }
 }
 
-type ApiBookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed'
+type ApiBookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'rejected'
 
 const mapApiStatusToUi = (status?: string): Booking['status'] => {
   const normalized = status?.toUpperCase()
@@ -311,7 +311,7 @@ export default function HostDashboard() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-green-50 to-white">
       <Header />
 
       <main className="container mx-auto px-4 py-16">
