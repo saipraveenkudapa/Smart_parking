@@ -90,6 +90,7 @@ export async function PATCH(
       dailyPrice,
       weeklyPrice,
       monthlyPrice,
+      isActive,
     } = body
 
     // Update location
