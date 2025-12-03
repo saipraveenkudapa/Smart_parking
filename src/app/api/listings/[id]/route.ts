@@ -245,31 +245,45 @@ export async function DELETE(
       )
     }
 
-    // Get location_id and pricing_id before deletion
+    // Get location_id before deletion
     const parkingSpace = await prisma.parking_spaces.findUnique({
       where: { space_id: spaceId },
-      select: { location_id: true, pricing_id: true },
+      select: { location_id: true },
     })
 
-    // Delete in order (respecting foreign key constraints):
-    // 1. Delete reviews
-    await prisma.reviews.deleteMany({
+    // Get all availability IDs for this space
+    const availabilityRecords = await prisma.availability.findMany({
       where: { space_id: spaceId },
+      select: { availability_id: true },
     })
+    const availabilityIds = availabilityRecords.map(a => a.availability_id)
+
+    // Get all booking IDs for this space
+    const bookingRecords = await prisma.bookings.findMany({
+      where: { availability_id: { in: availabilityIds } },
+      select: { booking_id: true },
+    })
+    const bookingIds = bookingRecords.map(b => b.booking_id)
+
+    // Delete in order (respecting foreign key constraints):
+    // 1. Delete reviews related to bookings for this space
+    if (bookingIds.length > 0) {
+      await prisma.reviews.deleteMany({
+        where: { booking_id: { in: bookingIds } },
+      })
+    }
 
     // 2. Delete favorites
     await prisma.favorites.deleteMany({
       where: { space_id: spaceId },
     })
 
-    // 3. Delete bookings related to this space's availability
-    await prisma.bookings.deleteMany({
-      where: {
-        availability: {
-          space_id: spaceId,
-        },
-      },
-    })
+    // 3. Delete bookings
+    if (availabilityIds.length > 0) {
+      await prisma.bookings.deleteMany({
+        where: { availability_id: { in: availabilityIds } },
+      })
+    }
 
     // 4. Delete availability records
     await prisma.availability.deleteMany({
