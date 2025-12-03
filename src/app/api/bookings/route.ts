@@ -352,11 +352,22 @@ export async function GET(req: NextRequest) {
             parking_spaces: {
               include: {
                 space_location: true,
+                pricing_models: {
+                  where: {
+                    is_current: true,
+                  },
+                  orderBy: {
+                    valid_from: 'desc',
+                  },
+                  take: 1,
+                },
               },
             },
             users: {
               select: {
+                user_id: true,
                 full_name: true,
+                email: true,
                 phone_number: true,
                 is_verified: true,
               },
@@ -370,29 +381,35 @@ export async function GET(req: NextRequest) {
     })
 
     // Map response for frontend compatibility
-    const mappedBookings = bookings.map((booking: typeof bookings[0]) => ({
-      id: booking.booking_id.toString(),
-      startDate: booking.start_time,
-      endDate: booking.end_time,
-      vehicleDetails: '', // Not available in schema, set as empty or fetch if possible
-      status: (booking.booking_status || '').toUpperCase(),
-      createdAt: booking.start_time, // bookings does not have created_at, use start_time
-      listing: {
-        id: booking.availability?.space_id?.toString() || '',
-        title: booking.availability?.parking_spaces?.title || '',
-        address: booking.availability?.parking_spaces?.space_location?.address || '',
-        city: booking.availability?.parking_spaces?.space_location?.city || '',
-        state: booking.availability?.parking_spaces?.space_location?.state || '',
-        zipCode: booking.availability?.parking_spaces?.space_location?.zip_code || '',
-        monthlyPrice: 0, // Not in schema, set as 0 or fetch if needed
-        host: {
-          id: '', // Not available in current include, set as empty
-          fullName: booking.availability?.users?.full_name || '',
-          email: '', // Not available in current include, set as empty
-          phoneNumber: booking.availability?.users?.phone_number || '',
+    const mappedBookings = bookings.map((booking: typeof bookings[0]) => {
+      const pricing = booking.availability?.parking_spaces?.pricing_models?.[0]
+      const monthlyPrice = pricing ? Number(pricing.monthly_rate) : 0
+
+      return {
+        id: booking.booking_id.toString(),
+        startDate: booking.start_time,
+        endDate: booking.end_time,
+        vehicleDetails: '', // Not available in schema, set as empty or fetch if possible
+        status: (booking.booking_status || '').toUpperCase(),
+        createdAt: booking.start_time, // bookings does not have created_at, use start_time
+        listing: {
+          id: booking.availability?.space_id?.toString() || '',
+          title: booking.availability?.parking_spaces?.title || '',
+          address: booking.availability?.parking_spaces?.space_location?.address || '',
+          city: booking.availability?.parking_spaces?.space_location?.city || '',
+          state: booking.availability?.parking_spaces?.space_location?.state || '',
+          zipCode: booking.availability?.parking_spaces?.space_location?.zip_code || '',
+          monthlyPrice,
+          host: {
+            id: booking.availability?.users?.user_id?.toString() || '',
+            fullName: booking.availability?.users?.full_name || '',
+            email: booking.availability?.users?.email || '',
+            phoneNumber: booking.availability?.users?.phone_number || '',
+          },
+          distance: null,
         },
-      },
-    }))
+      }
+    })
 
     return NextResponse.json({ bookings: mappedBookings })
   } catch (error) {
