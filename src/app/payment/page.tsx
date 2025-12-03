@@ -258,15 +258,20 @@ function PaymentContent() {
                     <span className="font-medium">${(parseFloat(amount || '0') * 0.05).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tax (GST)</span>
-                    <span className="font-medium">${(parseFloat(amount || '0') * 0.18).toFixed(2)}</span>
+                    <span className="text-gray-600">Tax (Sales, est. 7%)</span>
+                    <span className="font-medium">${(parseFloat(amount || '0') * 0.07).toFixed(2)}</span>
                   </div>
                 </div>
 
                 <div className="flex justify-between items-center mb-6">
                   <span className="text-lg font-semibold">Total Amount</span>
                   <span className="text-2xl font-bold text-green-600">
-                    ${(parseFloat(amount || '0') * 1.23).toFixed(2)}
+                    {(() => {
+                      const amt = parseFloat(amount || '0');
+                      const platformFee = amt * 0.05;
+                      const tax = amt * 0.07;
+                      return `$${(amt + platformFee + tax).toFixed(2)}`;
+                    })()}
                   </span>
                 </div>
 

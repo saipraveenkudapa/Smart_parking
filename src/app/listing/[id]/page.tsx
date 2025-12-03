@@ -55,6 +55,8 @@ interface Listing {
     phoneVerified: boolean
   }
   distance?: number | null
+  availableFrom?: string
+  availableTo?: string
 }
 
 export default function ListingDetailsPage() {
@@ -528,40 +530,41 @@ export default function ListingDetailsPage() {
                               </div>
                             )}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Booking Length *
-                          </label>
-                          <select
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                            value={bookingData.durationType}
-                            onChange={(e) => setBookingData({ ...bookingData, durationType: e.target.value })}
-                          >
-                            <option value="30m">30 minutes</option>
-                            <option value="1h">1 hour</option>
-                            <option value="1w">1 week</option>
-                            <option value="1m">1 month</option>
-                            <option value="custom">Custom dates</option>
-                          </select>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Booking Duration *</label>
+                          <div className="flex gap-2 mb-4">
+                            {['30m','1h','1w','1m','custom'].map(type => (
+                              <button
+                                key={type}
+                                type="button"
+                                className={`px-4 py-2 rounded-lg font-semibold border transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 ${bookingData.durationType === type ? 'bg-green-600 text-white border-green-600' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-green-50'}`}
+                                onClick={() => setBookingData({ ...bookingData, durationType: type })}
+                              >
+                                {type === '30m' ? '30 min' : type === '1h' ? 'Hourly' : type === '1w' ? 'Weekly' : type === '1m' ? 'Monthly' : 'Custom'}
+                              </button>
+                            ))}
+                          </div>
                         </div>
 
                         {/* Start date/time */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Start Date *
-                          </label>
-                          <div className="grid grid-cols-2 gap-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Start Date & Time *</label>
+                          <div className="flex gap-2">
                             <input
                               type="date"
                               required
-                              min={new Date().toISOString().split('T')[0]}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                              min={listing.availableFrom || new Date().toISOString().split('T')[0]}
+                              max={listing.availableTo || undefined}
+                              className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
                               value={bookingData.startDate}
                               onChange={(e) => setBookingData({ ...bookingData, startDate: e.target.value })}
                             />
-                            {/* show time input for presets (not custom) and for custom optionally */}
                             <input
                               type="time"
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                              required={bookingData.durationType === '30m' || bookingData.durationType === '1h'}
+                              min={listing.availableFrom ? '06:00' : '00:00'}
+                              max={listing.availableTo ? '22:00' : '23:59'}
+                              step="1800"
+                              className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
                               value={bookingData.startTime}
                               onChange={(e) => setBookingData({ ...bookingData, startTime: e.target.value })}
                               disabled={false}
@@ -575,14 +578,13 @@ export default function ListingDetailsPage() {
                         {/* End date for custom, otherwise display computed end */}
                         {bookingData.durationType === 'custom' ? (
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              End Date *
-                            </label>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">End Date *</label>
                             <input
                               type="date"
                               required
-                              min={bookingData.startDate || new Date().toISOString().split('T')[0]}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                              min={bookingData.startDate || listing.availableFrom || new Date().toISOString().split('T')[0]}
+                              max={listing.availableTo || undefined}
+                              className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
                               value={bookingData.endDate}
                               onChange={(e) => setBookingData({ ...bookingData, endDate: e.target.value })}
                             />
@@ -593,7 +595,7 @@ export default function ListingDetailsPage() {
                         ) : (
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Estimated End</label>
-                            <div className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
+                            <div className="w-full px-4 py-2 border border-green-200 rounded-lg bg-green-50 text-green-700 font-semibold">
                               {bookingData.startDate ? (
                                 (() => {
                                   try {
@@ -616,9 +618,9 @@ export default function ListingDetailsPage() {
                               )}
                             </div>
                             {/* ISO preview */}
-                            <div className="mt-2 text-xs text-gray-600">
+                            <div className="mt-2 text-xs text-green-700">
                               <div><strong>ISO Preview:</strong></div>
-                              <div className="bg-gray-100 rounded px-2 py-1 mt-1 text-xs break-all">
+                              <div className="bg-green-100 rounded px-2 py-1 mt-1 text-xs break-all">
                                 <div>Start: {bookingPreview.startISO || '—'}</div>
                                 <div>End: {bookingPreview.endISO || '—'}</div>
                               </div>

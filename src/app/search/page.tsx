@@ -41,6 +41,8 @@ function SearchResults() {
     location: locationParam,
     maxPrice: '',
     spaceType: '',
+    availableFrom: '',
+    availableTo: '',
   })
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt')
@@ -168,6 +170,14 @@ function SearchResults() {
         params.append('spaceType', searchFilters.spaceType)
       }
 
+      if (searchFilters.availableFrom) {
+        params.append('availableFrom', searchFilters.availableFrom)
+      }
+
+      if (searchFilters.availableTo) {
+        params.append('availableTo', searchFilters.availableTo)
+      }
+
       const response = await fetch(`/api/listings?${params.toString()}`)
       const data = await response.json()
 
@@ -278,7 +288,7 @@ function SearchResults() {
         {/* Search & Filters */}
         <div className="bg-white p-6 rounded-lg shadow-md mb-8">
           <form onSubmit={handleSearch}>
-            <div className="grid md:grid-cols-4 gap-4 mb-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
               <input
                 type="text"
                 placeholder="Location or ZIP code"
@@ -305,12 +315,36 @@ function SearchResults() {
                 <option value="STREET">Street Parking</option>
                 <option value="LOT">Parking Lot</option>
               </select>
-              <button
-                type="submit"
-                className="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 font-semibold"
-              >
-                Search
-              </button>
+            </div>
+            <div className="grid md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Available From</label>
+                <input
+                  type="date"
+                  value={filters.availableFrom}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setFilters({ ...filters, availableFrom: e.target.value })}
+                  className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Available To</label>
+                <input
+                  type="date"
+                  value={filters.availableTo}
+                  min={filters.availableFrom || new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setFilters({ ...filters, availableTo: e.target.value })}
+                  className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  type="submit"
+                  className="w-full bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 font-semibold"
+                >
+                  Search
+                </button>
+              </div>
             </div>
           </form>
         </div>

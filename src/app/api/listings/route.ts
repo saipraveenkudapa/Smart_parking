@@ -22,24 +22,48 @@ export async function GET(req: NextRequest) {
     const zipCode = searchParams.get('zipCode')
     const maxPrice = searchParams.get('maxPrice')
     const spaceType = searchParams.get('spaceType')
+    const availableFrom = searchParams.get('availableFrom')
+    const availableTo = searchParams.get('availableTo')
     const radiusMiles = 20 // Search within 20 miles
 
-    console.log('Fetching listings with filters:', { city, state, zipCode, maxPrice, spaceType })
+    console.log('Fetching listings with filters:', { city, state, zipCode, maxPrice, spaceType, availableFrom, availableTo })
 
-    // Fetch parking spaces with joined location
+    // Fetch parking spaces with joined location and availability
     const parkingSpaces = await prisma.parking_spaces.findMany({
       where: {
         ...(spaceType && { space_type: spaceType.toLowerCase() }),
       },
       include: {
         space_location: true,
+        availability: true,
       },
     })
 
     console.log(`Found ${parkingSpaces.length} parking spaces in database`)
 
+    // Filter by availability dates if provided
+    let dateFilteredSpaces = parkingSpaces
+    if (availableFrom || availableTo) {
+      const searchFrom = availableFrom ? new Date(availableFrom) : null
+      const searchTo = availableTo ? new Date(availableTo) : null
+
+      dateFilteredSpaces = parkingSpaces.filter((space: any) => {
+        const availability = space.availability?.[0]
+        if (!availability) return true // Include if no availability record
+
+        const spaceFrom = availability.available_start ? new Date(availability.available_start) : null
+        const spaceTo = availability.available_end ? new Date(availability.available_end) : null
+
+        // Check if the requested dates fall within the available period
+        if (searchFrom && spaceFrom && searchFrom < spaceFrom) return false
+        if (searchTo && spaceTo && searchTo > spaceTo) return false
+
+        return true
+      })
+    }
+
     // Get space IDs for pricing lookup
-    const spaceIds = parkingSpaces.map(space => space.space_id)
+    const spaceIds = dateFilteredSpaces.map(space => space.space_id)
 
     // Fetch pricing for all spaces
     const pricings = await prisma.pricing_model.findMany({
@@ -60,7 +84,7 @@ export async function GET(req: NextRequest) {
     )
 
     // Filter by location criteria (since they're in joined table)
-    let filteredSpaces = parkingSpaces
+    let filteredSpaces = dateFilteredSpaces
 
     if (city || state || zipCode || maxPrice) {
       // If zipCode is provided, get its coordinates for radius search
@@ -79,7 +103,7 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      filteredSpaces = parkingSpaces.filter((space: typeof parkingSpaces[0]) => {
+      filteredSpaces = dateFilteredSpaces.filter((space: typeof parkingSpaces[0]) => {
         const location = space.space_location
 
         if (city && location?.city && !location.city.toLowerCase().includes(city.toLowerCase())) {
