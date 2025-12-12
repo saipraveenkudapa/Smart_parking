@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { isAuthenticated, getUser } from '@/lib/clientAuth'
 import Header from '@/components/Header'
 import Reviews from '@/components/Reviews'
+import Calendar from '@/components/Calendar'
+import TimePicker from '@/components/TimePicker'
 
 async function fetchBookingAccess(listingId: string) {
   try {
@@ -723,133 +725,105 @@ export default function ListingDetailsPage() {
                           </div>
                         </div>
 
-                        {dateChips.length > 0 && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Available Dates</label>
-                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                              {dateChips.map((chip) => (
-                                <button
-                                  key={chip.date}
-                                  type="button"
-                                  disabled={chip.blocked}
-                                  onClick={() => setBookingData((prev) => ({ ...prev, startDate: chip.date }))}
-                                  className={`py-2 rounded-lg text-sm font-semibold border transition-colors ${chip.blocked
-                                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                    : bookingData.startDate === chip.date
-                                      ? 'bg-green-600 text-white border-green-600'
-                                      : 'bg-white text-gray-700 border-gray-300 hover:bg-green-50'
-                                  }`}
-                                >
-                                  {chip.label}
-                                </button>
-                              ))}
-                            </div>
-                            <p className="text-xs text-gray-500 mt-2">Gray dates are already booked for this listing.</p>
-                          </div>
-                        )}
-
-                        {/* Start date/time */}
+                        {/* Calendar for date selection */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Start Date & Time *</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="date"
-                              required
-                              min={listing.availableFrom || new Date().toISOString().split('T')[0]}
-                              max={listing.availableTo || undefined}
-                              className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                              value={bookingData.startDate}
-                              onChange={(e) => {
-                                const selectedDate = e.target.value
-                                if (!disabledDates.has(selectedDate)) {
-                                  setBookingData({ ...bookingData, startDate: selectedDate })
-                                } else {
-                                  alert('This date is already booked. Please select an available date.')
-                                  e.target.value = bookingData.startDate
-                                }
-                              }}
-                            />
-                            <input
-                              type="time"
-                              required={false}
-                              min={'00:00'}
-                              max={'23:59'}
-                              step="1800"
-                              className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                              value={bookingData.startTime}
-                              onChange={(e) => setBookingData({ ...bookingData, startTime: e.target.value })}
-                              disabled={false}
-                            />
-                          </div>
+                          <label className="block text-sm font-medium text-gray-700 mb-3">Select Start Date *</label>
+                          <Calendar
+                            selectedDate={bookingData.startDate}
+                            onDateSelect={(date) => {
+                              if (!disabledDates.has(date)) {
+                                setBookingData({ ...bookingData, startDate: date })
+                              } else {
+                                alert('This date is already booked. Please select an available date.')
+                              }
+                            }}
+                            disabledDates={disabledDates}
+                            minDate={listing.availableFrom || new Date().toISOString().split('T')[0]}
+                            maxDate={listing.availableTo}
+                          />
                           {bookingErrors.startDate && (
-                            <p className="text-red-600 text-sm mt-1">{bookingErrors.startDate}</p>
+                            <p className="text-red-600 text-sm mt-2">{bookingErrors.startDate}</p>
                           )}
                         </div>
 
+                        {/* Time Picker */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-3">Select Start Time *</label>
+                          <TimePicker
+                            value={bookingData.startTime || '12:00'}
+                            onChange={(time) => setBookingData({ ...bookingData, startTime: time })}
+                          />
+                        </div>
+
                         {/* End date for custom, otherwise display computed end */}
-                        {bookingData.durationType === 'custom' ? (
+                        {bookingData.durationType === 'custom' && (
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">End Date *</label>
-                            <input
-                              type="date"
-                              required
-                              min={bookingData.startDate || listing.availableFrom || new Date().toISOString().split('T')[0]}
-                              max={listing.availableTo || undefined}
-                              className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                              value={bookingData.endDate}
-                              onChange={(e) => {
-                                const selectedDate = e.target.value
-                                if (!disabledDates.has(selectedDate)) {
-                                  setBookingData({ ...bookingData, endDate: selectedDate })
+                            <label className="block text-sm font-medium text-gray-700 mb-3">Select End Date *</label>
+                            <Calendar
+                              selectedDate={bookingData.endDate}
+                              onDateSelect={(date) => {
+                                if (!disabledDates.has(date)) {
+                                  setBookingData({ ...bookingData, endDate: date })
                                 } else {
                                   alert('This date is already booked. Please select an available date.')
-                                  e.target.value = bookingData.endDate
                                 }
                               }}
+                              disabledDates={disabledDates}
+                              minDate={bookingData.startDate || listing.availableFrom || new Date().toISOString().split('T')[0]}
+                              maxDate={listing.availableTo}
                             />
                             {bookingErrors.endDate && (
-                              <p className="text-red-600 text-sm mt-1">{bookingErrors.endDate}</p>
+                              <p className="text-red-600 text-sm mt-2">{bookingErrors.endDate}</p>
                             )}
                           </div>
-                        ) : (
+                        )}
+
+                        {/* Booking Summary for non-custom durations */}
+                        {bookingData.durationType !== 'custom' && bookingData.startDate && (
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Estimated End</label>
-                            <div className="w-full px-4 py-2 border border-green-200 rounded-lg bg-green-50 text-green-700 font-semibold">
-                              {bookingData.startDate ? (
-                                (() => {
-                                  try {
-                                    const d = new Date(`${bookingData.startDate}T${bookingData.startTime || '12:00'}:00`)
-                                    const end = new Date(d.getTime())
-                                    switch (bookingData.durationType) {
-                                      case '30m': end.setMinutes(end.getMinutes() + 30); break
-                                      case '1h': end.setHours(end.getHours() + 1); break
-                                      case '1d': end.setDate(end.getDate() + 1); break
-                                      case '1w': end.setDate(end.getDate() + 7); break
-                                      case '1m': end.setMonth(end.getMonth() + 1); break
-                                      default: end.setHours(end.getHours() + 1)
-                                    }
-                                    return end.toLocaleString()
-                                  } catch (err) {
-                                    return 'Select start date'
-                                  }
-                                })()
-                              ) : (
-                                'Select start date'
-                              )}
-                            </div>
-                            {/* ISO preview */}
-                            <div className="mt-2 text-xs text-green-700">
-                              <div><strong>ISO Preview:</strong></div>
-                              <div className="bg-green-100 rounded px-2 py-1 mt-1 text-xs break-all">
-                                <div>Start: {bookingPreview.startISO || '—'}</div>
-                                <div>End: {bookingPreview.endISO || '—'}</div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Booking Summary</label>
+                            <div className="w-full px-4 py-2 border border-green-200 rounded-lg bg-green-50 text-green-700">
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-sm">
+                                  <span className="font-medium">Start:</span>
+                                  <span>
+                                    {(() => {
+                                      try {
+                                        const d = new Date(`${bookingData.startDate}T${bookingData.startTime || '12:00'}:00`)
+                                        return d.toLocaleString()
+                                      } catch {
+                                        return 'Select date'
+                                      }
+                                    })()}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="font-medium">End:</span>
+                                  <span>
+                                    {(() => {
+                                      try {
+                                        const d = new Date(`${bookingData.startDate}T${bookingData.startTime || '12:00'}:00`)
+                                        const end = new Date(d.getTime())
+                                        switch (bookingData.durationType) {
+                                          case '30m': end.setMinutes(end.getMinutes() + 30); break
+                                          case '1h': end.setHours(end.getHours() + 1); break
+                                          case '1d': end.setDate(end.getDate() + 1); break
+                                          case '1w': end.setDate(end.getDate() + 7); break
+                                          case '1m': end.setMonth(end.getMonth() + 1); break
+                                          default: end.setHours(end.getHours() + 1)
+                                        }
+                                        return end.toLocaleString()
+                                      } catch {
+                                        return 'Select date'
+                                      }
+                                    })()}
+                                  </span>
+                                </div>
                               </div>
-                              {bookingErrors.endDate && (
-                                <p className="text-red-600 text-sm mt-1">{bookingErrors.endDate}</p>
-                              )}
                             </div>
                           </div>
                         )}
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Select Vehicle *
