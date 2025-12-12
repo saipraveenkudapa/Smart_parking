@@ -147,6 +147,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check for overlapping bookings - prevent double-booking
+    // Two bookings overlap if: new_start < existing_end AND new_end > existing_start
     const overlappingBookings = await prisma.bookings.findFirst({
       where: {
         availability: {
@@ -155,35 +156,9 @@ export async function POST(req: NextRequest) {
         booking_status: {
           notIn: ['cancelled', 'rejected'],
         },
-        OR: [
-          // New booking starts during an existing booking
-          {
-            AND: [
-              { start_time: { lte: start } },
-              { end_time: { gt: start } },
-            ],
-          },
-          // New booking ends during an existing booking
-          {
-            AND: [
-              { start_time: { lt: end } },
-              { end_time: { gte: end } },
-            ],
-          },
-          // New booking completely contains an existing booking
-          {
-            AND: [
-              { start_time: { gte: start } },
-              { end_time: { lte: end } },
-            ],
-          },
-          // Existing booking completely contains the new booking
-          {
-            AND: [
-              { start_time: { lte: start } },
-              { end_time: { gte: end } },
-            ],
-          },
+        AND: [
+          { start_time: { lt: end } },    // existing start is before new end
+          { end_time: { gt: start } },     // existing end is after new start
         ],
       },
     })
@@ -195,94 +170,53 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Calculate duration and pricing based on booking type
     const durationMs = end.getTime() - start.getTime()
     const durationHours = durationMs / (1000 * 60 * 60)
-    const hoursInDay = 24
-    const hoursInWeek = hoursInDay * 7
-    const hoursInMonth = hoursInDay * 30
+    const durationDays = durationMs / (1000 * 60 * 60 * 24)
+    const durationWeeks = durationDays / 7
+    const durationMonths = durationDays / 30
 
     const hourlyRate = Number(pricing.hourly_rate) || 0
     const dailyRate = Number(pricing.daily_rate) || 0
     const weeklyRate = Number(pricing.weekly_rate) || 0
     const monthlyRate = Number(pricing.monthly_rate) || 0
 
-    const billableHours = Math.max(durationHours, 0)
-    const billableDays = Math.max(1, Math.ceil(billableHours / hoursInDay))
-    const billableWeeks = Math.max(1, Math.ceil(billableHours / hoursInWeek))
-    const billableMonths = Math.max(1, Math.ceil(billableHours / hoursInMonth))
-
-    const hourlySubtotal = hourlyRate > 0 ? hourlyRate * billableHours : 0
-    const dailySubtotal = dailyRate > 0 ? dailyRate * billableDays : 0
-    const weeklySubtotal = weeklyRate > 0 ? weeklyRate * billableWeeks : 0
-    const monthlySubtotal = monthlyRate > 0 ? monthlyRate * billableMonths : 0
-
+    // Determine billing basis from durationType
     const normalizeType = (durationType || '').toLowerCase()
-    let billingBasis: 'hourly' | 'daily' | 'weekly' | 'monthly' = 'hourly'
+    let subtotal = 0
 
     switch (normalizeType) {
       case '30m':
       case '1h':
-        billingBasis = 'hourly'
+        // Hourly billing
+        subtotal = hourlyRate * Math.ceil(durationHours)
         break
       case '1d':
       case '24h':
-        billingBasis = 'daily'
+        // Daily billing
+        subtotal = dailyRate * Math.ceil(durationDays)
         break
       case '1w':
-        billingBasis = 'weekly'
+        // Weekly billing
+        subtotal = weeklyRate * Math.ceil(durationWeeks)
         break
       case '1m':
-        billingBasis = 'monthly'
+        // Monthly billing
+        subtotal = monthlyRate * Math.ceil(durationMonths)
         break
+      case 'custom':
       default:
-        if (billableHours >= hoursInMonth) {
-          billingBasis = 'monthly'
-        } else if (billableHours >= hoursInWeek) {
-          billingBasis = 'weekly'
-        } else if (billableHours >= hoursInDay) {
-          billingBasis = 'daily'
+        // Auto-detect best rate for custom bookings
+        if (durationDays >= 30) {
+          subtotal = monthlyRate * Math.ceil(durationMonths)
+        } else if (durationDays >= 7) {
+          subtotal = weeklyRate * Math.ceil(durationWeeks)
+        } else if (durationDays >= 1) {
+          subtotal = dailyRate * Math.ceil(durationDays)
         } else {
-          billingBasis = 'hourly'
+          subtotal = hourlyRate * Math.ceil(durationHours)
         }
-    }
-
-    const pickFirstNonZero = (...values: number[]) => {
-      return values.find((value) => value > 0) || 0
-    }
-
-    let subtotal = 0
-    switch (billingBasis) {
-      case 'hourly':
-        subtotal = pickFirstNonZero(
-          hourlySubtotal,
-          dailySubtotal,
-          weeklySubtotal,
-          monthlySubtotal,
-        )
-        break
-      case 'daily':
-        subtotal = pickFirstNonZero(
-          dailySubtotal,
-          hourlySubtotal,
-          weeklySubtotal,
-          monthlySubtotal,
-        )
-        break
-      case 'weekly':
-        subtotal = pickFirstNonZero(
-          weeklySubtotal,
-          dailySubtotal,
-          hourlySubtotal,
-          monthlySubtotal,
-        )
-        break
-      case 'monthly':
-        subtotal = pickFirstNonZero(
-          monthlySubtotal,
-          weeklySubtotal,
-          dailySubtotal,
-          hourlySubtotal,
-        )
         break
     }
 
