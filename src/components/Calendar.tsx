@@ -109,42 +109,42 @@ export default function Calendar({
   const days = getDaysInMonth(currentMonth)
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
+    <div className="bg-white rounded-lg border border-gray-200 p-3 max-w-sm">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <button
           type="button"
           onClick={goToPreviousMonth}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-1 hover:bg-gray-100 rounded transition-colors"
           aria-label="Previous month"
         >
-          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
         
-        <h3 className="text-lg font-semibold text-gray-900">
+        <h3 className="text-sm font-semibold text-gray-900">
           {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
         </h3>
         
         <button
           type="button"
           onClick={goToNextMonth}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-1 hover:bg-gray-100 rounded transition-colors"
           aria-label="Next month"
         >
-          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
       </div>
 
       {/* Days of week */}
-      <div className="grid grid-cols-7 gap-1 mb-2">
+      <div className="grid grid-cols-7 gap-0.5 mb-1">
         {daysOfWeek.map((day) => (
           <div
             key={day}
-            className="text-center text-xs font-semibold text-gray-600 py-2"
+            className="text-center text-xs font-semibold text-gray-600 py-1"
           >
             {day}
           </div>
@@ -152,7 +152,7 @@ export default function Calendar({
       </div>
 
       {/* Calendar days */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5">
         {days.map((day, index) => {
           const disabled = isDateDisabled(day)
           const selected = isDateSelected(day)
@@ -164,7 +164,7 @@ export default function Calendar({
               onClick={() => handleDateClick(day)}
               disabled={disabled}
               className={`
-                aspect-square p-2 text-sm rounded-lg transition-all
+                aspect-square p-1 text-xs rounded transition-all
                 ${day === null ? 'invisible' : ''}
                 ${disabled 
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed line-through' 
@@ -183,13 +183,13 @@ export default function Calendar({
       </div>
 
       {/* Legend */}
-      <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-center gap-4 text-xs">
+      <div className="mt-2 pt-2 border-t border-gray-200 flex items-center justify-center gap-3 text-xs">
         <div className="flex items-center gap-1">
-          <div className="w-4 h-4 bg-green-600 rounded"></div>
+          <div className="w-3 h-3 bg-green-600 rounded"></div>
           <span className="text-gray-600">Selected</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-4 h-4 bg-gray-100 rounded line-through"></div>
+          <div className="w-3 h-3 bg-gray-100 rounded line-through"></div>
           <span className="text-gray-600">Unavailable</span>
         </div>
       </div>

@@ -1,17 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface TimePickerProps {
-  value: string // Format: "HH:MM"
+  value: string
   onChange: (time: string) => void
   disabled?: boolean
+  label?: string
 }
 
-export default function TimePicker({ value, onChange, disabled = false }: TimePickerProps) {
+export default function TimePicker({ value, onChange, disabled = false, label }: TimePickerProps) {
   const [hours, setHours] = useState('12')
   const [minutes, setMinutes] = useState('00')
-  const [period, setPeriod] = useState<'AM' | 'PM'>('PM')
+  const [period, setPeriod] = useState<'AM' | 'PM'>('AM')
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Parse initial value
   useEffect(() => {
@@ -24,6 +27,23 @@ export default function TimePicker({ value, onChange, disabled = false }: TimePi
       setPeriod(hour24 >= 12 ? 'PM' : 'AM')
     }
   }, [value])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
 
   const updateTime = (newHours: string, newMinutes: string, newPeriod: 'AM' | 'PM') => {
     let hour24 = parseInt(newHours)
@@ -82,19 +102,44 @@ export default function TimePicker({ value, onChange, disabled = false }: TimePi
     handleMinuteChange(newMinutes.toString())
   }
 
+  const formatDisplayTime = () => {
+    return `${hours}:${minutes} ${period}`
+  }
+
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
-      {/* Clock Display */}
-      <div className="flex items-center justify-center mb-6">
-        <div className="relative w-48 h-48 rounded-full border-4 border-green-600 bg-linear-to-br from-green-50 to-white shadow-lg">
+    <div className="relative" ref={dropdownRef}>
+      {/* Label */}
+      {label && (
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          {label}
+        </label>
+      )}
+
+      {/* Text Input */}
+      <input
+        type="text"
+        value={formatDisplayTime()}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        readOnly
+        disabled={disabled}
+        placeholder="Select time"
+        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      />
+
+      {/* Dropdown Clock Picker */}
+      {isOpen && (
+        <div className="absolute z-50 mt-2 bg-white rounded-lg border border-gray-200 shadow-lg p-4 max-w-xs">
+          {/* Clock Display */}
+          <div className="flex items-center justify-center mb-4">
+            <div className="relative w-32 h-32 rounded-full border-2 border-green-600 bg-linear-to-br from-green-50 to-white shadow-md">
           {/* Clock center dot */}
-          <div className="absolute top-1/2 left-1/2 w-3 h-3 bg-green-600 rounded-full transform -translate-x-1/2 -translate-y-1/2 z-10"></div>
+          <div className="absolute top-1/2 left-1/2 w-2 h-2 bg-green-600 rounded-full transform -translate-x-1/2 -translate-y-1/2 z-10"></div>
           
           {/* Hour hand */}
           <div
-            className="absolute top-1/2 left-1/2 w-1 bg-gray-800 rounded-full origin-bottom transform -translate-x-1/2"
+            className="absolute top-1/2 left-1/2 w-0.5 bg-gray-800 rounded-full origin-bottom transform -translate-x-1/2"
             style={{
-              height: '35%',
+              height: '30%',
               transform: `translate(-50%, -100%) rotate(${(parseInt(hours) % 12) * 30 + parseInt(minutes) * 0.5}deg)`,
             }}
           ></div>
@@ -103,7 +148,7 @@ export default function TimePicker({ value, onChange, disabled = false }: TimePi
           <div
             className="absolute top-1/2 left-1/2 w-0.5 bg-green-600 rounded-full origin-bottom transform -translate-x-1/2"
             style={{
-              height: '42%',
+              height: '38%',
               transform: `translate(-50%, -100%) rotate(${parseInt(minutes) * 6}deg)`,
             }}
           ></div>
@@ -114,9 +159,9 @@ export default function TimePicker({ value, onChange, disabled = false }: TimePi
             return (
               <div
                 key={i}
-                className="absolute top-1/2 left-1/2 w-1 h-3 bg-gray-400 transform origin-bottom"
+                className="absolute top-1/2 left-1/2 w-0.5 h-2 bg-gray-400 transform origin-bottom"
                 style={{
-                  transform: `translate(-50%, -85px) rotate(${angle}deg)`,
+                  transform: `translate(-50%, -58px) rotate(${angle}deg)`,
                 }}
               ></div>
             )
@@ -125,16 +170,16 @@ export default function TimePicker({ value, onChange, disabled = false }: TimePi
       </div>
 
       {/* Time Input Controls */}
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center justify-center gap-1">
         {/* Hours */}
         <div className="flex flex-col items-center">
           <button
             type="button"
             onClick={incrementHours}
             disabled={disabled}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
           >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
             </svg>
           </button>
@@ -143,22 +188,22 @@ export default function TimePicker({ value, onChange, disabled = false }: TimePi
             value={hours}
             onChange={(e) => handleHourChange(e.target.value)}
             disabled={disabled}
-            className="w-16 text-center text-2xl font-bold border-2 border-green-600 rounded-lg py-2 focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+            className="w-12 text-center text-lg font-bold border border-green-600 rounded py-1 focus:ring-1 focus:ring-green-500 disabled:opacity-50"
             maxLength={2}
           />
           <button
             type="button"
             onClick={decrementHours}
             disabled={disabled}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
           >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
         </div>
 
-        <span className="text-3xl font-bold text-gray-600 mt-8">:</span>
+        <span className="text-xl font-bold text-gray-600 mt-6">:</span>
 
         {/* Minutes */}
         <div className="flex flex-col items-center">
@@ -166,9 +211,9 @@ export default function TimePicker({ value, onChange, disabled = false }: TimePi
             type="button"
             onClick={incrementMinutes}
             disabled={disabled}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
           >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
             </svg>
           </button>
@@ -177,29 +222,29 @@ export default function TimePicker({ value, onChange, disabled = false }: TimePi
             value={minutes}
             onChange={(e) => handleMinuteChange(e.target.value)}
             disabled={disabled}
-            className="w-16 text-center text-2xl font-bold border-2 border-green-600 rounded-lg py-2 focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+            className="w-12 text-center text-lg font-bold border border-green-600 rounded py-1 focus:ring-1 focus:ring-green-500 disabled:opacity-50"
             maxLength={2}
           />
           <button
             type="button"
             onClick={decrementMinutes}
             disabled={disabled}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
           >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
         </div>
 
         {/* AM/PM */}
-        <div className="flex flex-col items-center ml-2">
+        <div className="flex flex-col items-center ml-1">
           <button
             type="button"
             onClick={handlePeriodToggle}
             disabled={disabled}
             className={`
-              w-16 py-3 rounded-lg font-bold text-sm transition-all mt-8
+              w-12 py-2 rounded font-bold text-xs transition-all mt-6
               ${period === 'AM' 
                 ? 'bg-green-600 text-white' 
                 : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
@@ -213,7 +258,7 @@ export default function TimePicker({ value, onChange, disabled = false }: TimePi
       </div>
 
       {/* Quick time buttons */}
-      <div className="mt-6 grid grid-cols-4 gap-2">
+      <div className="mt-3 grid grid-cols-4 gap-1">
         {['09:00', '12:00', '15:00', '18:00'].map((time) => {
           const [h, m] = time.split(':')
           const hour = parseInt(h)
@@ -231,13 +276,15 @@ export default function TimePicker({ value, onChange, disabled = false }: TimePi
                 updateTime(hour12.toString(), m, periodLabel)
               }}
               disabled={disabled}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-green-50 hover:border-green-600 transition-colors disabled:opacity-50"
+              className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-green-50 hover:border-green-600 transition-colors disabled:opacity-50"
             >
               {hour12}:{m} {periodLabel}
             </button>
           )
         })}
       </div>
+        </div>
+      )}
     </div>
   )
 }
