@@ -457,37 +457,18 @@ export default function ListingDetailsPage() {
         return
       }
 
-      const response = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          listingId,
-          startDate: startISO,
-          endDate: endISO,
-          vehicleId: bookingData.vehicleId,
-          durationType: bookingData.durationType,
-        }),
+      // Don't create booking yet - pass details to payment page
+      // Booking will be created AFTER payment succeeds
+      const bookingParams = new URLSearchParams({
+        listingId,
+        startDate: startISO,
+        endDate: endISO,
+        vehicleId: bookingData.vehicleId,
+        durationType: bookingData.durationType,
+        title: listing?.title || 'Parking Space',
       })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create booking')
-      }
-
-      if (!data.booking) {
-        // Log the full response for debugging
-        console.error('Booking API response missing booking object:', data)
-        setError('Booking failed: No booking object returned from server. Please try again or contact support.')
-        return
-      }
-
-      // Redirect to payment page instead of showing success modal
-      const bookingAmount = data.booking?.totalAmount || listing?.monthlyPrice || 0
-      router.push(`/payment?bookingId=${data.booking.id}&amount=${bookingAmount}&title=${encodeURIComponent(listing?.title || '')}&listingId=${listingId}`)
+      router.push(`/payment?${bookingParams.toString()}`)
     } catch (err: any) {
       console.error('Booking error:', err)
       setError(err.message || 'Failed to create booking request')

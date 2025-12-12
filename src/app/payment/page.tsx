@@ -9,15 +9,25 @@ import { requireAuth } from '@/lib/clientAuth'
 function PaymentContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  
+  // Get booking details from URL (new flow - booking not created yet)
+  const listingId = searchParams.get('listingId')
+  const startDate = searchParams.get('startDate')
+  const endDate = searchParams.get('endDate')
+  const vehicleId = searchParams.get('vehicleId')
+  const durationType = searchParams.get('durationType')
+  const listingTitle = searchParams.get('title')
+  
+  // Legacy support: bookingId for old flow (if any pending bookings exist)
   const bookingId = searchParams.get('bookingId')
   const amount = searchParams.get('amount')
-  const listingTitle = searchParams.get('title')
 
   const [bookingDetails, setBookingDetails] = useState<any | null>(null)
   const [bookingLoading, setBookingLoading] = useState(!!bookingId)
   const [bookingError, setBookingError] = useState('')
   const [processing, setProcessing] = useState(false)
   const [paymentSuccess, setPaymentSuccess] = useState(false)
+  const [calculatedAmount, setCalculatedAmount] = useState<number>(0)
   const [cardDetails, setCardDetails] = useState({
     cardNumber: '',
     cardHolder: '',
@@ -29,7 +39,89 @@ function PaymentContent() {
     if (!requireAuth('/payment')) {
       return
     }
-  }, [router])
+
+    // Calculate amount from booking details if provided (new flow)
+    if (listingId && startDate && endDate && !bookingId) {
+      calculateBookingAmount()
+    }
+  }, [router, listingId, startDate, endDate, bookingId])
+
+  const calculateBookingAmount = async () => {
+    setBookingLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        setBookingError('Please log in to continue.')
+        setBookingLoading(false)
+        return
+      }
+
+      // Fetch listing details to get pricing
+      const listingRes = await fetch(`/api/listings/${listingId}`)
+      const listingData = await listingRes.json()
+      
+      if (!listingRes.ok) {
+        throw new Error(listingData.error || 'Failed to fetch listing details')
+      }
+
+      const listing = listingData.listing
+      const start = new Date(startDate!)
+      const end = new Date(endDate!)
+      const durationMs = end.getTime() - start.getTime()
+      const durationHours = durationMs / (1000 * 60 * 60)
+      const durationDays = durationMs / (1000 * 60 * 60 * 24)
+      const durationWeeks = durationDays / 7
+      const durationMonths = durationDays / 30
+
+      const hourlyRate = Number(listing.hourlyPrice) || 0
+      const dailyRate = Number(listing.dailyPrice) || 0
+      const weeklyRate = Number(listing.weeklyPrice) || 0
+      const monthlyRate = Number(listing.monthlyPrice) || 0
+
+      let subtotal = 0
+      const normalizeType = (durationType || '').toLowerCase()
+
+      switch (normalizeType) {
+        case '30m':
+        case '1h':
+          subtotal = hourlyRate * Math.ceil(durationHours)
+          break
+        case '1d':
+        case '24h':
+          subtotal = dailyRate * Math.ceil(durationDays)
+          break
+        case '1w':
+          subtotal = weeklyRate * Math.ceil(durationWeeks)
+          break
+        case '1m':
+          subtotal = monthlyRate * Math.ceil(durationMonths)
+          break
+        case 'custom':
+        default:
+          if (durationDays >= 30) {
+            subtotal = monthlyRate * Math.ceil(durationMonths)
+          } else if (durationDays >= 7) {
+            subtotal = weeklyRate * Math.ceil(durationWeeks)
+          } else if (durationDays >= 1) {
+            subtotal = dailyRate * Math.ceil(durationDays)
+          } else {
+            subtotal = hourlyRate * Math.ceil(durationHours)
+          }
+          break
+      }
+
+      const serviceFee = subtotal * 0.15
+      const total = subtotal + serviceFee
+
+      setCalculatedAmount(total)
+      setBookingError('')
+    } catch (err: any) {
+      console.error('Failed to calculate booking amount:', err)
+      setBookingError(err.message || 'Failed to calculate booking amount')
+    } finally {
+      setBookingLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (!bookingId) {
@@ -73,9 +165,11 @@ function PaymentContent() {
     return Number.isFinite(num) ? num : 0
   }
 
-  const resolvedAmount = bookingDetails
-    ? safeNumber(bookingDetails.totalAmount)
-    : safeNumber(amount)
+  const resolvedAmount = calculatedAmount > 0
+    ? calculatedAmount
+    : bookingDetails
+      ? safeNumber(bookingDetails.totalAmount)
+      : safeNumber(amount)
 
   const serviceFeeAmount = bookingDetails && bookingDetails.serviceFee != null
     ? safeNumber(bookingDetails.serviceFee)
@@ -91,13 +185,51 @@ function PaymentContent() {
 
     // Simulate payment processing
     setTimeout(async () => {
-      setProcessing(false)
-      setPaymentSuccess(true)
-
-      // If bookingId is present, notify backend that payment completed
       try {
         const token = localStorage.getItem('token')
-        if (bookingId && token) {
+        if (!token) {
+          setBookingError('Authentication required')
+          setProcessing(false)
+          return
+        }
+
+        // NEW FLOW: Create booking AFTER payment succeeds
+        if (listingId && startDate && endDate && vehicleId && !bookingId) {
+          const response = await fetch('/api/bookings', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              listingId,
+              startDate,
+              endDate,
+              vehicleId,
+              durationType,
+            }),
+          })
+
+          const data = await response.json()
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Failed to create booking after payment')
+          }
+
+          // Mark payment as completed immediately
+          if (data.booking?.bookingId) {
+            await fetch(`/api/bookings/${data.booking.bookingId}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({ paymentStatus: 'completed' }),
+            })
+          }
+        } 
+        // LEGACY FLOW: Update existing booking payment status
+        else if (bookingId && token) {
           await fetch(`/api/bookings/${bookingId}`, {
             method: 'PATCH',
             headers: {
@@ -107,14 +239,19 @@ function PaymentContent() {
             body: JSON.stringify({ paymentStatus: 'completed' }),
           })
         }
-      } catch (err) {
-        console.error('Failed to update payment status for booking:', err)
-      }
 
-      // Redirect to bookings after a short delay
-      setTimeout(() => {
-        router.push(`/renter/bookings`)
-      }, 1500)
+        setProcessing(false)
+        setPaymentSuccess(true)
+
+        // Redirect to bookings after a short delay
+        setTimeout(() => {
+          router.push(`/renter/bookings`)
+        }, 1500)
+      } catch (err: any) {
+        console.error('Payment/booking creation failed:', err)
+        setBookingError(err.message || 'Payment succeeded but booking creation failed. Please contact support.')
+        setProcessing(false)
+      }
     }, 2000)
   }
 
@@ -181,7 +318,7 @@ function PaymentContent() {
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="mb-6">
-            <Link href={`/listing/${searchParams.get('listingId')}`} className="text-green-600 hover:underline">
+            <Link href={`/listing/${listingId || searchParams.get('listingId')}`} className="text-green-600 hover:underline">
               ← Back to Listing
             </Link>
           </div>
