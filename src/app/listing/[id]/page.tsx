@@ -134,6 +134,7 @@ export default function ListingDetailsPage() {
     const target = normalizeDateInput(dateStr)
     if (!target) return false
 
+    // Check if the entire day is blocked by any booking
     return bookedRanges.some((range) => {
       const rangeStart = normalizeDateInput(range.start)
       const rangeEnd = normalizeDateInput(range.end)
@@ -142,18 +143,42 @@ export default function ListingDetailsPage() {
     })
   }
 
+  const isDatePartiallyAvailable = (dateStr: string) => {
+    const target = normalizeDateInput(dateStr)
+    if (!target) return false
+
+    // Returns true if the date has some bookings but not fully blocked
+    const hasBookings = bookedRanges.some((range) => {
+      const rangeStart = new Date(range.start)
+      const rangeEnd = new Date(range.end)
+      const dayStart = new Date(target)
+      dayStart.setHours(0, 0, 0, 0)
+      const dayEnd = new Date(target)
+      dayEnd.setHours(23, 59, 59, 999)
+      
+      // Check if booking overlaps with this day
+      return rangeStart < dayEnd && rangeEnd > dayStart
+    })
+
+    return hasBookings
+  }
+
   const isRangeBlocked = (startValue: string | Date, endValue: string | Date) => {
-    const start = normalizeDateInput(startValue)
-    const end = normalizeDateInput(endValue)
-    if (!start || !end) return false
+    // Use full timestamp comparison for accurate overlap detection
+    const start = new Date(startValue)
+    const end = new Date(endValue)
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return false
 
     const [rangeStart, rangeEnd] = start <= end ? [start, end] : [end, start]
 
     return bookedRanges.some((range) => {
-      const bookedStart = normalizeDateInput(range.start)
-      const bookedEnd = normalizeDateInput(range.end)
-      if (!bookedStart || !bookedEnd) return false
-      return rangeStart <= bookedEnd && rangeEnd >= bookedStart
+      const bookedStart = new Date(range.start)
+      const bookedEnd = new Date(range.end)
+      if (isNaN(bookedStart.getTime()) || isNaN(bookedEnd.getTime())) return false
+      
+      // Check for any overlap: new booking starts before existing ends AND ends after existing starts
+      return rangeStart < bookedEnd && rangeEnd > bookedStart
     })
   }
 
@@ -204,15 +229,22 @@ export default function ListingDetailsPage() {
 
     setDateChips(chips)
 
-    // Generate set of disabled dates for date picker
+    // Generate set of disabled dates - only fully blocked days
     const disabled = new Set<string>()
+    
+    // For daily+ bookings, we should block the full span
+    // Check each booked range
     bookedRanges.forEach((range) => {
-      const rangeStart = normalizeDateInput(range.start)
-      const rangeEnd = normalizeDateInput(range.end)
-      if (!rangeStart || !rangeEnd) return
+      const rangeStart = new Date(range.start)
+      const rangeEnd = new Date(range.end)
+      if (isNaN(rangeStart.getTime()) || isNaN(rangeEnd.getTime())) return
 
-      const current = new Date(rangeStart)
-      while (current <= rangeEnd) {
+      // Normalize to date-only comparison
+      const startDate = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate())
+      const endDate = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), rangeEnd.getDate())
+      
+      const current = new Date(startDate)
+      while (current <= endDate) {
         disabled.add(current.toISOString().split('T')[0])
         current.setDate(current.getDate() + 1)
       }
