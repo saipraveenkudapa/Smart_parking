@@ -79,7 +79,8 @@ export default function HostDashboard() {
   const [bookingsLoading, setBookingsLoading] = useState(true)
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'listings' | 'bookings'>('listings')
+  const [activeTab, setActiveTab] = useState<'listings' | 'bookings' | 'earnings'>('listings')
+  const [earnings, setEarnings] = useState({ total: 0, thisMonth: 0, pending: 0, completed: 0 })
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [actionResult, setActionResult] = useState<{ status: string; bookingDetails?: any }>({ status: '' })
 
@@ -218,6 +219,34 @@ export default function HostDashboard() {
     router.push(`/host/edit-listing/${listingId}`)
   }
 
+  const calculateEarnings = (bookings: any[]) => {
+    const now = new Date()
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    
+    let total = 0
+    let thisMonth = 0
+    let pending = 0
+    let completed = 0
+    
+    bookings.forEach(booking => {
+      const amount = booking.totalAmount || 0
+      const bookingDate = new Date(booking.createdAt)
+      const status = booking.status?.toLowerCase()
+      
+      if (status === 'confirmed' || status === 'completed') {
+        total += amount
+        completed += amount
+        if (bookingDate >= firstDayOfMonth) {
+          thisMonth += amount
+        }
+      } else if (status === 'pending') {
+        pending += amount
+      }
+    })
+    
+    setEarnings({ total, thisMonth, pending, completed })
+  }
+
   const fetchBookings = async () => {
     try {
       const token = localStorage.getItem('token')
@@ -241,6 +270,7 @@ export default function HostDashboard() {
       }))
 
       setBookings(normalizedBookings)
+      calculateEarnings(data.bookings || [])
     } catch (err: any) {
       console.error('Fetch bookings error:', err)
     } finally {
@@ -359,6 +389,16 @@ export default function HostDashboard() {
                     {pendingBookings.length}
                   </span>
                 )}
+              </button>
+              <button
+                onClick={() => setActiveTab('earnings')}
+                className={`px-4 py-2 font-semibold border-b-2 transition-colors ${
+                  activeTab === 'earnings'
+                    ? 'border-green-600 text-green-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                My Earnings
               </button>
             </div>
           </div>
@@ -647,6 +687,93 @@ export default function HostDashboard() {
                   ))}
                 </div>
               )}
+            </>
+          )}
+
+          {/* Earnings Tab */}
+          {activeTab === 'earnings' && (
+            <>
+              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 className="text-2xl font-bold mb-6">💰 Earnings Dashboard</h2>
+                
+                {/* Earnings Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                  <div className="bg-linear-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-gray-600 text-sm">Total Earnings</span>
+                      <span className="text-2xl">💵</span>
+                    </div>
+                    <p className="text-3xl font-bold text-green-700">${earnings.total.toFixed(2)}</p>
+                  </div>
+                  
+                  <div className="bg-linear-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-gray-600 text-sm">This Month</span>
+                      <span className="text-2xl">📅</span>
+                    </div>
+                    <p className="text-3xl font-bold text-blue-700">${earnings.thisMonth.toFixed(2)}</p>
+                  </div>
+                  
+                  <div className="bg-linear-to-br from-yellow-50 to-yellow-100 rounded-lg p-4 border border-yellow-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-gray-600 text-sm">Pending</span>
+                      <span className="text-2xl">⏳</span>
+                    </div>
+                    <p className="text-3xl font-bold text-yellow-700">${earnings.pending.toFixed(2)}</p>
+                  </div>
+                  
+                  <div className="bg-linear-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-gray-600 text-sm">Completed</span>
+                      <span className="text-2xl">✅</span>
+                    </div>
+                    <p className="text-3xl font-bold text-purple-700">${earnings.completed.toFixed(2)}</p>
+                  </div>
+                </div>
+
+                {/* Recent Transactions */}
+                <div>
+                  <h3 className="text-xl font-semibold mb-4">Recent Transactions</h3>
+                  {bookingsLoading ? (
+                    <div className="text-center py-8">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                    </div>
+                  ) : bookings.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>No transactions yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {bookings
+                        .filter(b => b.status === 'APPROVED' || b.status === 'PENDING')
+                        .slice(0, 10)
+                        .map((booking: any) => (
+                          <div key={booking.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-gray-900">{booking.listing?.title || 'Parking Space'}</h4>
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {booking.renter?.fullName || 'Guest'} • {formatDate(booking.startDate)} - {formatDate(booking.endDate)}
+                                </p>
+                                <div className="mt-2">
+                                  {getStatusBadge(booking.status)}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xl font-bold text-green-600">
+                                  ${(booking.totalAmount || 0).toFixed(2)}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {formatDate(booking.createdAt)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </>
           )}
         </div>
