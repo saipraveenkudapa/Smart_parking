@@ -107,6 +107,7 @@ export default function ListingDetailsPage() {
   const [canViewAddress, setCanViewAddress] = useState(false)
   const [bookedRanges, setBookedRanges] = useState<BookedRange[]>([])
   const [dateChips, setDateChips] = useState<{ date: string; label: string; blocked: boolean }[]>([])
+  const [disabledDates, setDisabledDates] = useState<Set<string>>(new Set())
 
   const normalizeDateInput = (value: string | Date | null) => {
     if (!value) return null
@@ -202,6 +203,21 @@ export default function ListingDetailsPage() {
     }
 
     setDateChips(chips)
+
+    // Generate set of disabled dates for date picker
+    const disabled = new Set<string>()
+    bookedRanges.forEach((range) => {
+      const rangeStart = normalizeDateInput(range.start)
+      const rangeEnd = normalizeDateInput(range.end)
+      if (!rangeStart || !rangeEnd) return
+
+      const current = new Date(rangeStart)
+      while (current <= rangeEnd) {
+        disabled.add(current.toISOString().split('T')[0])
+        current.setDate(current.getDate() + 1)
+      }
+    })
+    setDisabledDates(disabled)
   }, [listing, bookedRanges])
 
   useEffect(() => {
@@ -730,13 +746,21 @@ export default function ListingDetailsPage() {
                               max={listing.availableTo || undefined}
                               className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
                               value={bookingData.startDate}
-                              onChange={(e) => setBookingData({ ...bookingData, startDate: e.target.value })}
+                              onChange={(e) => {
+                                const selectedDate = e.target.value
+                                if (!disabledDates.has(selectedDate)) {
+                                  setBookingData({ ...bookingData, startDate: selectedDate })
+                                } else {
+                                  alert('This date is already booked. Please select an available date.')
+                                  e.target.value = bookingData.startDate
+                                }
+                              }}
                             />
                             <input
                               type="time"
-                              required={bookingData.durationType === '30m' || bookingData.durationType === '1h'}
-                              min={listing.availableFrom ? '06:00' : '00:00'}
-                              max={listing.availableTo ? '22:00' : '23:59'}
+                              required={false}
+                              min={'00:00'}
+                              max={'23:59'}
                               step="1800"
                               className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
                               value={bookingData.startTime}
@@ -760,7 +784,15 @@ export default function ListingDetailsPage() {
                               max={listing.availableTo || undefined}
                               className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
                               value={bookingData.endDate}
-                              onChange={(e) => setBookingData({ ...bookingData, endDate: e.target.value })}
+                              onChange={(e) => {
+                                const selectedDate = e.target.value
+                                if (!disabledDates.has(selectedDate)) {
+                                  setBookingData({ ...bookingData, endDate: selectedDate })
+                                } else {
+                                  alert('This date is already booked. Please select an available date.')
+                                  e.target.value = bookingData.endDate
+                                }
+                              }}
                             />
                             {bookingErrors.endDate && (
                               <p className="text-red-600 text-sm mt-1">{bookingErrors.endDate}</p>
