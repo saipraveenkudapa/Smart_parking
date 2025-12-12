@@ -74,6 +74,12 @@ interface Listing {
   availableTo?: string
 }
 
+type BookedRange = {
+  start: string
+  end: string
+  status: string
+}
+
 export default function ListingDetailsPage() {
   const router = useRouter()
   const params = useParams()
@@ -99,6 +105,56 @@ export default function ListingDetailsPage() {
   const [bookingPreview, setBookingPreview] = useState({ startISO: '', endISO: '' })
   const [bookingErrors, setBookingErrors] = useState<{ startDate?: string; endDate?: string; vehicleId?: string }>({})
   const [canViewAddress, setCanViewAddress] = useState(false)
+  const [bookedRanges, setBookedRanges] = useState<BookedRange[]>([])
+  const [dateChips, setDateChips] = useState<{ date: string; label: string; blocked: boolean }[]>([])
+
+  const normalizeDateInput = (value: string | Date | null) => {
+    if (!value) return null
+    if (value instanceof Date) {
+      return new Date(value.getFullYear(), value.getMonth(), value.getDate())
+    }
+
+    const [datePart] = value.split('T')
+    if (!datePart) return null
+
+    const [yearStr, monthStr, dayStr] = datePart.split('-')
+    const year = Number(yearStr)
+    const month = Number(monthStr)
+    const day = Number(dayStr)
+
+    if ([year, month, day].some((num) => Number.isNaN(num))) {
+      return null
+    }
+
+    return new Date(year, month - 1, day)
+  }
+
+  const isDateBlocked = (dateStr: string) => {
+    const target = normalizeDateInput(dateStr)
+    if (!target) return false
+
+    return bookedRanges.some((range) => {
+      const rangeStart = normalizeDateInput(range.start)
+      const rangeEnd = normalizeDateInput(range.end)
+      if (!rangeStart || !rangeEnd) return false
+      return target >= rangeStart && target <= rangeEnd
+    })
+  }
+
+  const isRangeBlocked = (startValue: string | Date, endValue: string | Date) => {
+    const start = normalizeDateInput(startValue)
+    const end = normalizeDateInput(endValue)
+    if (!start || !end) return false
+
+    const [rangeStart, rangeEnd] = start <= end ? [start, end] : [end, start]
+
+    return bookedRanges.some((range) => {
+      const bookedStart = normalizeDateInput(range.start)
+      const bookedEnd = normalizeDateInput(range.end)
+      if (!bookedStart || !bookedEnd) return false
+      return rangeStart <= bookedEnd && rangeEnd >= bookedStart
+    })
+  }
 
   useEffect(() => {
     (async () => {
@@ -113,6 +169,40 @@ export default function ListingDetailsPage() {
       }
     })();
   }, [listingId])
+
+  useEffect(() => {
+    if (!listing) {
+      setDateChips([])
+      return
+    }
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const startWindow = normalizeDateInput(listing.availableFrom || '') || today
+    const explicitEnd = listing.availableTo ? normalizeDateInput(listing.availableTo) : null
+    const endWindow = explicitEnd ? new Date(explicitEnd) : new Date(startWindow)
+
+    if (!explicitEnd) {
+      endWindow.setDate(endWindow.getDate() + 45)
+    }
+
+    const chips: { date: string; label: string; blocked: boolean }[] = []
+    const cursor = new Date(startWindow)
+    const maxDays = 60
+
+    while (cursor <= endWindow && chips.length < maxDays) {
+      const iso = cursor.toISOString().split('T')[0]
+      chips.push({
+        date: iso,
+        label: cursor.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        blocked: isDateBlocked(iso),
+      })
+      cursor.setDate(cursor.getDate() + 1)
+    }
+
+    setDateChips(chips)
+  }, [listing, bookedRanges])
 
   useEffect(() => {
     if (showBookingForm && isAuthenticated()) {
@@ -170,6 +260,14 @@ export default function ListingDetailsPage() {
       }
     }
 
+    if (bookingData.startDate && isDateBlocked(bookingData.startDate)) {
+      errors.startDate = 'Selected date is already booked'
+    }
+
+    if (!errors.startDate && startISO && endISO && isRangeBlocked(startISO, endISO)) {
+      errors.startDate = 'Selected dates overlap another booking'
+    }
+
     // vehicle requirement validation at preview time (user feedback)
     if (!bookingData.vehicleId) {
       errors.vehicleId = 'Please select a vehicle to book with'
@@ -177,7 +275,7 @@ export default function ListingDetailsPage() {
 
     setBookingErrors(errors)
     setBookingPreview({ startISO, endISO })
-  }, [bookingData])
+  }, [bookingData, bookedRanges])
 
   const fetchVehicles = async () => {
     setLoadingVehicles(true)
@@ -215,6 +313,7 @@ export default function ListingDetailsPage() {
       }
 
       setListing(data.listing)
+      setBookedRanges(Array.isArray(data.bookedRanges) ? data.bookedRanges : [])
     } catch (err: any) {
       console.error('Fetch error:', err)
       setError(err.message || 'Failed to load listing')
@@ -302,6 +401,12 @@ export default function ListingDetailsPage() {
         }
         startISO = startDt.toISOString()
         endISO = endDt.toISOString()
+      }
+
+      if (isRangeBlocked(startISO, endISO)) {
+        setError('Selected dates overlap an existing booking. Please choose different dates.')
+        setBookingSubmitting(false)
+        return
       }
 
       const response = await fetch('/api/bookings', {
@@ -588,6 +693,31 @@ export default function ListingDetailsPage() {
                             ))}
                           </div>
                         </div>
+
+                        {dateChips.length > 0 && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Available Dates</label>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                              {dateChips.map((chip) => (
+                                <button
+                                  key={chip.date}
+                                  type="button"
+                                  disabled={chip.blocked}
+                                  onClick={() => setBookingData((prev) => ({ ...prev, startDate: chip.date }))}
+                                  className={`py-2 rounded-lg text-sm font-semibold border transition-colors ${chip.blocked
+                                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                    : bookingData.startDate === chip.date
+                                      ? 'bg-green-600 text-white border-green-600'
+                                      : 'bg-white text-gray-700 border-gray-300 hover:bg-green-50'
+                                  }`}
+                                >
+                                  {chip.label}
+                                </button>
+                              ))}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">Gray dates are already booked for this listing.</p>
+                          </div>
+                        )}
 
                         {/* Start date/time */}
                         <div>

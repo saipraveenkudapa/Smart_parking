@@ -146,6 +146,55 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Check for overlapping bookings - prevent double-booking
+    const overlappingBookings = await prisma.bookings.findFirst({
+      where: {
+        availability: {
+          space_id: spaceId,
+        },
+        booking_status: {
+          notIn: ['cancelled', 'rejected'],
+        },
+        OR: [
+          // New booking starts during an existing booking
+          {
+            AND: [
+              { start_time: { lte: start } },
+              { end_time: { gt: start } },
+            ],
+          },
+          // New booking ends during an existing booking
+          {
+            AND: [
+              { start_time: { lt: end } },
+              { end_time: { gte: end } },
+            ],
+          },
+          // New booking completely contains an existing booking
+          {
+            AND: [
+              { start_time: { gte: start } },
+              { end_time: { lte: end } },
+            ],
+          },
+          // Existing booking completely contains the new booking
+          {
+            AND: [
+              { start_time: { lte: start } },
+              { end_time: { gte: end } },
+            ],
+          },
+        ],
+      },
+    })
+
+    if (overlappingBookings) {
+      return NextResponse.json(
+        { error: 'This parking space is already booked for the selected dates. Please choose different dates.' },
+        { status: 409 }
+      )
+    }
+
     const durationMs = end.getTime() - start.getTime()
     const durationHours = durationMs / (1000 * 60 * 60)
     const hoursInDay = 24

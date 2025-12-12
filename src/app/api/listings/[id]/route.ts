@@ -382,6 +382,34 @@ export async function GET(
       where: { space_id: spaceId },
     })
 
+    // Fetch bookings tied to this listing so the UI can block already-reserved dates
+    const bookingsForSpace = await prisma.bookings.findMany({
+      where: {
+        availability: {
+          space_id: spaceId,
+        },
+      },
+      select: {
+        start_time: true,
+        end_time: true,
+        booking_status: true,
+      },
+      orderBy: {
+        start_time: 'asc',
+      },
+    })
+
+    const bookedRanges = bookingsForSpace
+      .filter((booking) => {
+        const status = (booking.booking_status || '').toUpperCase()
+        return status !== 'CANCELLED' && status !== 'REJECTED'
+      })
+      .map((booking) => ({
+        start: booking.start_time.toISOString(),
+        end: booking.end_time.toISOString(),
+        status: (booking.booking_status || '').toUpperCase(),
+      }))
+
     if (!parkingSpace || parkingSpace.status === 0) {
       return NextResponse.json(
         { error: 'Parking space not found' },
@@ -434,7 +462,7 @@ export async function GET(
       accessInstructions: parkingSpace.access_instructions,
     }
 
-    return NextResponse.json({ listing })
+    return NextResponse.json({ listing, bookedRanges })
   } catch (error) {
     console.error('Get parking space error:', error)
     return NextResponse.json(
