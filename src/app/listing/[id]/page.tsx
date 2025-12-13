@@ -95,6 +95,7 @@ export default function ListingDetailsPage() {
     startDate: '',
     startTime: '',
     endDate: '',
+    endTime: '',
     vehicleId: '',
     durationType: '1d', // '1d' | '1w' | '1m' | 'custom'
   })
@@ -761,6 +762,44 @@ export default function ListingDetailsPage() {
 
                         {/* End date for custom, otherwise display computed end */}
                         {bookingData.durationType === 'custom' && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-3">Select End Date *</label>
+                              <Calendar
+                                selectedDate={bookingData.endDate}
+                                onDateSelect={(date) => {
+                                  if (!disabledDates.has(date)) {
+                                    setBookingData({ ...bookingData, endDate: date })
+                                  } else {
+                                    alert('This date is already booked. Please select an available date.')
+                                  }
+                                }}
+                                disabledDates={disabledDates}
+                                minDate={bookingData.startDate || listing.availableFrom || new Date().toISOString().split('T')[0]}
+                                maxDate={listing.availableTo}
+                              />
+                              {bookingErrors.endDate && (
+                                <p className="text-red-600 text-sm mt-2">{bookingErrors.endDate}</p>
+                              )}
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Select End Time *
+                              </label>
+                              <input
+                                type="time"
+                                required
+                                value={bookingData.endTime || '12:00'}
+                                onChange={(e) => setBookingData({ ...bookingData, endTime: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {/* Booking Summary for non-custom durations */}
+                        {bookingData.durationType !== 'custom' && bookingData.startDate && (
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-3">Select End Date *</label>
                             <Calendar
