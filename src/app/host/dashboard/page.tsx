@@ -83,6 +83,14 @@ export default function HostDashboard() {
   const [earnings, setEarnings] = useState({ total: 0, thisMonth: 0, pending: 0, completed: 0 })
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [actionResult, setActionResult] = useState<{ status: string; bookingDetails?: any }>({ status: '' })
+  const [twoWeeksMetrics, setTwoWeeksMetrics] = useState({
+    earnings: 0,
+    earningsDiff: 0,
+    bookings: 0,
+    bookingsDiff: 0,
+    rating: 0,
+    reviewCount: 0
+  })
 
   useEffect(() => {
     // Check authentication
@@ -93,6 +101,7 @@ export default function HostDashboard() {
     // Fetch user's listings and bookings
     fetchMyListings()
     fetchBookings()
+    fetchTwoWeeksMetrics()
   }, [])
 
   const fetchMyListings = async () => {
@@ -278,6 +287,43 @@ export default function HostDashboard() {
     }
   }
 
+  const fetchTwoWeeksMetrics = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+
+      // Fetch all three metrics in parallel
+      const [earningsRes, bookingsRes, ratingRes] = await Promise.all([
+        fetch('/api/analytics/host?metric=last_2weeks_income', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/api/analytics/host?metric=last_2weeks_bookings', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/api/analytics/host?metric=average_rating', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ])
+
+      const [earningsData, bookingsData, ratingData] = await Promise.all([
+        earningsRes.json(),
+        bookingsRes.json(),
+        ratingRes.json()
+      ])
+
+      setTwoWeeksMetrics({
+        earnings: earningsData?.data?.[0]?.current_income || 0,
+        earningsDiff: earningsData?.data?.[0]?.diff_income || 0,
+        bookings: bookingsData?.data?.[0]?.current_count || 0,
+        bookingsDiff: bookingsData?.data?.[0]?.diff_count || 0,
+        rating: ratingData?.data?.[0]?.avg_rating || 0,
+        reviewCount: ratingData?.data?.[0]?.review_count || 0
+      })
+    } catch (err: any) {
+      console.error('Fetch 2 weeks metrics error:', err)
+    }
+  }
+
   const handleBookingAction = async (bookingId: string, status: 'APPROVED' | 'REJECTED') => {
     setActionLoading(bookingId)
 
@@ -360,6 +406,83 @@ export default function HostDashboard() {
             >
               + Add New Listing
             </Link>
+          </div>
+
+          {/* Last 2 Weeks Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {/* Last 2 Weeks Earnings */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-gray-600">Last 2 Weeks Earnings</h3>
+                <span className="text-2xl">💰</span>
+              </div>
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-3xl font-bold text-green-600">${twoWeeksMetrics.earnings.toFixed(2)}</p>
+                  <div className="flex items-center mt-2">
+                    {twoWeeksMetrics.earningsDiff >= 0 ? (
+                      <span className="text-green-600 text-sm flex items-center">
+                        ↑ ${Math.abs(twoWeeksMetrics.earningsDiff).toFixed(2)} from prev period
+                      </span>
+                    ) : (
+                      <span className="text-red-600 text-sm flex items-center">
+                        ↓ ${Math.abs(twoWeeksMetrics.earningsDiff).toFixed(2)} from prev period
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Last 2 Weeks Bookings */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-gray-600">Last 2 Weeks Bookings</h3>
+                <span className="text-2xl">📅</span>
+              </div>
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-3xl font-bold text-blue-600">{twoWeeksMetrics.bookings}</p>
+                  <div className="flex items-center mt-2">
+                    {twoWeeksMetrics.bookingsDiff >= 0 ? (
+                      <span className="text-green-600 text-sm flex items-center">
+                        ↑ {Math.abs(twoWeeksMetrics.bookingsDiff)} from prev period
+                      </span>
+                    ) : (
+                      <span className="text-red-600 text-sm flex items-center">
+                        ↓ {Math.abs(twoWeeksMetrics.bookingsDiff)} from prev period
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Average Rating */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-gray-600">Your Rating</h3>
+                <span className="text-2xl">⭐</span>
+              </div>
+              <div className="flex items-end justify-between">
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-3xl font-bold text-yellow-600">
+                      {twoWeeksMetrics.rating > 0 ? twoWeeksMetrics.rating.toFixed(1) : 'N/A'}
+                    </p>
+                    {twoWeeksMetrics.rating > 0 && (
+                      <span className="text-gray-500 text-lg">/5.0</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    {twoWeeksMetrics.reviewCount > 0 
+                      ? `${twoWeeksMetrics.reviewCount} review${twoWeeksMetrics.reviewCount !== 1 ? 's' : ''}`
+                      : 'No reviews yet'
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Tabs */}
