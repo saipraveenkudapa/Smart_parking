@@ -36,7 +36,12 @@ export default function AdminAnalyticsPage() {
   const fetchAdminMetrics = async () => {
     try {
       const token = localStorage.getItem('token')
-      if (!token) return
+      if (!token) {
+        console.error('No auth token found')
+        return
+      }
+
+      console.log('Fetching admin metrics...')
 
       // Fetch all admin metrics in parallel
       const [
@@ -78,6 +83,21 @@ export default function AdminAnalyticsPage() {
       const spaces = await spacesRes.json()
       const users = await usersRes.json()
       const monthlyRevenue = await monthlyRevenueRes.json()
+
+      // Log API responses for debugging
+      console.log('Admin API Responses:', {
+        activeBookings: activeBookings.data,
+        activeUsers: activeUsers.data,
+        platformRevenueMonth: platformRevenueMonth.data,
+        totalRevenue: totalRevenue.data,
+        spaces: spaces.data,
+        users: users.data,
+        monthlyRevenue: monthlyRevenue.data
+      })
+
+      // Check for API errors
+      if (activeBookings.error) console.error('Active bookings API error:', activeBookings.error)
+      if (activeUsers.error) console.error('Active users API error:', activeUsers.error)
 
       setMetrics({
         activeBookingsNow: activeBookings.data?.[0]?.active_bookings || 0,

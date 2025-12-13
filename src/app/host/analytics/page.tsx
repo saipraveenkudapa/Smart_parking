@@ -78,7 +78,12 @@ export default function HostAnalyticsPage() {
   const fetchSupabaseMetrics = async () => {
     try {
       const token = localStorage.getItem('token')
-      if (!token) return
+      if (!token) {
+        console.error('No auth token found')
+        return
+      }
+
+      console.log('Fetching Supabase metrics...')
 
       // Fetch all metrics in parallel
       const [
@@ -126,6 +131,23 @@ export default function HostAnalyticsPage() {
       const occupancy = await occupancyRes.json()
       const spaceStatus = await spaceStatusRes.json()
 
+      // Log API responses for debugging
+      console.log('API Responses:', {
+        earnings: earnings.data,
+        lifetimeRevenue: lifetimeRevenue.data,
+        bookingsChange: bookingsChange.data,
+        incomeChange: incomeChange.data,
+        rating: rating.data,
+        monthlyBookings: monthlyBookings.data,
+        occupancy: occupancy.data,
+        spaceStatus: spaceStatus.data
+      })
+
+      // Check for API errors
+      if (earnings.error) console.error('Earnings API error:', earnings.error)
+      if (lifetimeRevenue.error) console.error('Lifetime revenue API error:', lifetimeRevenue.error)
+      if (bookingsChange.error) console.error('Bookings change API error:', bookingsChange.error)
+
       setSupabaseMetrics({
         currentMonthEarnings: earnings.data?.[0]?.total_earnings || 0,
         lifetimeRevenue: lifetimeRevenue.data?.[0]?.total_revenue || 0,
@@ -140,6 +162,8 @@ export default function HostAnalyticsPage() {
         totalDays: occupancy.data?.[0]?.total_days || 0,
         spaceStatuses: spaceStatus.data || []
       })
+
+      console.log('Supabase metrics loaded successfully')
     } catch (error) {
       console.error('Failed to fetch Supabase metrics:', error)
     }

@@ -22,6 +22,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const metric = searchParams.get('metric')
 
+    console.log(`[Admin Analytics API] Metric: ${metric}`)
+
     if (!metric) {
       return NextResponse.json({ error: 'Metric parameter required' }, { status: 400 })
     }
@@ -61,9 +63,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Unknown metric' }, { status: 400 })
     }
 
+    console.log(`[Admin Analytics API] Fetched ${metric}:`, data)
     return NextResponse.json({ data })
   } catch (error: any) {
-    console.error('Admin analytics API error:', error)
+    console.error('[Admin Analytics API] Error:', error.message, error)
     return NextResponse.json(
       { error: error.message || 'Failed to fetch admin analytics' },
       { status: 500 }

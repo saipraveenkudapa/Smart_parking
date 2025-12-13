@@ -20,6 +20,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const metric = searchParams.get('metric')
 
+    console.log(`[Host Analytics API] User: ${userId} (parsed: ${ownerIdNum}), Metric: ${metric}`)
+
     if (!metric) {
       return NextResponse.json({ error: 'Metric parameter required' }, { status: 400 })
     }
@@ -63,9 +65,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Unknown metric' }, { status: 400 })
     }
 
+    console.log(`[Host Analytics API] Fetched ${metric}:`, data)
     return NextResponse.json({ data })
   } catch (error: any) {
-    console.error('Analytics API error:', error)
+    console.error('[Host Analytics API] Error:', error.message, error)
     return NextResponse.json(
       { error: error.message || 'Failed to fetch analytics' },
       { status: 500 }
