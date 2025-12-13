@@ -290,7 +290,12 @@ export default function HostDashboard() {
   const fetchTwoWeeksMetrics = async () => {
     try {
       const token = localStorage.getItem('token')
-      if (!token) return
+      if (!token) {
+        console.log('[Dashboard] No token found, skipping metrics fetch')
+        return
+      }
+
+      console.log('[Dashboard] Fetching 2 weeks metrics...')
 
       // Fetch all three metrics in parallel
       const [earningsRes, bookingsRes, ratingRes] = await Promise.all([
@@ -305,22 +310,37 @@ export default function HostDashboard() {
         })
       ])
 
+      console.log('[Dashboard] Response status:', {
+        earnings: earningsRes.status,
+        bookings: bookingsRes.status,
+        rating: ratingRes.status
+      })
+
       const [earningsData, bookingsData, ratingData] = await Promise.all([
         earningsRes.json(),
         bookingsRes.json(),
         ratingRes.json()
       ])
 
-      setTwoWeeksMetrics({
+      console.log('[Dashboard] Raw API responses:', {
+        earnings: earningsData,
+        bookings: bookingsData,
+        rating: ratingData
+      })
+
+      const metrics = {
         earnings: earningsData?.data?.[0]?.current_income || 0,
         earningsDiff: earningsData?.data?.[0]?.diff_income || 0,
         bookings: bookingsData?.data?.[0]?.current_count || 0,
         bookingsDiff: bookingsData?.data?.[0]?.diff_count || 0,
         rating: ratingData?.data?.[0]?.avg_rating || 0,
         reviewCount: ratingData?.data?.[0]?.review_count || 0
-      })
+      }
+
+      console.log('[Dashboard] Processed metrics:', metrics)
+      setTwoWeeksMetrics(metrics)
     } catch (err: any) {
-      console.error('Fetch 2 weeks metrics error:', err)
+      console.error('[Dashboard] Fetch 2 weeks metrics error:', err)
     }
   }
 
