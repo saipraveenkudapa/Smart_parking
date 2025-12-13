@@ -79,7 +79,7 @@ export default function HostDashboard() {
   const [bookingsLoading, setBookingsLoading] = useState(true)
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'listings' | 'bookings' | 'earnings'>('listings')
+  const [activeTab, setActiveTab] = useState<'listings' | 'bookings' | 'earnings' | 'analytics'>('listings')
   const [earnings, setEarnings] = useState({ total: 0, thisMonth: 0, pending: 0, completed: 0 })
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [actionResult, setActionResult] = useState<{ status: string; bookingDetails?: any }>({ status: '' })
@@ -398,7 +398,13 @@ export default function HostDashboard() {
                     : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
-                My Earnings
+              My Earnings
+              </button>
+              <button
+                onClick={() => router.push('/host/analytics')}
+                className="px-4 py-2 font-semibold border-b-2 border-transparent text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                📊 Analytics
               </button>
             </div>
           </div>

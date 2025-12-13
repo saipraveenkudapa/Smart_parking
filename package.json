@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
-    "@supabase/supabase-js": "^2.78.0",
+    "@supabase/supabase-js": "^2.87.1",
     "@tailwindcss/postcss": "^4.1.16",
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.1.0",
@@ -27,6 +27,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-leaflet": "^5.0.0",
+    "recharts": "^3.5.1",
     "resend": "^6.4.2",
     "twilio": "^5.10.4",
     "zod": "^4.1.12"

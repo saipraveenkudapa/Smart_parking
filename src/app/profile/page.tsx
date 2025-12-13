@@ -462,7 +462,7 @@ export default function ProfilePage() {
         )}
 
         {/* Quick Links */}
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           <button
             onClick={() => router.push('/renter/bookings')}
             className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition text-left"
@@ -486,6 +486,14 @@ export default function ProfilePage() {
             <div className="text-4xl mb-3">🏠</div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">My Listings</h3>
             <p className="text-gray-600">View and manage your parking spaces</p>
+          </button>
+          <button
+            onClick={() => router.push('/renter/analytics')}
+            className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition text-left"
+          >
+            <div className="text-4xl mb-3">📊</div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Analytics</h3>
+            <p className="text-gray-600">View your personalized dashboards</p>
           </button>
         </div>
       </main>
