@@ -11,8 +11,9 @@ interface Booking {
   startDate: string
   endDate: string
   vehicleDetails: string
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'COMPLETED'
   createdAt: string
+  hasReview?: boolean
   listing: {
     id: string
     title: string
@@ -37,6 +38,10 @@ export default function RenterBookingsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [showReviewModal, setShowReviewModal] = useState(false)
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [reviewData, setReviewData] = useState({ rating: 5, comments: '' })
+  const [submitReviewLoading, setSubmitReviewLoading] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -67,6 +72,64 @@ export default function RenterBookingsPage() {
       setError(err.message || 'Failed to load bookings')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const isBookingCompleted = (booking: Booking) => {
+    const endDate = new Date(booking.endDate)
+    const now = new Date()
+    return endDate < now && (booking.status === 'APPROVED' || booking.status === 'COMPLETED')
+  }
+
+  const openReviewModal = (booking: Booking) => {
+    setSelectedBooking(booking)
+    setReviewData({ rating: 5, comments: '' })
+    setShowReviewModal(true)
+  }
+
+  const handleSubmitReview = async () => {
+    if (!selectedBooking) return
+
+    if (!reviewData.comments.trim()) {
+      alert('Please add a comment for your review')
+      return
+    }
+
+    setSubmitReviewLoading(true)
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/reviews/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          bookingId: parseInt(selectedBooking.id),
+          spaceId: parseInt(selectedBooking.listing.id),
+          revieweeId: parseInt(selectedBooking.listing.host.id),
+          rating: reviewData.rating,
+          comments: reviewData.comments,
+          reviewType: 'SPACE'
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit review')
+      }
+
+      alert('Review submitted successfully! Thank you for your feedback.')
+      setShowReviewModal(false)
+      setSelectedBooking(null)
+      await fetchBookings()
+    } catch (err: any) {
+      console.error('Submit review error:', err)
+      alert(err.message || 'Failed to submit review')
+    } finally {
+      setSubmitReviewLoading(false)
     }
   }
 
@@ -106,12 +169,14 @@ export default function RenterBookingsPage() {
     }
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (booking: Booking) => {
+    const status = isBookingCompleted(booking) ? 'COMPLETED' : booking.status
     const styles = {
       PENDING: 'bg-yellow-100 text-yellow-800',
       APPROVED: 'bg-green-100 text-green-800',
       REJECTED: 'bg-red-100 text-red-800',
       CANCELLED: 'bg-gray-100 text-gray-800',
+      COMPLETED: 'bg-blue-100 text-blue-800',
     }
     return (
       <span className={`px-3 py-1 rounded-full text-sm font-semibold ${styles[status as keyof typeof styles]}`}>
@@ -178,7 +243,7 @@ export default function RenterBookingsPage() {
                     <div className="flex-1">
                       <div className="flex justify-between items-start mb-3">
                         <h3 className="text-xl font-bold">{booking.listing.title}</h3>
-                        {getStatusBadge(booking.status)}
+                        {getStatusBadge(booking)}
                       </div>
                       {typeof booking.listing.distance === 'number' ? (
                         <p className="text-gray-600 mb-2">📍 {booking.listing.distance} miles away</p>
@@ -244,6 +309,21 @@ export default function RenterBookingsPage() {
                         </button>
                       )}
 
+                      {isBookingCompleted(booking) && !booking.hasReview && (
+                        <button
+                          onClick={() => openReviewModal(booking)}
+                          className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-semibold"
+                        >
+                          ⭐ Leave Review
+                        </button>
+                      )}
+
+                      {isBookingCompleted(booking) && booking.hasReview && (
+                        <div className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-center text-sm">
+                          ✓ Review Submitted
+                        </div>
+                      )}
+
                       <p className="text-xs text-gray-500 text-center mt-2">
                         Requested {formatDate(booking.createdAt)}
                       </p>
@@ -255,6 +335,76 @@ export default function RenterBookingsPage() {
           )}
         </div>
       </main>
+
+      {/* Review Modal */}
+      {showReviewModal && selectedBooking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-8">
+            <h2 className="text-2xl font-bold mb-4">Leave a Review</h2>
+            <p className="text-gray-600 mb-6">
+              How was your experience with <strong>{selectedBooking.listing.title}</strong>?
+            </p>
+
+            {/* Rating */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Rating *
+              </label>
+              <div className="flex gap-2 justify-center">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setReviewData({ ...reviewData, rating: star })}
+                    className="text-4xl transition-colors"
+                  >
+                    {star <= reviewData.rating ? '⭐' : '☆'}
+                  </button>
+                ))}
+              </div>
+              <p className="text-center text-sm text-gray-600 mt-2">
+                {reviewData.rating} out of 5 stars
+              </p>
+            </div>
+
+            {/* Comments */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Your Review *
+              </label>
+              <textarea
+                rows={4}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                placeholder="Share your experience with this parking space..."
+                value={reviewData.comments}
+                onChange={(e) => setReviewData({ ...reviewData, comments: e.target.value })}
+                required
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowReviewModal(false)
+                  setSelectedBooking(null)
+                }}
+                disabled={submitReviewLoading}
+                className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitReview}
+                disabled={submitReviewLoading || !reviewData.comments.trim()}
+                className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold disabled:opacity-50"
+              >
+                {submitReviewLoading ? 'Submitting...' : 'Submit Review'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer className="bg-gray-900 text-white py-8 mt-16">
         <div className="container mx-auto px-4 text-center">
