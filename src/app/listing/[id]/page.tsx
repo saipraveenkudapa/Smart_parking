@@ -136,13 +136,42 @@ export default function ListingDetailsPage() {
     const target = normalizeDateInput(dateStr)
     if (!target) return false
 
-    // Check if the entire day is blocked by any booking
-    return bookedRanges.some((range) => {
-      const rangeStart = normalizeDateInput(range.start)
-      const rangeEnd = normalizeDateInput(range.end)
-      if (!rangeStart || !rangeEnd) return false
-      return target >= rangeStart && target <= rangeEnd
+    // Check if the ENTIRE day (24 hours) is blocked by bookings
+    // A day is only blocked if bookings cover the full 24-hour period
+    const dayStart = new Date(target)
+    dayStart.setHours(0, 0, 0, 0)
+    const dayEnd = new Date(target)
+    dayEnd.setHours(23, 59, 59, 999)
+
+    // Check if there are any bookings on this day
+    const dayBookings = bookedRanges.filter((range) => {
+      const rangeStart = new Date(range.start)
+      const rangeEnd = new Date(range.end)
+      // Booking overlaps with this day
+      return rangeStart < dayEnd && rangeEnd > dayStart
     })
+
+    if (dayBookings.length === 0) return false
+
+    // Sort bookings by start time
+    const sorted = dayBookings
+      .map(r => ({ start: new Date(r.start), end: new Date(r.end) }))
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
+
+    // Check if bookings cover the entire day
+    let currentTime = dayStart.getTime()
+    for (const booking of sorted) {
+      const bookingStart = Math.max(booking.start.getTime(), dayStart.getTime())
+      const bookingEnd = Math.min(booking.end.getTime(), dayEnd.getTime())
+      
+      // If there's a gap before this booking, the day is not fully blocked
+      if (bookingStart > currentTime) return false
+      
+      currentTime = Math.max(currentTime, bookingEnd)
+    }
+
+    // Day is fully blocked if we've covered until the end of day
+    return currentTime >= dayEnd.getTime()
   }
 
   const isDatePartiallyAvailable = (dateStr: string) => {
@@ -231,26 +260,16 @@ export default function ListingDetailsPage() {
 
     setDateChips(chips)
 
-    // Generate set of disabled dates - only fully blocked days
+    // Generate set of disabled dates - only fully blocked days (entire 24 hours booked)
     const disabled = new Set<string>()
     
-    // For daily+ bookings, we should block the full span
-    // Check each booked range
-    bookedRanges.forEach((range) => {
-      const rangeStart = new Date(range.start)
-      const rangeEnd = new Date(range.end)
-      if (isNaN(rangeStart.getTime()) || isNaN(rangeEnd.getTime())) return
-
-      // Normalize to date-only comparison
-      const startDate = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate())
-      const endDate = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), rangeEnd.getDate())
-      
-      const current = new Date(startDate)
-      while (current <= endDate) {
-        disabled.add(current.toISOString().split('T')[0])
-        current.setDate(current.getDate() + 1)
+    // Check each date in the date range
+    chips.forEach(chip => {
+      if (isDateBlocked(chip.date)) {
+        disabled.add(chip.date)
       }
     })
+    
     setDisabledDates(disabled)
   }, [listing, bookedRanges])
 
