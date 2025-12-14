@@ -825,29 +825,6 @@ export default function ListingDetailsPage() {
                         {/* Booking Summary for non-custom durations */}
                         {bookingData.durationType !== 'custom' && bookingData.startDate && (
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-3">Select End Date *</label>
-                            <Calendar
-                              selectedDate={bookingData.endDate}
-                              onDateSelect={(date) => {
-                                if (!disabledDates.has(date)) {
-                                  setBookingData({ ...bookingData, endDate: date })
-                                } else {
-                                  alert('This date is already booked. Please select an available date.')
-                                }
-                              }}
-                              disabledDates={disabledDates}
-                              minDate={bookingData.startDate || listing.availableFrom || new Date().toISOString().split('T')[0]}
-                              maxDate={listing.availableTo}
-                            />
-                            {bookingErrors.endDate && (
-                              <p className="text-red-600 text-sm mt-2">{bookingErrors.endDate}</p>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Booking Summary for non-custom durations */}
-                        {bookingData.durationType !== 'custom' && bookingData.startDate && (
-                          <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Booking Summary</label>
                             <div className="w-full px-4 py-3 border border-green-200 rounded-lg bg-green-50">
                               <div className="space-y-2">
@@ -890,7 +867,13 @@ export default function ListingDetailsPage() {
                                   <div className="flex justify-between text-sm text-gray-700">
                                     <span className="font-medium">Duration:</span>
                                     <span>
-                                      {{1h: '1 Hour', '1d': '1 Day', '1w': '1 Week', '1m': '1 Month', '30m': '30 Minutes'}[bookingData.durationType] || 'Custom'}
+                                      {({
+                                        '30m': '30 Minutes',
+                                        '1h': '1 Hour',
+                                        '1d': '1 Day',
+                                        '1w': '1 Week',
+                                        '1m': '1 Month',
+                                      } as Record<string, string>)[bookingData.durationType] || 'Custom'}
                                     </span>
                                   </div>
                                   <div className="flex justify-between text-sm text-gray-700 mt-1">

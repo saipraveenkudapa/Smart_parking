@@ -78,6 +78,30 @@ export default function Calendar({
     return false
   }
 
+  const getDisabledReason = (day: number | null) => {
+    if (day === null) return ''
+
+    const year = currentMonth.getFullYear()
+    const month = currentMonth.getMonth()
+    const dateStr = new Date(year, month, day).toISOString().split('T')[0]
+
+    if (disabledDates.has(dateStr)) return 'Already booked'
+
+    if (minDate) {
+      const min = new Date(minDate)
+      const current = new Date(year, month, day)
+      if (current < min) return 'Outside host availability'
+    }
+
+    if (maxDate) {
+      const max = new Date(maxDate)
+      const current = new Date(year, month, day)
+      if (current > max) return 'Outside host availability'
+    }
+
+    return ''
+  }
+
   const isDateSelected = (day: number | null) => {
     if (day === null || !selectedDate) return false
     
@@ -161,6 +185,7 @@ export default function Calendar({
             <button
               key={index}
               type="button"
+              title={disabled ? getDisabledReason(day) : undefined}
               onClick={() => handleDateClick(day)}
               disabled={disabled}
               className={`
