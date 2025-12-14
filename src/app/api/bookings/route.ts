@@ -2,6 +2,115 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 
+class ApiError extends Error {
+  status: number
+  constructor(status: number, message: string) {
+    super(message)
+    this.status = status
+  }
+}
+
+const addOneCalendarMonthClampedUtc = (date: Date) => {
+  // Preserve the same clock time (UTC) and clamp to the last valid day of the target month.
+  const year = date.getUTCFullYear()
+  const monthIndex = date.getUTCMonth()
+  const day = date.getUTCDate()
+  const hours = date.getUTCHours()
+  const minutes = date.getUTCMinutes()
+  const seconds = date.getUTCSeconds()
+  const ms = date.getUTCMilliseconds()
+
+  // Start at the first day of the next month to find its last day.
+  const firstOfNextMonth = new Date(Date.UTC(year, monthIndex + 1, 1, hours, minutes, seconds, ms))
+  const firstOfFollowingMonth = new Date(
+    Date.UTC(firstOfNextMonth.getUTCFullYear(), firstOfNextMonth.getUTCMonth() + 1, 1, hours, minutes, seconds, ms)
+  )
+  const lastDayOfNextMonth = new Date(firstOfFollowingMonth.getTime() - 1)
+  const clampedDay = Math.min(day, lastDayOfNextMonth.getUTCDate())
+
+  return new Date(
+    Date.UTC(
+      firstOfNextMonth.getUTCFullYear(),
+      firstOfNextMonth.getUTCMonth(),
+      clampedDay,
+      hours,
+      minutes,
+      seconds,
+      ms
+    )
+  )
+}
+
+const validateDurationType = (
+  durationType: unknown,
+  start: Date,
+  end: Date
+) => {
+  const normalizeType = (typeof durationType === 'string' ? durationType : '')
+    .trim()
+    .toLowerCase()
+
+  const durationMs = end.getTime() - start.getTime()
+  if (!Number.isFinite(durationMs) || durationMs <= 0) {
+    throw new ApiError(400, 'End date must be after start date')
+  }
+
+  const minute = 60 * 1000
+  const hour = 60 * minute
+  const day = 24 * hour
+  const week = 7 * day
+
+  const assertExact = (expectedMs: number, label: string) => {
+    if (durationMs !== expectedMs) {
+      throw new ApiError(400, `Selected durationType requires exactly ${label}`)
+    }
+  }
+
+  const assertMultipleOf = (unitMs: number, label: string) => {
+    if (durationMs < unitMs) {
+      throw new ApiError(400, `Selected durationType requires at least ${label}`)
+    }
+    if (durationMs % unitMs !== 0) {
+      throw new ApiError(400, `Selected durationType requires time to be in ${label} increments`)
+    }
+  }
+
+  switch (normalizeType) {
+    case '30m':
+      assertMultipleOf(30 * minute, '30 minutes')
+      break
+    case '1h':
+      assertMultipleOf(hour, '1 hour')
+      break
+    case '1d':
+    case '24h':
+      assertExact(day, '24 hours')
+      break
+    case '1w':
+      assertExact(week, '7 days')
+      break
+    case '1m':
+      {
+        const expectedEnd = addOneCalendarMonthClampedUtc(start)
+        if (end.getTime() !== expectedEnd.getTime()) {
+          throw new ApiError(
+            400,
+            'Selected durationType requires end time to be the same clock time on the same calendar day next month (clamped to month end)'
+          )
+        }
+      }
+      break
+    case 'custom':
+    default:
+      if (durationMs < 30 * minute) {
+        throw new ApiError(400, 'Minimum booking duration is 30 minutes')
+      }
+      break
+  }
+
+  return normalizeType
+}
+
 const mapStatusToUi = (status?: string) => {
   const normalized = (status || '').toLowerCase()
   switch (normalized) {
@@ -71,67 +180,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Verify vehicle belongs to user (using dim_vehicle)
-    const vehicle = await prisma.vehicle.findUnique({
-      where: {
-        vehicle_id: vehId,
-      },
-    })
-
-    if (!vehicle || vehicle.user_id !== userId) {
-      return NextResponse.json(
-        { error: 'Vehicle not found or does not belong to you' },
-        { status: 400 }
-      )
-    }
-
-    // Check if parking space exists and get availability
-    // Note: parking_spaces doesn't have owner_id or isApproved
-    // We need to check availability for availability and ownership
-    const availability = await prisma.availability.findFirst({
-      where: {
-        space_id: spaceId,
-        is_available: true,
-        available_start: { lte: start },
-        available_end: { gte: end },
-      },
-      include: {
-        parking_spaces: true,
-      },
-    })
-
-    if (!availability || !availability.parking_spaces) {
-      return NextResponse.json(
-        { error: 'Parking space not found or not available for the selected dates' },
-        { status: 404 }
-      )
-    }
-
-    const pricing = await prisma.pricing_model.findFirst({
-      where: {
-        space_id: availability.space_id,
-        is_current: true,
-      },
-      orderBy: {
-        valid_from: 'desc',
-      },
-    })
-
-    if (!pricing) {
-      return NextResponse.json(
-        { error: 'Pricing details are not configured for this parking space' },
-        { status: 400 }
-      )
-    }
-
-    // Prevent user from booking their own space
-    if (availability.owner_id === userId) {
-      return NextResponse.json(
-        { error: 'You cannot book your own parking space' },
-        { status: 400 }
-      )
-    }
-    
     if (start < new Date()) {
       return NextResponse.json(
         { error: 'Start date must be in the future' },
@@ -146,118 +194,33 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Check for overlapping bookings - prevent double-booking
-    // Two bookings overlap if: new_start < existing_end AND new_end > existing_start
-    const overlappingBookings = await prisma.bookings.findFirst({
+    // Enforce duration rules based on durationType (booking-type locking)
+    const normalizeType = validateDurationType(durationType, start, end)
+
+    // Verify vehicle belongs to user (using dim_vehicle)
+    const vehicle = await prisma.vehicle.findUnique({
       where: {
-        availability: {
-          space_id: spaceId,
-        },
-        booking_status: {
-          notIn: ['cancelled', 'rejected'],
-        },
-        AND: [
-          { start_time: { lt: end } },    // existing start is before new end
-          { end_time: { gt: start } },     // existing end is after new start
-        ],
+        vehicle_id: vehId,
       },
     })
 
-    if (overlappingBookings) {
+    if (!vehicle || vehicle.user_id !== userId) {
       return NextResponse.json(
-        { error: 'This parking space is already booked for the selected dates. Please choose different dates.' },
-        { status: 409 }
-      )
-    }
-
-    // Calculate duration and pricing based on booking type
-    const durationMs = end.getTime() - start.getTime()
-    const durationHours = durationMs / (1000 * 60 * 60)
-    const durationDays = durationMs / (1000 * 60 * 60 * 24)
-    const durationWeeks = durationDays / 7
-    const durationMonths = durationDays / 30
-
-    const hourlyRate = Number(pricing.hourly_rate) || 0
-    const dailyRate = Number(pricing.daily_rate) || 0
-    const weeklyRate = Number(pricing.weekly_rate) || 0
-    const monthlyRate = Number(pricing.monthly_rate) || 0
-
-    // Determine billing basis from durationType
-    const normalizeType = (durationType || '').toLowerCase()
-    let subtotal = 0
-
-    switch (normalizeType) {
-      case '30m':
-      case '1h':
-        // Hourly billing
-        subtotal = hourlyRate * Math.ceil(durationHours)
-        break
-      case '1d':
-      case '24h':
-        // Daily billing
-        subtotal = dailyRate * Math.ceil(durationDays)
-        break
-      case '1w':
-        // Weekly billing
-        subtotal = weeklyRate * Math.ceil(durationWeeks)
-        break
-      case '1m':
-        // Monthly billing
-        subtotal = monthlyRate * Math.ceil(durationMonths)
-        break
-      case 'custom':
-      default:
-        // Auto-detect best rate for custom bookings
-        if (durationDays >= 30) {
-          subtotal = monthlyRate * Math.ceil(durationMonths)
-        } else if (durationDays >= 7) {
-          subtotal = weeklyRate * Math.ceil(durationWeeks)
-        } else if (durationDays >= 1) {
-          subtotal = dailyRate * Math.ceil(durationDays)
-        } else {
-          subtotal = hourlyRate * Math.ceil(durationHours)
-        }
-        break
-    }
-
-    if (subtotal <= 0) {
-      return NextResponse.json(
-        { error: 'Unable to calculate booking total. Please contact support.' },
+        { error: 'Vehicle not found or does not belong to you' },
         { status: 400 }
       )
     }
 
-    const serviceFeePercentage = 0.15 // 15% service fee
-
-    const serviceFee = subtotal * serviceFeePercentage
-    const totalAmount = subtotal + serviceFee
-    const ownerPayout = subtotal - (subtotal * 0.05) // Owner gets 95% of subtotal
-
-    // Create payout record first (required by bookings FK)
-    const payout = await prisma.payout.create({
-      data: {
-        method: 'pending',
-        status: 'pending',
-      },
-    })
-
-    // Create the booking (using bookings)
-    // Note: bookings links to availability_id, not directly to space_id
-    const booking = await prisma.bookings.create({
-      data: {
-        availability_id: availability.availability_id,
-        driver_id: userId,
-        payout_id: payout.payout_id,
-        start_time: start,
-        end_time: end,
-        total_amount: parseFloat(totalAmount.toFixed(2)),
-        service_fee: parseFloat(serviceFee.toFixed(2)),
-        owner_payout: parseFloat(ownerPayout.toFixed(2)),
-        booking_status: 'pending',
-        payment_status: 'pending',
-      },
-      include: {
-        availability: {
+    const booking = await prisma.$transaction(
+      async (tx) => {
+        // Submit-time validation (prevents race-condition double bookings)
+        const availability = await tx.availability.findFirst({
+          where: {
+            space_id: spaceId,
+            is_available: true,
+            available_start: { lte: start },
+            available_end: { gte: end },
+          },
           include: {
             parking_spaces: {
               include: {
@@ -265,16 +228,167 @@ export async function POST(req: NextRequest) {
               },
             },
           },
-        },
-        users: {
-          select: {
-            full_name: true,
-            email: true,
-            phone_number: true,
+        })
+
+        if (!availability || !availability.parking_spaces) {
+          throw new ApiError(
+            404,
+            'Parking space not found or not available for the selected dates'
+          )
+        }
+
+        // Prevent user from booking their own space
+        if (availability.owner_id === userId) {
+          throw new ApiError(400, 'You cannot book your own parking space')
+        }
+
+        const pricing = await tx.pricing_model.findFirst({
+          where: {
+            space_id: availability.space_id,
+            is_current: true,
           },
-        },
+          orderBy: {
+            valid_from: 'desc',
+          },
+        })
+
+        if (!pricing) {
+          throw new ApiError(
+            400,
+            'Pricing details are not configured for this parking space'
+          )
+        }
+
+        // Check for overlapping bookings - prevent double-booking
+        // Two bookings overlap if: new_start < existing_end AND new_end > existing_start
+        // Pending bookings DO block availability.
+        const overlappingBookings = await tx.bookings.findFirst({
+          where: {
+            availability: {
+              space_id: spaceId,
+            },
+            NOT: {
+              booking_status: {
+                in: ['cancelled', 'rejected'],
+                mode: 'insensitive',
+              },
+            },
+            AND: [
+              { start_time: { lt: end } },
+              { end_time: { gt: start } },
+            ],
+          },
+          select: {
+            booking_id: true,
+          },
+        })
+
+        if (overlappingBookings) {
+          throw new ApiError(
+            409,
+            'This parking space is already booked for the selected dates. Please choose different dates.'
+          )
+        }
+
+        // Calculate duration and pricing based on booking type
+        const durationMs = end.getTime() - start.getTime()
+        const durationHours = durationMs / (1000 * 60 * 60)
+        const durationDays = durationMs / (1000 * 60 * 60 * 24)
+        const durationWeeks = durationDays / 7
+        const durationMonths = durationDays / 30
+
+        const hourlyRate = Number(pricing.hourly_rate) || 0
+        const dailyRate = Number(pricing.daily_rate) || 0
+        const weeklyRate = Number(pricing.weekly_rate) || 0
+        const monthlyRate = Number(pricing.monthly_rate) || 0
+
+        let subtotal = 0
+
+        switch (normalizeType) {
+          case '30m':
+          case '1h':
+            subtotal = hourlyRate * Math.ceil(durationHours)
+            break
+          case '1d':
+          case '24h':
+            subtotal = dailyRate * Math.ceil(durationDays)
+            break
+          case '1w':
+            subtotal = weeklyRate * Math.ceil(durationWeeks)
+            break
+          case '1m':
+            subtotal = monthlyRate
+            break
+          case 'custom':
+          default:
+            if (durationDays >= 30) {
+              subtotal = monthlyRate * Math.ceil(durationMonths)
+            } else if (durationDays >= 7) {
+              subtotal = weeklyRate * Math.ceil(durationWeeks)
+            } else if (durationDays >= 1) {
+              subtotal = dailyRate * Math.ceil(durationDays)
+            } else {
+              subtotal = hourlyRate * Math.ceil(durationHours)
+            }
+            break
+        }
+
+        if (subtotal <= 0) {
+          throw new ApiError(
+            400,
+            'Unable to calculate booking total. Please contact support.'
+          )
+        }
+
+        const serviceFeePercentage = 0.15 // 15% service fee
+        const serviceFee = subtotal * serviceFeePercentage
+        const totalAmount = subtotal + serviceFee
+        const ownerPayout = subtotal - subtotal * 0.05 // Owner gets 95% of subtotal
+
+        const payout = await tx.payout.create({
+          data: {
+            method: 'pending',
+            status: 'pending',
+          },
+        })
+
+        return tx.bookings.create({
+          data: {
+            availability_id: availability.availability_id,
+            driver_id: userId,
+            payout_id: payout.payout_id,
+            start_time: start,
+            end_time: end,
+            total_amount: parseFloat(totalAmount.toFixed(2)),
+            service_fee: parseFloat(serviceFee.toFixed(2)),
+            owner_payout: parseFloat(ownerPayout.toFixed(2)),
+            booking_status: 'pending',
+            payment_status: 'pending',
+          },
+          include: {
+            availability: {
+              include: {
+                parking_spaces: {
+                  include: {
+                    space_location: true,
+                  },
+                },
+              },
+            },
+            users: {
+              select: {
+                full_name: true,
+                email: true,
+                phone_number: true,
+              },
+            },
+          },
+        })
       },
-    })
+      {
+        isolationLevel: 'Serializable',
+      }
+    )
 
     // Map response for API compatibility
     const response = {
@@ -311,6 +425,9 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     )
   } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
     console.error('Create booking error:', error)
     return NextResponse.json(
       { error: 'Failed to create booking request' },

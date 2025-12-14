@@ -2,6 +2,31 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 
+class ApiError extends Error {
+  status: number
+  constructor(status: number, message: string) {
+    super(message)
+    this.status = status
+  }
+}
+
+const canTransition = (fromStatus: string, toStatus: string) => {
+  const from = (fromStatus || '').toLowerCase()
+  const to = (toStatus || '').toLowerCase()
+
+  if (!from || !to || from === to) return true
+
+  const allowed: Record<string, Set<string>> = {
+    pending: new Set(['confirmed', 'rejected', 'cancelled']),
+    confirmed: new Set(['completed', 'cancelled']),
+    completed: new Set([]),
+    rejected: new Set([]),
+    cancelled: new Set([]),
+  }
+
+  return allowed[from]?.has(to) ?? false
+}
+
 // GET - Retrieve a single booking (driver only)
 export async function GET(
   req: NextRequest,
@@ -210,48 +235,150 @@ export async function PATCH(
       }
     }
 
-    // Update the booking
-    const updateData: any = {}
-    if (status) {
-      const statusLower = status.toLowerCase()
-      updateData.booking_status = statusLower
+    const statusLower = typeof status === 'string' ? status.toLowerCase() : undefined
 
-      if (statusLower === 'cancelled') {
-        updateData.cancellation_reason = booking.driver_id === userId
-          ? 'Cancelled by driver'
-          : 'Cancelled by owner'
-      }
-
-      if (statusLower === 'rejected') {
-        updateData.cancellation_reason = 'Rejected by owner'
-      }
-    }
-    if (paymentStatus) {
-      updateData.payment_status = paymentStatus
-      // Do not set paid_at, as the field does not exist in the schema
-    }
-
-    const updatedBooking = await prisma.bookings.update({
-      where: { booking_id: bookingId },
-      data: updateData,
-      include: {
-        availability: {
+    const updatedBooking = await prisma.$transaction(
+      async (tx) => {
+        // Re-load booking inside the transaction to avoid stale reads
+        const current = await tx.bookings.findUnique({
+          where: { booking_id: bookingId },
           include: {
-            parking_spaces: {
+            availability: {
               include: {
-                space_location: true,
+                parking_spaces: {
+                  include: {
+                    space_location: true,
+                  },
+                },
+              },
+            },
+            users: {
+              select: {
+                full_name: true,
+                email: true,
               },
             },
           },
-        },
-        users: {
-          select: {
-            full_name: true,
-            email: true,
+        })
+
+        if (!current) {
+          throw new ApiError(404, 'Booking not found')
+        }
+
+        if (statusLower && !canTransition(current.booking_status, statusLower)) {
+          throw new ApiError(
+            400,
+            `Invalid status transition from ${current.booking_status} to ${statusLower}`
+          )
+        }
+
+        // If confirming, re-check availability window + no overlap at submit-time.
+        // (Prevents edge-cases with old data or concurrent updates.)
+        if (statusLower === 'confirmed') {
+          const availability = await tx.availability.findUnique({
+            where: { availability_id: current.availability_id },
+            select: {
+              is_available: true,
+              available_start: true,
+              available_end: true,
+              space_id: true,
+            },
+          })
+
+          if (!availability || !availability.is_available) {
+            throw new ApiError(409, 'Parking space is not available anymore')
+          }
+
+          if (
+            current.start_time < availability.available_start ||
+            current.end_time > availability.available_end
+          ) {
+            throw new ApiError(
+              409,
+              'Booking is outside the current availability window'
+            )
+          }
+
+          const overlap = await tx.bookings.findFirst({
+            where: {
+              booking_id: { not: bookingId },
+              availability: {
+                space_id: availability.space_id,
+              },
+              NOT: {
+                booking_status: {
+                  in: ['cancelled', 'rejected'],
+                  mode: 'insensitive',
+                },
+              },
+              AND: [
+                { start_time: { lt: current.end_time } },
+                { end_time: { gt: current.start_time } },
+              ],
+            },
+            select: { booking_id: true },
+          })
+
+          if (overlap) {
+            throw new ApiError(
+              409,
+              'Cannot confirm this booking because it overlaps with another booking'
+            )
+          }
+        }
+
+        if (statusLower === 'completed') {
+          if (new Date() < current.end_time) {
+            throw new ApiError(400, 'Cannot complete a booking before it ends')
+          }
+        }
+
+        const updateData: any = {}
+
+        if (statusLower) {
+          updateData.booking_status = statusLower
+
+          if (statusLower === 'cancelled') {
+            updateData.cancellation_reason = current.driver_id === userId
+              ? 'Cancelled by driver'
+              : 'Cancelled by owner'
+          }
+
+          if (statusLower === 'rejected') {
+            updateData.cancellation_reason = 'Rejected by owner'
+          }
+        }
+
+        if (paymentStatus) {
+          updateData.payment_status = paymentStatus
+        }
+
+        return tx.bookings.update({
+          where: { booking_id: bookingId },
+          data: updateData,
+          include: {
+            availability: {
+              include: {
+                parking_spaces: {
+                  include: {
+                    space_location: true,
+                  },
+                },
+              },
+            },
+            users: {
+              select: {
+                full_name: true,
+                email: true,
+              },
+            },
           },
-        },
+        })
       },
-    })
+      {
+        isolationLevel: 'Serializable',
+      }
+    )
 
     // Map response for API compatibility
     const response = {
@@ -259,9 +386,10 @@ export async function PATCH(
       driverId: updatedBooking.driver_id,
       startTime: updatedBooking.start_time,
       endTime: updatedBooking.end_time,
-      totalAmount: updatedBooking.total_amount,
-      serviceFee: updatedBooking.service_fee,
-      ownerPayout: updatedBooking.owner_payout,
+      totalAmount: Number(updatedBooking.total_amount),
+      serviceFee:
+        updatedBooking.service_fee != null ? Number(updatedBooking.service_fee) : null,
+      ownerPayout: Number(updatedBooking.owner_payout),
       bookingStatus: updatedBooking.booking_status,
       paymentStatus: updatedBooking.payment_status,
       space: {
@@ -274,17 +402,20 @@ export async function PATCH(
       },
     }
 
-    let message = 'Booking updated successfully';
-    if (status) {
-      message = `Booking ${status.toLowerCase()} successfully`;
+    let message = 'Booking updated successfully'
+    if (statusLower) {
+      message = `Booking ${statusLower} successfully`
     } else if (paymentStatus) {
-      message = 'Payment status updated successfully';
+      message = 'Payment status updated successfully'
     }
     return NextResponse.json({
       message,
       booking: response,
     })
   } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
     console.error('Update booking error:', error)
     return NextResponse.json(
       { error: 'Failed to update booking' },
