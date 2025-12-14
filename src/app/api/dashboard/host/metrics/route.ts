@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
           ON a.availability_id = b.availability_id
         WHERE
           a.owner_id = ${ownerId}
-          AND b.booking_status IN ('CONFIRMED', 'COMPLETED')
+          AND UPPER(b.booking_status) IN ('CONFIRMED', 'COMPLETED')
           AND b.start_time >= (NOW() - INTERVAL '14 days');
       `,
       prisma.$queryRaw<HostRatingRow[]>`
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
         FROM park_connect.reviews r
         WHERE
           r.reviewee_id = ${ownerId}
-          AND COALESCE(r.review_type, 'DRIVER_TO_OWNER') = 'DRIVER_TO_OWNER';
+          AND UPPER(COALESCE(r.review_type, 'DRIVER_TO_OWNER')) = 'DRIVER_TO_OWNER';
       `
     ])
 

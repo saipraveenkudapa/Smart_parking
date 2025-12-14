@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
             LEFT JOIN park_connect.bookings b
               ON b.start_time >= bnd.month_start
              AND b.start_time < bnd.next_month_start
-             AND b.booking_status IN ('CONFIRMED', 'COMPLETED')
+             AND UPPER(b.booking_status) IN ('CONFIRMED', 'COMPLETED')
             LEFT JOIN park_connect.availability a
               ON a.availability_id = b.availability_id
             WHERE a.owner_id = ${ownerIdNum}
@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
               WHERE
                 a.owner_id = ${ownerIdNum}
                 AND a.space_id = os.space_id
-                AND b.booking_status IN ('CONFIRMED', 'COMPLETED')
+                AND UPPER(b.booking_status) IN ('CONFIRMED', 'COMPLETED')
                 AND now() >= b.start_time
                 AND now() < b.end_time
               ORDER BY b.start_time DESC
@@ -198,7 +198,7 @@ export async function GET(request: NextRequest) {
                   ON a.availability_id = b.availability_id
                 WHERE
                   a.owner_id = ${ownerIdNum}
-                  AND b.booking_status IN ('CONFIRMED', 'COMPLETED')
+                  AND UPPER(b.booking_status) IN ('CONFIRMED', 'COMPLETED')
                   AND tsrange(b.start_time, b.end_time, '[)') && tsrange(d.d::timestamp, (d.d + 1)::timestamp, '[)')
               )
             )
@@ -230,7 +230,7 @@ export async function GET(request: NextRequest) {
                 ON a.availability_id = b.availability_id
               WHERE
                 a.owner_id = ${ownerIdNum}
-                AND b.booking_status IN ('CONFIRMED', 'COMPLETED')
+                AND UPPER(b.booking_status) IN ('CONFIRMED', 'COMPLETED')
             ),
             counts AS (
               SELECT
@@ -259,7 +259,7 @@ export async function GET(request: NextRequest) {
                 ON a.availability_id = b.availability_id
               WHERE
                 a.owner_id = ${ownerIdNum}
-                AND b.booking_status IN ('CONFIRMED', 'COMPLETED')
+                AND UPPER(b.booking_status) IN ('CONFIRMED', 'COMPLETED')
             ),
             sums AS (
               SELECT
@@ -288,7 +288,7 @@ export async function GET(request: NextRequest) {
             FROM park_connect.reviews r
             WHERE
               r.reviewee_id = ${ownerIdNum}
-              AND COALESCE(r.review_type, 'DRIVER_TO_OWNER') = 'DRIVER_TO_OWNER';
+              AND UPPER(COALESCE(r.review_type, 'DRIVER_TO_OWNER')) = 'DRIVER_TO_OWNER';
           `
         ).map((row) => ({
           ...row,
@@ -313,7 +313,7 @@ export async function GET(request: NextRequest) {
             JOIN park_connect.bookings b
               ON b.start_time >= bnd.month_start
              AND b.start_time < bnd.next_month_start
-             AND b.booking_status IN ('CONFIRMED', 'COMPLETED')
+             AND UPPER(b.booking_status) IN ('CONFIRMED', 'COMPLETED')
             JOIN park_connect.availability a
               ON a.availability_id = b.availability_id
             WHERE a.owner_id = ${ownerIdNum}
@@ -337,7 +337,7 @@ export async function GET(request: NextRequest) {
               ON a.availability_id = b.availability_id
             WHERE
               a.owner_id = ${ownerIdNum}
-              AND b.booking_status IN ('CONFIRMED', 'COMPLETED');
+              AND UPPER(b.booking_status) IN ('CONFIRMED', 'COMPLETED');
           `
         ).map((row) => ({
           ...row,
