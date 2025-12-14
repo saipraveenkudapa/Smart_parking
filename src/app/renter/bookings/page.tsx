@@ -107,11 +107,10 @@ export default function RenterBookingsPage() {
         },
         body: JSON.stringify({
           bookingId: parseInt(selectedBooking.id),
-          spaceId: parseInt(selectedBooking.listing.id),
           revieweeId: parseInt(selectedBooking.listing.host.id),
           rating: reviewData.rating,
           comments: reviewData.comments,
-          reviewType: 'SPACE'
+          reviewType: 'USER'
         }),
       })
 

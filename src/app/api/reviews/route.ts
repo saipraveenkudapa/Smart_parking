@@ -4,28 +4,20 @@ import { prisma } from '@/lib/prisma'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const spaceId = searchParams.get('spaceId')
     const userId = searchParams.get('userId')
-    const type = searchParams.get('type') // 'SPACE' or 'USER'
+    const type = searchParams.get('type') // 'USER' only
 
-    if (!spaceId && !userId) {
+    if (!userId) {
       return NextResponse.json(
-        { error: 'Either spaceId or userId is required' },
+        { error: 'userId is required' },
         { status: 400 }
       )
     }
 
     // Build the where clause based on the query parameters
-    const whereClause: any = {}
-    
-    if (spaceId) {
-      whereClause.space_id = parseInt(spaceId)
-      whereClause.review_type = 'SPACE'
-    }
-    
-    if (userId) {
-      whereClause.reviewee_id = parseInt(userId)
-      whereClause.review_type = 'USER'
+    const whereClause: any = {
+      reviewee_id: parseInt(userId),
+      review_type: 'USER'
     }
 
     if (type) {
@@ -48,13 +40,6 @@ export async function GET(request: NextRequest) {
             user_id: true,
             full_name: true,
             email: true
-          }
-        },
-        parking_spaces: {
-          select: {
-            space_id: true,
-            title: true,
-            images: true
           }
         }
       },

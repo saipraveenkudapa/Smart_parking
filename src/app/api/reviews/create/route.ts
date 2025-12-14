@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     const reviewerId = parseInt(decoded.userId)
 
     const body = await request.json()
-    const { spaceId, revieweeId, rating, comments, reviewType, bookingId } = body
+    const { revieweeId, rating, comments, reviewType, bookingId } = body
 
     // Validate required fields
     if (!bookingId) {
@@ -53,13 +53,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (reviewType === 'SPACE' && !spaceId) {
-      return NextResponse.json(
-        { error: 'Space ID is required for parking space reviews' },
-        { status: 400 }
-      )
-    }
-
     if (reviewType === 'USER' && !revieweeId) {
       return NextResponse.json(
         { error: 'Reviewee ID is required for user reviews' },
@@ -75,23 +68,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if parking space exists (for space reviews)
-    if (reviewType === 'SPACE') {
-      const space = await prisma.parking_spaces.findUnique({
-        where: { space_id: parseInt(spaceId) }
-      })
-      
-      if (!space) {
-        return NextResponse.json(
-          { error: 'Parking space not found' },
-          { status: 404 }
-        )
-      }
-    }
-
     // Check if user exists (for user reviews)
     if (reviewType === 'USER') {
-      const user = await prisma.users.findUnique({
+      const user = await prisma.users.findUnique(
         where: { user_id: parseInt(revieweeId) }
       })
       
@@ -109,7 +88,6 @@ export async function POST(request: NextRequest) {
         booking_id: parseInt(bookingId),
         reviewer_id: reviewerId,
         reviewee_id: parseInt(revieweeId),
-        space_id: reviewType === 'SPACE' && spaceId ? parseInt(spaceId) : null,
         review_type: reviewType,
         rating: parseInt(rating),
         comments: comments || '',
