@@ -288,7 +288,7 @@ export async function GET(request: NextRequest) {
             FROM park_connect.reviews r
             WHERE
               r.reviewee_id = ${ownerIdNum}
-              AND UPPER(COALESCE(r.review_type, 'DRIVER_TO_OWNER')) = 'DRIVER_TO_OWNER';
+              AND UPPER(COALESCE(r.review_type, 'USER')) = 'USER';
           `
         ).map((row) => ({
           ...row,
