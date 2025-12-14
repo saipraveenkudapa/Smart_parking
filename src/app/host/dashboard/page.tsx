@@ -85,12 +85,11 @@ export default function HostDashboard() {
   const [actionResult, setActionResult] = useState<{ status: string; bookingDetails?: any }>({ status: '' })
   const [twoWeeksMetrics, setTwoWeeksMetrics] = useState({
     earnings: 0,
-    earningsDiff: 0,
     bookings: 0,
-    bookingsDiff: 0,
     rating: 0,
     reviewCount: 0
   })
+  const [twoWeeksMetricsLoading, setTwoWeeksMetricsLoading] = useState(true)
   const [reviewsBySpace, setReviewsBySpace] = useState<Record<string, { avgRating: number; totalReviews: number }>>({})
 
   useEffect(() => {
@@ -323,58 +322,31 @@ export default function HostDashboard() {
 
   const fetchTwoWeeksMetrics = async () => {
     try {
+      setTwoWeeksMetricsLoading(true)
       const token = localStorage.getItem('token')
       if (!token) {
-        console.log('[Dashboard] No token found, skipping metrics fetch')
         return
       }
 
-      console.log('[Dashboard] Fetching 2 weeks metrics...')
-
-      // Fetch all three metrics in parallel
-      const [earningsRes, bookingsRes, ratingRes] = await Promise.all([
-        fetch('/api/analytics/host?metric=2weeks_income', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch('/api/analytics/host?metric=2weeks_bookings', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch('/api/analytics/host?metric=average_rating', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-      ])
-
-      console.log('[Dashboard] Response status:', {
-        earnings: earningsRes.status,
-        bookings: bookingsRes.status,
-        rating: ratingRes.status
+      const res = await fetch('/api/dashboard/host/metrics', {
+        headers: { Authorization: `Bearer ${token}` }
       })
 
-      const [earningsData, bookingsData, ratingData] = await Promise.all([
-        earningsRes.json(),
-        bookingsRes.json(),
-        ratingRes.json()
-      ])
-
-      console.log('[Dashboard] Raw API responses:', {
-        earnings: earningsData,
-        bookings: bookingsData,
-        rating: ratingData
-      })
-
-      const metrics = {
-        earnings: earningsData?.data?.[0]?.current_income || 0,
-        earningsDiff: earningsData?.data?.[0]?.diff_income || 0,
-        bookings: bookingsData?.data?.[0]?.current_count || 0,
-        bookingsDiff: bookingsData?.data?.[0]?.diff_count || 0,
-        rating: ratingData?.data?.[0]?.avg_rating || 0,
-        reviewCount: ratingData?.data?.[0]?.review_count || 0
+      const body = await res.json()
+      if (!res.ok) {
+        throw new Error(body?.error || 'Failed to fetch dashboard metrics')
       }
 
-      console.log('[Dashboard] Processed metrics:', metrics)
-      setTwoWeeksMetrics(metrics)
+      setTwoWeeksMetrics({
+        earnings: body?.data?.earnings || 0,
+        bookings: body?.data?.bookings || 0,
+        rating: body?.data?.rating || 0,
+        reviewCount: body?.data?.reviewCount || 0
+      })
     } catch (err: any) {
       console.error('[Dashboard] Fetch 2 weeks metrics error:', err)
+    } finally {
+      setTwoWeeksMetricsLoading(false)
     }
   }
 
@@ -472,18 +444,9 @@ export default function HostDashboard() {
               </div>
               <div className="flex items-end justify-between">
                 <div>
-                  <p className="text-3xl font-bold text-green-600">${twoWeeksMetrics.earnings.toFixed(2)}</p>
-                  <div className="flex items-center mt-2">
-                    {twoWeeksMetrics.earningsDiff >= 0 ? (
-                      <span className="text-green-600 text-sm flex items-center">
-                        ↑ ${Math.abs(twoWeeksMetrics.earningsDiff).toFixed(2)} from prev period
-                      </span>
-                    ) : (
-                      <span className="text-red-600 text-sm flex items-center">
-                        ↓ ${Math.abs(twoWeeksMetrics.earningsDiff).toFixed(2)} from prev period
-                      </span>
-                    )}
-                  </div>
+                  <p className="text-3xl font-bold text-green-600">
+                    {twoWeeksMetricsLoading ? '—' : `$${twoWeeksMetrics.earnings.toFixed(2)}`}
+                  </p>
                 </div>
               </div>
             </div>
@@ -496,18 +459,7 @@ export default function HostDashboard() {
               </div>
               <div className="flex items-end justify-between">
                 <div>
-                  <p className="text-3xl font-bold text-blue-600">{twoWeeksMetrics.bookings}</p>
-                  <div className="flex items-center mt-2">
-                    {twoWeeksMetrics.bookingsDiff >= 0 ? (
-                      <span className="text-green-600 text-sm flex items-center">
-                        ↑ {Math.abs(twoWeeksMetrics.bookingsDiff)} from prev period
-                      </span>
-                    ) : (
-                      <span className="text-red-600 text-sm flex items-center">
-                        ↓ {Math.abs(twoWeeksMetrics.bookingsDiff)} from prev period
-                      </span>
-                    )}
-                  </div>
+                  <p className="text-3xl font-bold text-blue-600">{twoWeeksMetricsLoading ? '—' : twoWeeksMetrics.bookings}</p>
                 </div>
               </div>
             </div>
@@ -522,17 +474,20 @@ export default function HostDashboard() {
                 <div>
                   <div className="flex items-baseline gap-2">
                     <p className="text-3xl font-bold text-yellow-600">
-                      {twoWeeksMetrics.rating > 0 ? twoWeeksMetrics.rating.toFixed(1) : 'N/A'}
+                      {twoWeeksMetricsLoading
+                        ? '—'
+                        : (twoWeeksMetrics.rating > 0 ? twoWeeksMetrics.rating.toFixed(1) : 'N/A')}
                     </p>
                     {twoWeeksMetrics.rating > 0 && (
                       <span className="text-gray-500 text-lg">/5.0</span>
                     )}
                   </div>
                   <p className="text-sm text-gray-500 mt-2">
-                    {twoWeeksMetrics.reviewCount > 0 
-                      ? `${twoWeeksMetrics.reviewCount} review${twoWeeksMetrics.reviewCount !== 1 ? 's' : ''}`
-                      : 'No reviews yet'
-                    }
+                    {twoWeeksMetricsLoading
+                      ? ''
+                      : (twoWeeksMetrics.reviewCount > 0
+                          ? `${twoWeeksMetrics.reviewCount} review${twoWeeksMetrics.reviewCount !== 1 ? 's' : ''}`
+                          : 'No reviews yet')}
                   </p>
                 </div>
               </div>
