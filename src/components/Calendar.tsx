@@ -17,6 +17,17 @@ export default function Calendar({
   minDate,
   maxDate,
 }: CalendarProps) {
+  const pad2 = (n: number) => String(n).padStart(2, '0')
+
+  // Use local calendar dates (YYYY-MM-DD) instead of UTC-based toISOString() to avoid off-by-one
+  // issues for users in non-UTC timezones.
+  const toDateKey = (year: number, monthIndex: number, day: number) => {
+    return `${year}-${pad2(monthIndex + 1)}-${pad2(day)}`
+  }
+
+  const isBeforeKey = (a: string, b: string) => a < b
+  const isAfterKey = (a: string, b: string) => a > b
+
   const [currentMonth, setCurrentMonth] = useState(() => {
     if (selectedDate) {
       return new Date(selectedDate)
@@ -59,20 +70,16 @@ export default function Calendar({
     
     const year = currentMonth.getFullYear()
     const month = currentMonth.getMonth()
-    const dateStr = new Date(year, month, day).toISOString().split('T')[0]
+    const dateStr = toDateKey(year, month, day)
     
     if (disabledDates.has(dateStr)) return true
     
     if (minDate) {
-      const min = new Date(minDate)
-      const current = new Date(year, month, day)
-      if (current < min) return true
+      if (isBeforeKey(dateStr, minDate)) return true
     }
     
     if (maxDate) {
-      const max = new Date(maxDate)
-      const current = new Date(year, month, day)
-      if (current > max) return true
+      if (isAfterKey(dateStr, maxDate)) return true
     }
     
     return false
@@ -83,20 +90,16 @@ export default function Calendar({
 
     const year = currentMonth.getFullYear()
     const month = currentMonth.getMonth()
-    const dateStr = new Date(year, month, day).toISOString().split('T')[0]
+    const dateStr = toDateKey(year, month, day)
 
     if (disabledDates.has(dateStr)) return 'Already booked'
 
     if (minDate) {
-      const min = new Date(minDate)
-      const current = new Date(year, month, day)
-      if (current < min) return 'Outside host availability'
+      if (isBeforeKey(dateStr, minDate)) return 'Outside host availability'
     }
 
     if (maxDate) {
-      const max = new Date(maxDate)
-      const current = new Date(year, month, day)
-      if (current > max) return 'Outside host availability'
+      if (isAfterKey(dateStr, maxDate)) return 'Outside host availability'
     }
 
     return ''
@@ -107,7 +110,7 @@ export default function Calendar({
     
     const year = currentMonth.getFullYear()
     const month = currentMonth.getMonth()
-    const dateStr = new Date(year, month, day).toISOString().split('T')[0]
+    const dateStr = toDateKey(year, month, day)
     
     return dateStr === selectedDate
   }
@@ -117,7 +120,7 @@ export default function Calendar({
     
     const year = currentMonth.getFullYear()
     const month = currentMonth.getMonth()
-    const dateStr = new Date(year, month, day).toISOString().split('T')[0]
+    const dateStr = toDateKey(year, month, day)
     
     onDateSelect(dateStr)
   }

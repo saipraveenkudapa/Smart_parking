@@ -115,23 +115,32 @@ export default function ListingDetailsPage() {
   const [dateChips, setDateChips] = useState<{ date: string; label: string; blocked: boolean }[]>([])
   const [disabledDates, setDisabledDates] = useState<Set<string>>(new Set())
 
+  const pad2 = (n: number) => String(n).padStart(2, '0')
+
+  // Always use local date keys (YYYY-MM-DD) to avoid UTC toISOString() shifting dates.
+  const toLocalDateKey = (d: Date) => {
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+  }
+
   const getTodayIsoDate = () => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    return today.toISOString().split('T')[0]
+    return toLocalDateKey(today)
+  }
+
+  const getNowLocalTimeHHMM = () => {
+    const now = new Date()
+    return `${pad2(now.getHours())}:${pad2(now.getMinutes())}`
   }
 
   const getMinSelectableDateIso = () => {
     const todayIso = getTodayIsoDate()
-    const availableFrom = listing?.availableFrom ? normalizeDateInput(listing.availableFrom) : null
-    if (!availableFrom) return todayIso
+    const availableFromIso = listing?.availableFrom || ''
 
-    const from = new Date(availableFrom)
-    from.setHours(0, 0, 0, 0)
-    const today = new Date(todayIso)
-    today.setHours(0, 0, 0, 0)
+    if (!availableFromIso) return todayIso
 
-    return (from < today ? today : from).toISOString().split('T')[0]
+    // Both are YYYY-MM-DD so lexicographic compare is safe.
+    return availableFromIso > todayIso ? availableFromIso : todayIso
   }
 
   const normalizeDateInput = (value: string | Date | null) => {
@@ -273,7 +282,7 @@ export default function ListingDetailsPage() {
     const maxDays = 60
 
     while (cursor <= endWindow && chips.length < maxDays) {
-      const iso = cursor.toISOString().split('T')[0]
+      const iso = toLocalDateKey(cursor)
       chips.push({
         date: iso,
         label: cursor.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
@@ -323,6 +332,11 @@ export default function ListingDetailsPage() {
       if (isNaN(startDt.getTime())) {
         errors.startDate = 'Invalid start date/time'
       } else {
+        const now = new Date()
+        if (startDt < now) {
+          errors.startDate = 'Start date/time must be in the future'
+        }
+
         startISO = startDt.toISOString()
 
         if (bookingData.durationType === 'custom') {
@@ -455,6 +469,18 @@ export default function ListingDetailsPage() {
       }
 
       const startDt = buildDate(bookingData.startDate, bookingData.startTime || '12:00')
+
+      if (isNaN(startDt.getTime())) {
+        setError('Invalid start date/time')
+        setBookingSubmitting(false)
+        return
+      }
+
+      if (startDt < new Date()) {
+        setError('Start date/time must be in the future')
+        setBookingSubmitting(false)
+        return
+      }
 
       if (bookingData.durationType === 'custom') {
         if (!bookingData.endDate) {
@@ -804,6 +830,7 @@ export default function ListingDetailsPage() {
                           <input
                             type="time"
                             required
+                            min={bookingData.startDate === getTodayIsoDate() ? getNowLocalTimeHHMM() : undefined}
                             value={bookingData.startTime || '12:00'}
                             onChange={(e) => setBookingData({ ...bookingData, startTime: e.target.value })}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
