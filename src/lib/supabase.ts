@@ -17,6 +17,38 @@ if (!/^https:\/\//.test(supabaseUrl)) {
   throw new Error(`Invalid SUPABASE_URL (must start with https://): ${supabaseUrl}`)
 }
 
+const decodeJwtPayload = (jwt: string): any | null => {
+  const parts = jwt.split('.')
+  if (parts.length < 2) return null
+
+  const payload = parts[1]
+  const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
+
+  try {
+    const json = typeof Buffer !== 'undefined'
+      ? Buffer.from(padded, 'base64').toString('utf8')
+      : atob(padded)
+    return JSON.parse(json)
+  } catch {
+    return null
+  }
+}
+
+const assertSupabaseConfigMatches = () => {
+  // Helpful guard: Supabase URL and API key must belong to the same project.
+  // (The key is a JWT whose payload includes a `ref` field.)
+  const urlRef = new URL(supabaseUrl).hostname.split('.')[0]
+  const payload = decodeJwtPayload(supabaseKey)
+  const keyRef = payload?.ref
+
+  if (keyRef && urlRef && keyRef !== urlRef) {
+    throw new Error(
+      `Supabase config mismatch: SUPABASE_URL project ref is "${urlRef}" but API key ref is "${keyRef}". Update your anon/service_role key to match the URL's project.`
+    )
+  }
+}
+
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     autoRefreshToken: true,
@@ -115,6 +147,7 @@ export interface TotalLifetimeRevenue {
 export const supabaseFunctions = {
   // Admin functions - no parameters needed
   async getActiveBookingsNow() {
+    assertSupabaseConfigMatches()
     const { data, error } = await supabase.rpc('ad_get_active_bookings_now')
     if (error) {
       console.error('Supabase error (ad_get_active_bookings_now):', error)
@@ -124,6 +157,7 @@ export const supabaseFunctions = {
   },
 
   async getActiveUsersLast30Days() {
+    assertSupabaseConfigMatches()
     const { data, error } = await supabase.rpc('ad_get_active_users_last_30_days')
     if (error) {
       console.error('Supabase error (ad_get_active_users_last_30_days):', error)
@@ -133,6 +167,7 @@ export const supabaseFunctions = {
   },
 
   async getPlatformRevenueThisMonth() {
+    assertSupabaseConfigMatches()
     const { data, error } = await supabase.rpc('ad_get_platform_revenue_this_month')
     if (error) {
       console.error('Supabase error (ad_get_platform_revenue_this_month):', error)
@@ -142,6 +177,7 @@ export const supabaseFunctions = {
   },
 
   async getTotalPlatformRevenue() {
+    assertSupabaseConfigMatches()
     const { data, error } = await supabase.rpc('ad_get_total_platform_revenue')
     if (error) {
       console.error('Supabase error (ad_get_total_platform_revenue):', error)
@@ -151,6 +187,7 @@ export const supabaseFunctions = {
   },
 
   async getTotalSpacesListed() {
+    assertSupabaseConfigMatches()
     const { data, error } = await supabase.rpc('ad_get_total_spaces_listed')
     if (error) {
       console.error('Supabase error (ad_get_total_spaces_listed):', error)
@@ -160,6 +197,7 @@ export const supabaseFunctions = {
   },
 
   async getTotalUsers() {
+    assertSupabaseConfigMatches()
     const { data, error } = await supabase.rpc('ad_get_total_users')
     if (error) {
       console.error('Supabase error (ad_get_total_users):', error)
@@ -169,6 +207,7 @@ export const supabaseFunctions = {
   },
 
   async getMonthlyPlatformRevenuePast12Months() {
+    assertSupabaseConfigMatches()
     const { data, error } = await supabase.rpc('get_monthly_platform_revenue_past_12_months')
     if (error) {
       console.error('Supabase error (get_monthly_platform_revenue_past_12_months):', error)
@@ -179,6 +218,7 @@ export const supabaseFunctions = {
 
   // Owner/Host functions - require p_owner_id parameter
   async getCurrentMonthEarnings(ownerId: number) {
+    assertSupabaseConfigMatches()
     const { data, error } = await supabase.rpc('get_current_month_earnings', {
       p_owner_id: ownerId
     })
@@ -190,6 +230,7 @@ export const supabaseFunctions = {
   },
 
   async getCurrentSpaceStatus(ownerId: number) {
+    assertSupabaseConfigMatches()
     const { data, error } = await supabase.rpc('get_current_space_status', {
       p_owner_id: ownerId
     })
@@ -201,6 +242,7 @@ export const supabaseFunctions = {
   },
 
   async getMonthlyOccupancyRate(ownerId: number) {
+    assertSupabaseConfigMatches()
     const { data, error } = await supabase.rpc('get_monthly_occupancy_rate', {
       p_owner_id: ownerId
     })
@@ -212,6 +254,7 @@ export const supabaseFunctions = {
   },
 
   async getOwner2WeeksBookings(ownerId: number) {
+    assertSupabaseConfigMatches()
     const { data, error } = await supabase.rpc('get_owner_2weeks_bookings', {
       p_owner_id: ownerId
     })
@@ -223,6 +266,7 @@ export const supabaseFunctions = {
   },
 
   async getOwner2WeeksIncome(ownerId: number) {
+    assertSupabaseConfigMatches()
     const { data, error } = await supabase.rpc('get_owner_2weeks_income', {
       p_owner_id: ownerId
     })
@@ -234,6 +278,7 @@ export const supabaseFunctions = {
   },
 
   async getOwnerAverageRating(ownerId: number) {
+    assertSupabaseConfigMatches()
     const { data, error } = await supabase.rpc('get_owner_average_rating', {
       p_owner_id: ownerId
     })
@@ -245,6 +290,7 @@ export const supabaseFunctions = {
   },
 
   async getTotalBookingsThisMonth(ownerId: number) {
+    assertSupabaseConfigMatches()
     const { data, error } = await supabase.rpc('get_total_bookings_this_month', {
       p_owner_id: ownerId
     })
@@ -256,6 +302,7 @@ export const supabaseFunctions = {
   },
 
   async getTotalLifetimeRevenue(ownerId: number) {
+    assertSupabaseConfigMatches()
     const { data, error } = await supabase.rpc('get_total_lifetime_revenue', {
       p_owner_id: ownerId
     })
