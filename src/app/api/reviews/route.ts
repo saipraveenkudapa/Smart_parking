@@ -69,11 +69,6 @@ export async function GET(request: NextRequest) {
         id: review.users_reviews_reviewee_idTousers.user_id,
         name: review.users_reviews_reviewee_idTousers.full_name,
         email: review.users_reviews_reviewee_idTousers.email
-      } : null,
-      space: review.parking_spaces ? {
-        id: review.parking_spaces.space_id,
-        title: review.parking_spaces.title,
-        image: review.parking_spaces.images
       } : null
     }))
 

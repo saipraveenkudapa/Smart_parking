@@ -697,14 +697,20 @@ export default function ListingDetailsPage() {
               </div>
 
 
-              {/* Reviews Section: Only show if user has completed booking */}
-              {canShowReviews && (
+              {/* Reviews Section (user-to-user): show host reviews */}
+              {listing.host?.id && (
                 <div className="mb-6">
-                  <Reviews 
-                    targetId={parseInt(listingId)} 
-                    targetType="SPACE"
-                    allowNewReview={isAuthenticated() && !isOwnListing && canShowReviews}
+                  <Reviews
+                    targetId={parseInt(listing.host.id, 10)}
+                    targetType="USER"
+                    allowNewReview={false}
                   />
+
+                  {!canShowReviews && (
+                    <p className="text-sm text-gray-500 mt-2">
+                      You can leave a review after completing a booking.
+                    </p>
+                  )}
                 </div>
               )}
 

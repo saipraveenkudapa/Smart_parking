@@ -19,9 +19,10 @@ interface ReviewsProps {
   targetId: number
   targetType: 'SPACE' | 'USER'
   allowNewReview?: boolean
+  bookingId?: number
 }
 
-export default function Reviews({ targetId, targetType, allowNewReview = true }: ReviewsProps) {
+export default function Reviews({ targetId, targetType, allowNewReview = true, bookingId }: ReviewsProps) {
   const [reviews, setReviews] = useState<Review[]>([])
   const [averageRating, setAverageRating] = useState(0)
   const [totalReviews, setTotalReviews] = useState(0)
@@ -44,8 +45,7 @@ export default function Reviews({ targetId, targetType, allowNewReview = true }:
   const fetchReviews = async () => {
     try {
       setIsLoading(true)
-      const queryParam = targetType === 'SPACE' ? `spaceId=${targetId}` : `userId=${targetId}`
-      const response = await fetch(`/api/reviews?${queryParam}`)
+      const response = await fetch(`/api/reviews?userId=${targetId}`)
       const data = await response.json()
 
       if (data.success) {
@@ -68,10 +68,19 @@ export default function Reviews({ targetId, targetType, allowNewReview = true }:
     setIsSubmitting(true)
 
     try {
+      if (!allowNewReview) {
+        setSubmitError('Review submission is not available here')
+        return
+      }
+
+      if (!bookingId) {
+        setSubmitError('Booking ID is required to submit a review')
+        return
+      }
+
       const token = localStorage.getItem('token')
       if (!token) {
         setSubmitError('Please log in to submit a review')
-        setIsSubmitting(false)
         return
       }
 
@@ -82,11 +91,11 @@ export default function Reviews({ targetId, targetType, allowNewReview = true }:
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          spaceId: targetType === 'SPACE' ? targetId : undefined,
-          revieweeId: targetType === 'USER' ? targetId : undefined,
+          bookingId,
+          revieweeId: targetId,
           rating,
           comments,
-          reviewType: targetType
+          reviewType: 'USER'
         })
       })
 

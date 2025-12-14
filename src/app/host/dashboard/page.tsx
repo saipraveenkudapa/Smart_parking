@@ -91,6 +91,7 @@ export default function HostDashboard() {
     rating: 0,
     reviewCount: 0
   })
+  const [reviewsBySpace, setReviewsBySpace] = useState<Record<string, { avgRating: number; totalReviews: number }>>({})
 
   useEffect(() => {
     // Check authentication
@@ -102,7 +103,40 @@ export default function HostDashboard() {
     fetchMyListings()
     fetchBookings()
     fetchTwoWeeksMetrics()
+    fetchReviewsBySpace()
   }, [])
+
+  const fetchReviewsBySpace = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        return
+      }
+
+      const res = await fetch('/api/reviews/host/by-space', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+
+      const data = await res.json()
+      if (!res.ok || data?.success === false) {
+        return
+      }
+
+      const nextMap: Record<string, { avgRating: number; totalReviews: number }> = {}
+      for (const row of data?.data || []) {
+        if (row?.spaceId == null) continue
+        nextMap[String(row.spaceId)] = {
+          avgRating: Number(row.avgRating) || 0,
+          totalReviews: Number(row.totalReviews) || 0
+        }
+      }
+      setReviewsBySpace(nextMap)
+    } catch (err) {
+      console.warn('Failed to fetch reviews by space', err)
+    }
+  }
 
   const fetchMyListings = async () => {
     try {
@@ -299,10 +333,10 @@ export default function HostDashboard() {
 
       // Fetch all three metrics in parallel
       const [earningsRes, bookingsRes, ratingRes] = await Promise.all([
-        fetch('/api/analytics/host?metric=last_2weeks_income', {
+        fetch('/api/analytics/host?metric=2weeks_income', {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('/api/analytics/host?metric=last_2weeks_bookings', {
+        fetch('/api/analytics/host?metric=2weeks_bookings', {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         fetch('/api/analytics/host?metric=average_rating', {
@@ -653,6 +687,16 @@ export default function HostDashboard() {
                     {/* Created Date */}
                     <p className="text-xs text-gray-500 mb-3">
                       Listed on {new Date(listing.createdAt).toLocaleDateString()}
+                    </p>
+
+                    {/* Reviews */}
+                    <p className="text-xs text-gray-600 mb-3">
+                      ⭐ {(reviewsBySpace[listing.id]?.avgRating ?? 0) > 0
+                        ? (reviewsBySpace[listing.id]?.avgRating ?? 0).toFixed(1)
+                        : 'N/A'}
+                      <span className="text-gray-500">
+                        {' '}({reviewsBySpace[listing.id]?.totalReviews ?? 0} review{(reviewsBySpace[listing.id]?.totalReviews ?? 0) === 1 ? '' : 's'})
+                      </span>
                     </p>
 
                     {/* Actions */}
