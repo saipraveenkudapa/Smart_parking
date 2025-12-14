@@ -115,6 +115,25 @@ export default function ListingDetailsPage() {
   const [dateChips, setDateChips] = useState<{ date: string; label: string; blocked: boolean }[]>([])
   const [disabledDates, setDisabledDates] = useState<Set<string>>(new Set())
 
+  const getTodayIsoDate = () => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return today.toISOString().split('T')[0]
+  }
+
+  const getMinSelectableDateIso = () => {
+    const todayIso = getTodayIsoDate()
+    const availableFrom = listing?.availableFrom ? normalizeDateInput(listing.availableFrom) : null
+    if (!availableFrom) return todayIso
+
+    const from = new Date(availableFrom)
+    from.setHours(0, 0, 0, 0)
+    const today = new Date(todayIso)
+    today.setHours(0, 0, 0, 0)
+
+    return (from < today ? today : from).toISOString().split('T')[0]
+  }
+
   const normalizeDateInput = (value: string | Date | null) => {
     if (!value) return null
     if (value instanceof Date) {
@@ -240,7 +259,8 @@ export default function ListingDetailsPage() {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    const startWindow = normalizeDateInput(listing.availableFrom || '') || today
+    const startWindowRaw = normalizeDateInput(listing.availableFrom || '') || today
+    const startWindow = startWindowRaw < today ? today : startWindowRaw
     const explicitEnd = listing.availableTo ? normalizeDateInput(listing.availableTo) : null
     const endWindow = explicitEnd ? new Date(explicitEnd) : new Date(startWindow)
 
@@ -768,7 +788,7 @@ export default function ListingDetailsPage() {
                               }
                             }}
                             disabledDates={disabledDates}
-                            minDate={listing.availableFrom || new Date().toISOString().split('T')[0]}
+                            minDate={getMinSelectableDateIso()}
                             maxDate={listing.availableTo}
                           />
                           {bookingErrors.startDate && (
@@ -805,7 +825,7 @@ export default function ListingDetailsPage() {
                                   }
                                 }}
                                 disabledDates={disabledDates}
-                                minDate={bookingData.startDate || listing.availableFrom || new Date().toISOString().split('T')[0]}
+                                minDate={bookingData.startDate || getMinSelectableDateIso()}
                                 maxDate={listing.availableTo}
                               />
                               {bookingErrors.endDate && (
