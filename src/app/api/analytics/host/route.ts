@@ -55,6 +55,21 @@ type CurrentSpaceStatusRow = {
 
 const normalizeArray = <T,>(rows: T[] | null | undefined): T[] => (Array.isArray(rows) ? rows : [])
 
+const toFiniteNumber = (value: unknown, fallback = 0): number => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : fallback
+  if (typeof value === 'bigint') return Number(value)
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
+  return fallback
+}
+
+const toSafeInt = (value: unknown, fallback = 0): number => {
+  const asNumber = toFiniteNumber(value, fallback)
+  return Number.isFinite(asNumber) ? Math.trunc(asNumber) : fallback
+}
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.split(' ')[1]
@@ -102,7 +117,10 @@ export async function GET(request: NextRequest) {
             WHERE a.owner_id = ${ownerIdNum}
             GROUP BY bnd.month_start;
           `
-        )
+        ).map((row) => ({
+          ...row,
+          total_earnings: toFiniteNumber(row.total_earnings, 0),
+        }))
         break
       
       case 'current_space_status':
@@ -194,7 +212,12 @@ export async function GET(request: NextRequest) {
             FROM bounds b
             CROSS JOIN occupied o;
           `
-        )
+        ).map((row) => ({
+          ...row,
+          occupied_days: toSafeInt(row.occupied_days, 0),
+          total_days: toSafeInt(row.total_days, 0),
+          occupancy_rate: toFiniteNumber(row.occupancy_rate, 0),
+        }))
         break
       
       case '2weeks_bookings':
@@ -220,7 +243,10 @@ export async function GET(request: NextRequest) {
               (c.current_count - c.prev_count)::bigint AS diff_count
             FROM counts c;
           `
-        )
+        ).map((row) => ({
+          current_count: toSafeInt(row.current_count, 0),
+          diff_count: toSafeInt(row.diff_count, 0),
+        }))
         break
       
       case '2weeks_income':
@@ -246,7 +272,10 @@ export async function GET(request: NextRequest) {
               (s.current_income - s.prev_income)::numeric AS diff_income
             FROM sums s;
           `
-        )
+        ).map((row) => ({
+          current_income: toFiniteNumber(row.current_income, 0),
+          diff_income: toFiniteNumber(row.diff_income, 0),
+        }))
         break
       
       case 'average_rating':
@@ -261,7 +290,11 @@ export async function GET(request: NextRequest) {
               r.reviewee_id = ${ownerIdNum}
               AND COALESCE(r.review_type, 'DRIVER_TO_OWNER') = 'DRIVER_TO_OWNER';
           `
-        )
+        ).map((row) => ({
+          ...row,
+          avg_rating: toFiniteNumber(row.avg_rating, 0),
+          review_count: toSafeInt(row.review_count, 0),
+        }))
         break
       
       case 'total_bookings_this_month':
@@ -286,7 +319,10 @@ export async function GET(request: NextRequest) {
             WHERE a.owner_id = ${ownerIdNum}
             GROUP BY bnd.month_start;
           `
-        )
+        ).map((row) => ({
+          ...row,
+          total_bookings: toSafeInt(row.total_bookings, 0),
+        }))
         break
       
       case 'lifetime_revenue':
@@ -303,7 +339,11 @@ export async function GET(request: NextRequest) {
               a.owner_id = ${ownerIdNum}
               AND b.booking_status IN ('CONFIRMED', 'COMPLETED');
           `
-        )
+        ).map((row) => ({
+          ...row,
+          total_revenue: toFiniteNumber(row.total_revenue, 0),
+          booking_count: toSafeInt(row.booking_count, 0),
+        }))
         break
       
       default:
