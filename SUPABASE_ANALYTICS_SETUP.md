@@ -21,7 +21,13 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 ## Database Functions Required
 
-All these functions should already be created in your Supabase database under the `park_connect` schema:
+These functions must exist in your Supabase database and be accessible to PostgREST.
+
+Important: This app calls functions via `supabase.rpc('function_name', ...)` which resolves functions in the `public` schema by default. If your tables live in `park_connect`, the simplest setup is to create `public` wrapper functions that read from `park_connect.*`.
+
+This repo includes a ready-to-run SQL file to create the required RPC functions in `public`:
+
+- [supabase/sql/analytics_rpc_public.sql](supabase/sql/analytics_rpc_public.sql)
 
 ### Admin Functions (no parameters)
 - `ad_get_active_bookings_now`
