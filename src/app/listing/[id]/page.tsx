@@ -57,6 +57,9 @@ interface Listing {
   state: string
   zipCode: string
   spaceType: string
+  hourlyPrice: number
+  dailyPrice: number
+  weeklyPrice: number
   monthlyPrice: number
   hasCCTV: boolean
   hasEVCharging: boolean
@@ -106,6 +109,7 @@ export default function ListingDetailsPage() {
   const [bookingDetails, setBookingDetails] = useState<any>(null)
   const [bookingPreview, setBookingPreview] = useState({ startISO: '', endISO: '' })
   const [bookingErrors, setBookingErrors] = useState<{ startDate?: string; endDate?: string; vehicleId?: string }>({})
+  const [formSubmitted, setFormSubmitted] = useState(false)
   const [canViewAddress, setCanViewAddress] = useState(false)
   const [bookedRanges, setBookedRanges] = useState<BookedRange[]>([])
   const [dateChips, setDateChips] = useState<{ date: string; label: string; blocked: boolean }[]>([])
@@ -337,14 +341,14 @@ export default function ListingDetailsPage() {
       errors.startDate = 'Selected dates overlap another booking'
     }
 
-    // vehicle requirement validation at preview time (user feedback)
-    if (!bookingData.vehicleId) {
+    // vehicle requirement validation - only show after form submission attempt
+    if (formSubmitted && !bookingData.vehicleId) {
       errors.vehicleId = 'Please select a vehicle to book with'
     }
 
     setBookingErrors(errors)
     setBookingPreview({ startISO, endISO })
-  }, [bookingData, bookedRanges])
+  }, [bookingData, bookedRanges, formSubmitted])
 
   const fetchVehicles = async () => {
     setLoadingVehicles(true)
@@ -393,6 +397,7 @@ export default function ListingDetailsPage() {
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault()
+    setFormSubmitted(true)
 
     if (!isAuthenticated()) {
       router.push(`/login?redirect=/listing/${listingId}&message=Please log in to book this parking space`)
@@ -844,9 +849,9 @@ export default function ListingDetailsPage() {
                         {bookingData.durationType !== 'custom' && bookingData.startDate && (
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Booking Summary</label>
-                            <div className="w-full px-4 py-2 border border-green-200 rounded-lg bg-green-50 text-green-700">
-                              <div className="space-y-1">
-                                <div className="flex justify-between text-sm">
+                            <div className="w-full px-4 py-3 border border-green-200 rounded-lg bg-green-50">
+                              <div className="space-y-2">
+                                <div className="flex justify-between text-sm text-gray-700">
                                   <span className="font-medium">Start:</span>
                                   <span>
                                     {(() => {
@@ -859,7 +864,7 @@ export default function ListingDetailsPage() {
                                     })()}
                                   </span>
                                 </div>
-                                <div className="flex justify-between text-sm">
+                                <div className="flex justify-between text-sm text-gray-700">
                                   <span className="font-medium">End:</span>
                                   <span>
                                     {(() => {
@@ -880,6 +885,65 @@ export default function ListingDetailsPage() {
                                       }
                                     })()}
                                   </span>
+                                </div>
+                                <div className="border-t border-green-300 my-2 pt-2">
+                                  <div className="flex justify-between text-sm text-gray-700">
+                                    <span className="font-medium">Duration:</span>
+                                    <span>
+                                      {{1h: '1 Hour', '1d': '1 Day', '1w': '1 Week', '1m': '1 Month', '30m': '30 Minutes'}[bookingData.durationType] || 'Custom'}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between text-sm text-gray-700 mt-1">
+                                    <span className="font-medium">Rate:</span>
+                                    <span>
+                                      {(() => {
+                                        const { hourlyPrice = 0, dailyPrice = 0, weeklyPrice = 0, monthlyPrice = 0 } = listing || {}
+                                        switch (bookingData.durationType) {
+                                          case '30m': return `$${(hourlyPrice / 2).toFixed(2)}`
+                                          case '1h': return `$${hourlyPrice.toFixed(2)}`
+                                          case '1d': return `$${dailyPrice.toFixed(2)}`
+                                          case '1w': return `$${weeklyPrice.toFixed(2)}`
+                                          case '1m': return `$${monthlyPrice.toFixed(2)}`
+                                          default: return '$0.00'
+                                        }
+                                      })()}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between text-sm text-gray-700 mt-1">
+                                    <span className="font-medium">Service Fee (10%):</span>
+                                    <span>
+                                      {(() => {
+                                        const { hourlyPrice = 0, dailyPrice = 0, weeklyPrice = 0, monthlyPrice = 0 } = listing || {}
+                                        let basePrice = 0
+                                        switch (bookingData.durationType) {
+                                          case '30m': basePrice = hourlyPrice / 2; break
+                                          case '1h': basePrice = hourlyPrice; break
+                                          case '1d': basePrice = dailyPrice; break
+                                          case '1w': basePrice = weeklyPrice; break
+                                          case '1m': basePrice = monthlyPrice; break
+                                        }
+                                        return `$${(basePrice * 0.1).toFixed(2)}`
+                                      })()}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between font-semibold text-green-700 mt-2 pt-2 border-t border-green-300">
+                                    <span>Total:</span>
+                                    <span>
+                                      {(() => {
+                                        const { hourlyPrice = 0, dailyPrice = 0, weeklyPrice = 0, monthlyPrice = 0 } = listing || {}
+                                        let basePrice = 0
+                                        switch (bookingData.durationType) {
+                                          case '30m': basePrice = hourlyPrice / 2; break
+                                          case '1h': basePrice = hourlyPrice; break
+                                          case '1d': basePrice = dailyPrice; break
+                                          case '1w': basePrice = weeklyPrice; break
+                                          case '1m': basePrice = monthlyPrice; break
+                                        }
+                                        const total = basePrice * 1.1
+                                        return `$${total.toFixed(2)}`
+                                      })()}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -929,7 +993,10 @@ export default function ListingDetailsPage() {
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            onClick={() => setShowBookingForm(false)}
+                            onClick={() => {
+                              setShowBookingForm(false)
+                              setFormSubmitted(false)
+                            }}
                             className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 font-semibold"
                           >
                             Cancel

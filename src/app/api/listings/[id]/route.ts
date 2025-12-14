@@ -377,9 +377,20 @@ export async function GET(
       },
     })
 
-    // Fetch availability (for is_available, available_from, available_to)
+    // Fetch availability (for is_available, available_from, available_to) and owner info
     const availability = await prisma.availability.findFirst({
       where: { space_id: spaceId },
+      include: {
+        users: {
+          select: {
+            user_id: true,
+            full_name: true,
+            email: true,
+            phone_number: true,
+            is_verified: true,
+          },
+        },
+      },
     })
 
     // Fetch bookings tied to this listing so the UI can block already-reserved dates
@@ -460,6 +471,13 @@ export async function GET(
       isInstantBook: parkingSpace.is_instant_book,
       images: imageArray,
       accessInstructions: parkingSpace.access_instructions,
+      host: availability?.users ? {
+        id: availability.users.user_id.toString(),
+        fullName: availability.users.full_name,
+        email: availability.users.email,
+        phoneNumber: availability.users.phone_number || '',
+        phoneVerified: availability.users.is_verified || false,
+      } : null,
     }
 
     return NextResponse.json({ listing, bookedRanges })
