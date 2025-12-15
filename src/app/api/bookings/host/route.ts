@@ -6,7 +6,8 @@ import { verifyToken } from '@/lib/auth'
 export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization')
-    const token = authHeader?.replace('Bearer ', '')
+    const cookieToken = req.cookies.get('token')?.value
+    const token = authHeader?.replace('Bearer ', '') || cookieToken
 
     if (!token) {
       return NextResponse.json(

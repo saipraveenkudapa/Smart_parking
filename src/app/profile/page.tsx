@@ -14,11 +14,10 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [earnings, setEarnings] = useState({ total: 0, thisMonth: 0, pending: 0, completed: 0 })
-  const [earningsLoading, setEarningsLoading] = useState(true)
   const [spendingRange, setSpendingRange] = useState<'last7' | 'last30' | 'thisMonth' | 'allTime'>('last7')
   const [renterBookings, setRenterBookings] = useState<any[]>([])
   const [renterBookingsLoading, setRenterBookingsLoading] = useState(true)
+  const [renterBookingsError, setRenterBookingsError] = useState('')
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -36,81 +35,30 @@ export default function ProfilePage() {
     }
 
     fetchProfile()
-    fetchEarnings()
     fetchRenterBookings()
   }, [router])
 
   const fetchRenterBookings = async () => {
     try {
+      setRenterBookingsError('')
       const token = localStorage.getItem('token')
-      if (!token) return
+      const headers: Record<string, string> = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
 
-      const response = await fetch('/api/bookings', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
+      const response = await fetch('/api/bookings', { headers })
 
       const data = await response.json()
-      if (response.ok && Array.isArray(data.bookings)) {
-        setRenterBookings(data.bookings)
-      }
+      if (!response.ok) throw new Error(data?.error || 'Failed to fetch bookings')
+      if (!Array.isArray(data.bookings)) throw new Error('Invalid bookings response')
+
+      setRenterBookings(data.bookings)
     } catch (err) {
       console.error('Fetch renter bookings error:', err)
+      setRenterBookings([])
+      setRenterBookingsError(err instanceof Error ? err.message : 'Failed to fetch bookings')
     } finally {
       setRenterBookingsLoading(false)
     }
-  }
-
-  const fetchEarnings = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      if (!token) return
-
-      const response = await fetch('/api/bookings/host', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-
-      const data = await response.json()
-
-      if (response.ok && data.bookings) {
-        calculateEarnings(data.bookings)
-      }
-    } catch (err) {
-      console.error('Fetch earnings error:', err)
-    } finally {
-      setEarningsLoading(false)
-    }
-  }
-
-  const calculateEarnings = (bookings: any[]) => {
-    const now = new Date()
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    
-    let total = 0
-    let thisMonth = 0
-    let pending = 0
-    let completed = 0
-    
-    bookings.forEach(booking => {
-      const amount = booking.totalAmount || 0
-      const bookingDate = new Date(booking.createdAt)
-      const status = booking.status?.toLowerCase()
-      
-      if (status === 'confirmed' || status === 'completed') {
-        total += amount
-        completed += amount
-        if (bookingDate >= firstDayOfMonth) {
-          thisMonth += amount
-        }
-      } else if (status === 'pending') {
-        pending += amount
-      }
-    })
-    
-    setEarnings({ total, thisMonth, pending, completed })
   }
 
   const parkingAnalytics = useMemo(() => {
@@ -506,47 +454,6 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Earnings Dashboard (if user is a host) */}
-        {!earningsLoading && (earnings.total > 0 || earnings.pending > 0) && (
-          <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-            <h2 className="text-2xl font-bold mb-6">💰 My Earnings</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-linear-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-600 text-sm">Total Earnings</span>
-                  <span className="text-2xl">💵</span>
-                </div>
-                <p className="text-3xl font-bold text-green-700">${earnings.total.toFixed(2)}</p>
-              </div>
-              
-              <div className="bg-linear-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-600 text-sm">This Month</span>
-                  <span className="text-2xl">📅</span>
-                </div>
-                <p className="text-3xl font-bold text-blue-700">${earnings.thisMonth.toFixed(2)}</p>
-              </div>
-              
-              <div className="bg-linear-to-br from-yellow-50 to-yellow-100 rounded-lg p-4 border border-yellow-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-600 text-sm">Pending</span>
-                  <span className="text-2xl">⏳</span>
-                </div>
-                <p className="text-3xl font-bold text-yellow-700">${earnings.pending.toFixed(2)}</p>
-              </div>
-              
-              <div className="bg-linear-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-600 text-sm">Completed</span>
-                  <span className="text-2xl">✅</span>
-                </div>
-                <p className="text-3xl font-bold text-purple-700">${earnings.completed.toFixed(2)}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Reviews Section */}
         {user && (
           <div className="bg-white rounded-xl shadow-lg p-8">
@@ -630,6 +537,9 @@ export default function ProfilePage() {
 
           {renterBookingsLoading && (
             <p className="text-sm text-gray-600 mt-4">Loading analytics...</p>
+          )}
+          {!renterBookingsLoading && renterBookingsError && (
+            <p className="text-sm text-red-600 mt-4">{renterBookingsError}</p>
           )}
         </div>
       </main>
