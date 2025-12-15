@@ -68,6 +68,57 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Ensure booking exists and belongs to the reviewer
+    const booking = await prisma.bookings.findUnique({
+      where: { booking_id: parseInt(bookingId) },
+      select: {
+        booking_id: true,
+        driver_id: true,
+        end_time: true,
+        booking_status: true,
+      },
+    })
+
+    if (!booking) {
+      return NextResponse.json(
+        { error: 'Booking not found' },
+        { status: 404 }
+      )
+    }
+
+    if (booking.driver_id !== reviewerId) {
+      return NextResponse.json(
+        { error: 'You are not allowed to review this booking' },
+        { status: 403 }
+      )
+    }
+
+    // Only allow review after the booking is completed
+    const status = (booking.booking_status || '').toLowerCase()
+    const isCompletedStatus = status === 'completed' || status === 'confirmed'
+    if (booking.end_time > new Date() || !isCompletedStatus) {
+      return NextResponse.json(
+        { error: 'You can only review after the booking is completed' },
+        { status: 400 }
+      )
+    }
+
+    // Prevent duplicate reviews for the same booking by the same reviewer
+    const existingReview = await prisma.reviews.findFirst({
+      where: {
+        booking_id: parseInt(bookingId),
+        reviewer_id: reviewerId,
+      },
+      select: { review_id: true },
+    })
+
+    if (existingReview) {
+      return NextResponse.json(
+        { error: 'You have already submitted a review for this booking' },
+        { status: 409 }
+      )
+    }
+
     // Check if user exists (for user reviews)
     if (reviewType === 'USER') {
       const user = await prisma.users.findUnique({

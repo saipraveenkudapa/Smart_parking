@@ -463,6 +463,14 @@ export async function GET(req: NextRequest) {
         driver_id: parseInt(payload.userId),
       },
       include: {
+        reviews_reviews_booking_idTobookings: {
+          where: {
+            reviewer_id: parseInt(payload.userId),
+          },
+          select: {
+            review_id: true,
+          },
+        },
         availability: {
           include: {
             parking_spaces: {
@@ -500,6 +508,7 @@ export async function GET(req: NextRequest) {
     const mappedBookings = bookings.map((booking: typeof bookings[0]) => {
       const pricing = booking.availability?.parking_spaces?.pricing_models?.[0]
       const monthlyPrice = pricing ? Number(pricing.monthly_rate) : 0
+      const hasReview = (booking as any)?.reviews_reviews_booking_idTobookings?.length > 0
 
       return {
         id: booking.booking_id.toString(),
@@ -509,6 +518,7 @@ export async function GET(req: NextRequest) {
         vehicleDetails: '', // Not available in schema, set as empty or fetch if possible
         status: mapStatusToUi(booking.booking_status),
         createdAt: booking.start_time, // bookings does not have created_at, use start_time
+        hasReview,
         listing: {
           id: booking.availability?.space_id?.toString() || '',
           title: booking.availability?.parking_spaces?.title || '',
