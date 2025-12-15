@@ -83,13 +83,13 @@ export default function HostDashboard() {
   const [earnings, setEarnings] = useState({ total: 0, thisMonth: 0, pending: 0, completed: 0 })
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [actionResult, setActionResult] = useState<{ status: string; bookingDetails?: any }>({ status: '' })
-  const [twoWeeksMetrics, setTwoWeeksMetrics] = useState({
+  const [monthMetrics, setMonthMetrics] = useState({
     earnings: 0,
     bookings: 0,
     rating: 0,
     reviewCount: 0
   })
-  const [twoWeeksMetricsLoading, setTwoWeeksMetricsLoading] = useState(true)
+  const [monthMetricsLoading, setMonthMetricsLoading] = useState(true)
   const [thisMonthOccupancyMetrics, setThisMonthOccupancyMetrics] = useState({
     occupancyPercentage: 0,
     totalDays: 0,
@@ -112,7 +112,7 @@ export default function HostDashboard() {
     // Fetch user's listings and bookings
     fetchMyListings()
     fetchBookings()
-    fetchTwoWeeksMetrics()
+    fetchMonthMetrics()
     fetchOccupancyMetrics()
     fetchReviewsBySpace()
   }, [])
@@ -387,15 +387,19 @@ export default function HostDashboard() {
     }
   }
 
-  const fetchTwoWeeksMetrics = async () => {
+  const fetchMonthMetrics = async () => {
     try {
-      setTwoWeeksMetricsLoading(true)
+      setMonthMetricsLoading(true)
       const token = localStorage.getItem('token')
       if (!token) {
         return
       }
 
-      const res = await fetch('/api/dashboard/host/metrics', {
+      const now = new Date()
+      const thisMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0))
+      const metricsUrl = `/api/dashboard/host/metrics?start=${encodeURIComponent(thisMonthStart.toISOString())}&end=${encodeURIComponent(now.toISOString())}`
+
+      const res = await fetch(metricsUrl, {
         headers: { Authorization: `Bearer ${token}` }
       })
 
@@ -404,16 +408,16 @@ export default function HostDashboard() {
         throw new Error(body?.error || 'Failed to fetch dashboard metrics')
       }
 
-      setTwoWeeksMetrics({
+      setMonthMetrics({
         earnings: body?.data?.earnings || 0,
         bookings: body?.data?.bookings || 0,
         rating: body?.data?.rating || 0,
         reviewCount: body?.data?.reviewCount || 0
       })
     } catch (err: any) {
-      console.error('[Dashboard] Fetch 2 weeks metrics error:', err)
+      console.error('[Dashboard] Fetch month metrics error:', err)
     } finally {
-      setTwoWeeksMetricsLoading(false)
+      setMonthMetricsLoading(false)
     }
   }
 
@@ -501,32 +505,32 @@ export default function HostDashboard() {
             </Link>
           </div>
 
-          {/* Last 2 Weeks Metrics */}
+          {/* This Month Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            {/* Last 2 Weeks Earnings */}
+            {/* This Month Earnings */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium text-gray-600">Last 2 Weeks Earnings</h3>
+                <h3 className="text-sm font-medium text-gray-600">This Month Earnings</h3>
                 <span className="text-2xl">💰</span>
               </div>
               <div className="flex items-end justify-between">
                 <div>
                   <p className="text-3xl font-bold text-green-600">
-                    {twoWeeksMetricsLoading ? '—' : `$${twoWeeksMetrics.earnings.toFixed(2)}`}
+                    {monthMetricsLoading ? '—' : `$${monthMetrics.earnings.toFixed(2)}`}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Last 2 Weeks Bookings */}
+            {/* This Month Bookings */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium text-gray-600">Last 2 Weeks Bookings</h3>
+                <h3 className="text-sm font-medium text-gray-600">This Month Bookings</h3>
                 <span className="text-2xl">📅</span>
               </div>
               <div className="flex items-end justify-between">
                 <div>
-                  <p className="text-3xl font-bold text-blue-600">{twoWeeksMetricsLoading ? '—' : twoWeeksMetrics.bookings}</p>
+                  <p className="text-3xl font-bold text-blue-600">{monthMetricsLoading ? '—' : monthMetrics.bookings}</p>
                 </div>
               </div>
             </div>
@@ -541,19 +545,19 @@ export default function HostDashboard() {
                 <div>
                   <div className="flex items-baseline gap-2">
                     <p className="text-3xl font-bold text-yellow-600">
-                      {twoWeeksMetricsLoading
+                      {monthMetricsLoading
                         ? '—'
-                        : (twoWeeksMetrics.rating > 0 ? twoWeeksMetrics.rating.toFixed(1) : 'N/A')}
+                        : (monthMetrics.rating > 0 ? monthMetrics.rating.toFixed(1) : 'N/A')}
                     </p>
-                    {twoWeeksMetrics.rating > 0 && (
+                    {monthMetrics.rating > 0 && (
                       <span className="text-gray-500 text-lg">/5.0</span>
                     )}
                   </div>
                   <p className="text-sm text-gray-500 mt-2">
-                    {twoWeeksMetricsLoading
+                    {monthMetricsLoading
                       ? ''
-                      : (twoWeeksMetrics.reviewCount > 0
-                          ? `${twoWeeksMetrics.reviewCount} review${twoWeeksMetrics.reviewCount !== 1 ? 's' : ''}`
+                      : (monthMetrics.reviewCount > 0
+                          ? `${monthMetrics.reviewCount} review${monthMetrics.reviewCount !== 1 ? 's' : ''}`
                           : 'No reviews yet')}
                   </p>
                 </div>

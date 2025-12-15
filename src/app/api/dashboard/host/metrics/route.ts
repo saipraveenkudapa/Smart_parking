@@ -12,6 +12,10 @@ type HostRatingRow = {
   review_count: bigint | number | string | null
 }
 
+const toUtcMonthStart = (d: Date) => {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0, 0))
+}
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.split(' ')[1]
@@ -29,6 +33,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid user' }, { status: 401 })
     }
 
+    const { searchParams } = new URL(request.url)
+    const startParam = searchParams.get('start')
+    const endParam = searchParams.get('end')
+
+    const now = new Date()
+    const endDate = endParam ? new Date(endParam) : now
+    const startDate = startParam ? new Date(startParam) : toUtcMonthStart(endDate)
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return NextResponse.json({ error: 'Invalid start/end date' }, { status: 400 })
+    }
+
+    if (endDate <= startDate) {
+      return NextResponse.json({ error: 'End date must be after start date' }, { status: 400 })
+    }
+
     const [metricsRows, ratingRows] = await Promise.all([
       prisma.$queryRaw<HostDashboardMetricsRow[]>`
         SELECT
@@ -40,7 +60,8 @@ export async function GET(request: NextRequest) {
         WHERE
           a.owner_id = ${ownerId}
           AND UPPER(b.booking_status) IN ('CONFIRMED', 'COMPLETED')
-          AND b.start_time >= (NOW() - INTERVAL '14 days');
+          AND b.start_time >= ${startDate}
+          AND b.start_time < ${endDate};
       `,
       prisma.$queryRaw<HostRatingRow[]>`
         SELECT
@@ -49,7 +70,9 @@ export async function GET(request: NextRequest) {
         FROM park_connect.reviews r
         WHERE
           r.reviewee_id = ${ownerId}
-          AND UPPER(COALESCE(r.review_type, 'USER')) = 'USER';
+          AND UPPER(COALESCE(r.review_type, 'USER')) = 'USER'
+          AND r.created_at >= ${startDate}
+          AND r.created_at < ${endDate};
       `
     ])
 
