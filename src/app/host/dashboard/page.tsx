@@ -95,6 +95,11 @@ export default function HostDashboard() {
     totalAvailableHours: 0,
     totalBookedHours: 0
   })
+  const [thisWeekOccupancyMetrics, setThisWeekOccupancyMetrics] = useState({
+    occupancyPercentage: 0,
+    totalAvailableHours: 0,
+    totalBookedHours: 0
+  })
   const [occupancyMetricsLoading, setOccupancyMetricsLoading] = useState(true)
   const [reviewsBySpace, setReviewsBySpace] = useState<Record<string, { avgRating: number; totalReviews: number }>>({})
 
@@ -121,22 +126,36 @@ export default function HostDashboard() {
       }
 
       const endDate = new Date()
-      const startDate = new Date(endDate.getTime() - 14 * 24 * 60 * 60 * 1000)
-      const url = `/api/dashboard/host/occupancy?start=${encodeURIComponent(startDate.toISOString())}&end=${encodeURIComponent(endDate.toISOString())}`
+      const twoWeeksStartDate = new Date(endDate.getTime() - 14 * 24 * 60 * 60 * 1000)
+      const thisWeekStartDate = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000)
 
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const twoWeeksUrl = `/api/dashboard/host/occupancy?start=${encodeURIComponent(twoWeeksStartDate.toISOString())}&end=${encodeURIComponent(endDate.toISOString())}`
+      const thisWeekUrl = `/api/dashboard/host/occupancy?start=${encodeURIComponent(thisWeekStartDate.toISOString())}&end=${encodeURIComponent(endDate.toISOString())}`
 
-      const body = await res.json()
-      if (!res.ok) {
-        throw new Error(body?.error || 'Failed to fetch occupancy metrics')
+      const [twoWeeksRes, thisWeekRes] = await Promise.all([
+        fetch(twoWeeksUrl, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(thisWeekUrl, { headers: { Authorization: `Bearer ${token}` } })
+      ])
+
+      const [twoWeeksBody, thisWeekBody] = await Promise.all([twoWeeksRes.json(), thisWeekRes.json()])
+
+      if (!twoWeeksRes.ok) {
+        throw new Error(twoWeeksBody?.error || 'Failed to fetch 2 weeks occupancy metrics')
+      }
+      if (!thisWeekRes.ok) {
+        throw new Error(thisWeekBody?.error || 'Failed to fetch this week occupancy metrics')
       }
 
       setOccupancyMetrics({
-        occupancyPercentage: Number(body?.data?.occupancyPercentage) || 0,
-        totalAvailableHours: Number(body?.data?.totalAvailableHours) || 0,
-        totalBookedHours: Number(body?.data?.totalBookedHours) || 0
+        occupancyPercentage: Number(twoWeeksBody?.data?.occupancyPercentage) || 0,
+        totalAvailableHours: Number(twoWeeksBody?.data?.totalAvailableHours) || 0,
+        totalBookedHours: Number(twoWeeksBody?.data?.totalBookedHours) || 0
+      })
+
+      setThisWeekOccupancyMetrics({
+        occupancyPercentage: Number(thisWeekBody?.data?.occupancyPercentage) || 0,
+        totalAvailableHours: Number(thisWeekBody?.data?.totalAvailableHours) || 0,
+        totalBookedHours: Number(thisWeekBody?.data?.totalBookedHours) || 0
       })
     } catch (err: any) {
       console.error('[Dashboard] Fetch occupancy metrics error:', err)
@@ -549,6 +568,33 @@ export default function HostDashboard() {
                       ? ''
                       : `${occupancyMetrics.totalBookedHours.toFixed(2)}h booked / ${occupancyMetrics.totalAvailableHours.toFixed(2)}h available`}
                   </p>
+                  {!occupancyMetricsLoading && (() => {
+                    const baseline = occupancyMetrics.occupancyPercentage
+                    const current = thisWeekOccupancyMetrics.occupancyPercentage
+                    const hasBaseline = Number.isFinite(baseline) && baseline > 0
+
+                    if (!Number.isFinite(current)) {
+                      return null
+                    }
+
+                    if (!hasBaseline) {
+                      return (
+                        <p className="text-sm text-gray-500 mt-1">
+                          This week: {current.toFixed(2)}% (change: N/A)
+                        </p>
+                      )
+                    }
+
+                    const changePct = ((current - baseline) / baseline) * 100
+                    const changeClass = changePct > 0 ? 'text-green-600' : changePct < 0 ? 'text-red-600' : 'text-gray-600'
+                    const changeLabel = `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`
+
+                    return (
+                      <p className="text-sm text-gray-500 mt-1">
+                        This week: {current.toFixed(2)}% (<span className={changeClass}>{changeLabel}</span>)
+                      </p>
+                    )
+                  })()}
                 </div>
               </div>
             </div>
