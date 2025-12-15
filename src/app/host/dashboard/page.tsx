@@ -861,31 +861,6 @@ export default function HostDashboard() {
             </div>
           )}
 
-          {/* Stats Summary */}
-          {!loading && !error && listings.length > 0 && (
-            <div className="mt-8 grid md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-lg shadow-md p-6 text-center">
-                <div className="text-3xl font-bold text-green-600">{listings.length}</div>
-                <div className="text-gray-600 mt-1">Total Listings</div>
-              </div>
-              <div className="bg-white rounded-lg shadow-md p-6 text-center">
-                <div className="text-3xl font-bold text-green-600">
-                  {listings.filter((l) => l.isActive).length}
-                </div>
-                <div className="text-gray-600 mt-1">Active Listings</div>
-              </div>
-              <div className="bg-white rounded-lg shadow-md p-6 text-center">
-                <div className="text-3xl font-bold text-green-600">
-                  $
-                  {listings
-                    .filter((l) => l.isActive)
-                    .reduce((sum, l) => sum + l.monthlyPrice, 0)
-                    .toFixed(0)}
-                </div>
-                <div className="text-gray-600 mt-1">Potential Monthly Income</div>
-              </div>
-            </div>
-          )}
             </>
           )}
 
