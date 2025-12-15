@@ -504,6 +504,7 @@ export async function GET(req: NextRequest) {
         id: booking.booking_id.toString(),
         startDate: booking.start_time,
         endDate: booking.end_time,
+        totalAmount: Number(booking.total_amount),
         vehicleDetails: '', // Not available in schema, set as empty or fetch if possible
         status: mapStatusToUi(booking.booking_status),
         createdAt: booking.start_time, // bookings does not have created_at, use start_time

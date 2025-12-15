@@ -60,6 +60,7 @@ export async function GET(req: NextRequest) {
       id: booking.booking_id.toString(),
       startDate: booking.start_time,
       endDate: booking.end_time,
+      totalAmount: Number(booking.total_amount),
       vehicleDetails: 'Vehicle details unavailable',
       status: (booking.booking_status || '').toUpperCase(),
       createdAt: booking.start_time,

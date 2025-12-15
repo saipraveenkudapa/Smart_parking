@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import { isAuthenticated } from '@/lib/clientAuth'
@@ -16,6 +16,9 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState('')
   const [earnings, setEarnings] = useState({ total: 0, thisMonth: 0, pending: 0, completed: 0 })
   const [earningsLoading, setEarningsLoading] = useState(true)
+  const [spendingRange, setSpendingRange] = useState<'last7' | 'last30' | 'thisMonth' | 'allTime'>('last7')
+  const [renterBookings, setRenterBookings] = useState<any[]>([])
+  const [renterBookingsLoading, setRenterBookingsLoading] = useState(true)
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -34,7 +37,30 @@ export default function ProfilePage() {
 
     fetchProfile()
     fetchEarnings()
+    fetchRenterBookings()
   }, [router])
+
+  const fetchRenterBookings = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+
+      const response = await fetch('/api/bookings', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      const data = await response.json()
+      if (response.ok && Array.isArray(data.bookings)) {
+        setRenterBookings(data.bookings)
+      }
+    } catch (err) {
+      console.error('Fetch renter bookings error:', err)
+    } finally {
+      setRenterBookingsLoading(false)
+    }
+  }
 
   const fetchEarnings = async () => {
     try {
@@ -86,6 +112,86 @@ export default function ProfilePage() {
     
     setEarnings({ total, thisMonth, pending, completed })
   }
+
+  const parkingAnalytics = useMemo(() => {
+    const safeNumber = (value: any) => {
+      const asNumber = typeof value === 'number' ? value : Number(value)
+      return Number.isFinite(asNumber) ? asNumber : 0
+    }
+
+    const now = new Date()
+    let rangeStart: Date | null = null
+    let rangeEnd: Date | null = null
+
+    if (spendingRange === 'last7') {
+      rangeStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      rangeEnd = now
+    } else if (spendingRange === 'last30') {
+      rangeStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      rangeEnd = now
+    } else if (spendingRange === 'thisMonth') {
+      rangeStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      rangeEnd = now
+    }
+
+    const inRange = (booking: any) => {
+      const start = booking?.startDate ? new Date(booking.startDate) : null
+      if (!start || Number.isNaN(start.getTime())) return false
+      if (rangeStart && start < rangeStart) return false
+      if (rangeEnd && start > rangeEnd) return false
+      return true
+    }
+
+    const normalizeStatus = (status: any) => (typeof status === 'string' ? status.toUpperCase() : '')
+    const isApproved = (status: string) => status === 'APPROVED' || status === 'COMPLETED'
+    const isPending = (status: string) => status === 'PENDING'
+
+    const filtered = renterBookings.filter(inRange)
+
+    let totalSpending = 0
+    let parkingsCount = 0
+    let pendingCharges = 0
+    let pendingCount = 0
+    const cityCounts = new Map<string, number>()
+
+    for (const booking of filtered) {
+      const status = normalizeStatus(booking?.status)
+      const amount = safeNumber(booking?.totalAmount)
+      const city = (booking?.listing?.city || '').trim()
+
+      if (isApproved(status)) {
+        totalSpending += amount
+        parkingsCount += 1
+      } else if (isPending(status)) {
+        pendingCharges += amount
+        pendingCount += 1
+      }
+
+      if (city) {
+        cityCounts.set(city, (cityCounts.get(city) || 0) + 1)
+      }
+    }
+
+    let mostUsedCity = 'N/A'
+    let topCount = 0
+    for (const [city, count] of cityCounts.entries()) {
+      if (count > topCount) {
+        topCount = count
+        mostUsedCity = city
+      }
+    }
+
+    const avgParkingCost = parkingsCount > 0 ? totalSpending / parkingsCount : 0
+
+    return {
+      totalSpending,
+      parkingsCount,
+      pendingCharges,
+      pendingCount,
+      avgParkingCost,
+      mostUsedCity,
+    }
+  }, [renterBookings, spendingRange])
 
   const fetchProfile = async () => {
     try {
@@ -452,32 +558,79 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Quick Links */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <button
-            onClick={() => router.push('/renter/bookings')}
-            className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition text-left"
-          >
-            <div className="text-4xl mb-3">📅</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">My Bookings</h3>
-            <p className="text-gray-600">View and manage your parking bookings</p>
-          </button>
-          <button
-            onClick={() => router.push('/vehicles')}
-            className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition text-left"
-          >
-            <div className="text-4xl mb-3">🚗</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">My Vehicles</h3>
-            <p className="text-gray-600">Manage your registered vehicles</p>
-          </button>
-          <button
-            onClick={() => router.push('/renter/analytics')}
-            className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition text-left"
-          >
-            <div className="text-4xl mb-3">📊</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Analytics</h3>
-            <p className="text-gray-600">View your personalized dashboards</p>
-          </button>
+
+        {/* Parking Analytics Summary */}
+        <div className="bg-white rounded-xl shadow-lg p-8 mt-8">
+          <h2 className="text-2xl font-bold mb-4">📊 My Parking Analytics</h2>
+
+          <div className="flex flex-wrap gap-3 mb-6">
+            <button
+              type="button"
+              onClick={() => setSpendingRange('last7')}
+              className={`px-4 py-2 rounded-lg border font-semibold transition ${spendingRange === 'last7' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-900 border-gray-300 hover:bg-gray-50'}`}
+            >
+              Last 7 Days
+            </button>
+            <button
+              type="button"
+              onClick={() => setSpendingRange('last30')}
+              className={`px-4 py-2 rounded-lg border font-semibold transition ${spendingRange === 'last30' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-900 border-gray-300 hover:bg-gray-50'}`}
+            >
+              Last 30 Days
+            </button>
+            <button
+              type="button"
+              onClick={() => setSpendingRange('thisMonth')}
+              className={`px-4 py-2 rounded-lg border font-semibold transition ${spendingRange === 'thisMonth' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-900 border-gray-300 hover:bg-gray-50'}`}
+            >
+              This Month
+            </button>
+            <button
+              type="button"
+              onClick={() => setSpendingRange('allTime')}
+              className={`px-4 py-2 rounded-lg border font-semibold transition ${spendingRange === 'allTime' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-900 border-gray-300 hover:bg-gray-50'}`}
+            >
+              All Time
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-600 text-sm">Total Spending</span>
+              </div>
+              <p className="text-3xl font-bold text-gray-900">${parkingAnalytics.totalSpending.toFixed(2)}</p>
+              <p className="text-sm text-gray-600">{parkingAnalytics.parkingsCount} parkings</p>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-600 text-sm">Pending Charges</span>
+              </div>
+              <p className="text-3xl font-bold text-gray-900">${parkingAnalytics.pendingCharges.toFixed(2)}</p>
+              <p className="text-sm text-gray-600">{parkingAnalytics.pendingCount} pending</p>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-600 text-sm">Avg Parking Cost</span>
+              </div>
+              <p className="text-3xl font-bold text-gray-900">${parkingAnalytics.avgParkingCost.toFixed(2)}</p>
+              <p className="text-sm text-gray-600">per booking</p>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-600 text-sm">Most Used City</span>
+              </div>
+              <p className="text-3xl font-bold text-gray-900">{parkingAnalytics.mostUsedCity}</p>
+              <p className="text-sm text-gray-600">favorite location</p>
+            </div>
+          </div>
+
+          {renterBookingsLoading && (
+            <p className="text-sm text-gray-600 mt-4">Loading analytics...</p>
+          )}
         </div>
       </main>
 
