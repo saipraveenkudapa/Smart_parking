@@ -423,7 +423,7 @@ export default function HostDashboard() {
       const nextMonthStart = new Date(Date.UTC(year, monthIndex + 1, 1, 0, 0, 0, 0))
       const lastMonthStart = new Date(Date.UTC(year, monthIndex - 1, 1, 0, 0, 0, 0))
 
-      const thisMonthUrl = `/api/dashboard/host/metrics?start=${encodeURIComponent(thisMonthStart.toISOString())}&end=${encodeURIComponent(now.toISOString())}`
+      const thisMonthUrl = `/api/dashboard/host/metrics?start=${encodeURIComponent(thisMonthStart.toISOString())}&end=${encodeURIComponent(nextMonthStart.toISOString())}`
       const lastMonthUrl = `/api/dashboard/host/metrics?start=${encodeURIComponent(lastMonthStart.toISOString())}&end=${encodeURIComponent(thisMonthStart.toISOString())}`
 
       const [thisRes, lastRes] = await Promise.all([
