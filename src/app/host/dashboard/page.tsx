@@ -89,6 +89,12 @@ export default function HostDashboard() {
     rating: 0,
     reviewCount: 0
   })
+  const [lastMonthMetrics, setLastMonthMetrics] = useState({
+    earnings: 0,
+    bookings: 0,
+    rating: 0,
+    reviewCount: 0
+  })
   const [monthMetricsLoading, setMonthMetricsLoading] = useState(true)
   const [thisMonthOccupancyMetrics, setThisMonthOccupancyMetrics] = useState({
     occupancyPercentage: 0,
@@ -396,23 +402,42 @@ export default function HostDashboard() {
       }
 
       const now = new Date()
-      const thisMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0))
-      const metricsUrl = `/api/dashboard/host/metrics?start=${encodeURIComponent(thisMonthStart.toISOString())}&end=${encodeURIComponent(now.toISOString())}`
+      const year = now.getUTCFullYear()
+      const monthIndex = now.getUTCMonth()
 
-      const res = await fetch(metricsUrl, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const thisMonthStart = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0, 0))
+      const nextMonthStart = new Date(Date.UTC(year, monthIndex + 1, 1, 0, 0, 0, 0))
+      const lastMonthStart = new Date(Date.UTC(year, monthIndex - 1, 1, 0, 0, 0, 0))
 
-      const body = await res.json()
-      if (!res.ok) {
-        throw new Error(body?.error || 'Failed to fetch dashboard metrics')
+      const thisMonthUrl = `/api/dashboard/host/metrics?start=${encodeURIComponent(thisMonthStart.toISOString())}&end=${encodeURIComponent(now.toISOString())}`
+      const lastMonthUrl = `/api/dashboard/host/metrics?start=${encodeURIComponent(lastMonthStart.toISOString())}&end=${encodeURIComponent(thisMonthStart.toISOString())}`
+
+      const [thisRes, lastRes] = await Promise.all([
+        fetch(thisMonthUrl, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(lastMonthUrl, { headers: { Authorization: `Bearer ${token}` } })
+      ])
+
+      const [thisBody, lastBody] = await Promise.all([thisRes.json(), lastRes.json()])
+
+      if (!thisRes.ok) {
+        throw new Error(thisBody?.error || 'Failed to fetch this month dashboard metrics')
+      }
+      if (!lastRes.ok) {
+        throw new Error(lastBody?.error || 'Failed to fetch last month dashboard metrics')
       }
 
       setMonthMetrics({
-        earnings: body?.data?.earnings || 0,
-        bookings: body?.data?.bookings || 0,
-        rating: body?.data?.rating || 0,
-        reviewCount: body?.data?.reviewCount || 0
+        earnings: thisBody?.data?.earnings || 0,
+        bookings: thisBody?.data?.bookings || 0,
+        rating: thisBody?.data?.rating || 0,
+        reviewCount: thisBody?.data?.reviewCount || 0
+      })
+
+      setLastMonthMetrics({
+        earnings: lastBody?.data?.earnings || 0,
+        bookings: lastBody?.data?.bookings || 0,
+        rating: lastBody?.data?.rating || 0,
+        reviewCount: lastBody?.data?.reviewCount || 0
       })
     } catch (err: any) {
       console.error('[Dashboard] Fetch month metrics error:', err)
@@ -518,6 +543,9 @@ export default function HostDashboard() {
                   <p className="text-3xl font-bold text-green-600">
                     {monthMetricsLoading ? '—' : `$${monthMetrics.earnings.toFixed(2)}`}
                   </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    {monthMetricsLoading ? '' : `Last month: $${Number(lastMonthMetrics.earnings || 0).toFixed(2)}`}
+                  </p>
                 </div>
               </div>
             </div>
@@ -531,6 +559,9 @@ export default function HostDashboard() {
               <div className="flex items-end justify-between">
                 <div>
                   <p className="text-3xl font-bold text-blue-600">{monthMetricsLoading ? '—' : monthMetrics.bookings}</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    {monthMetricsLoading ? '' : `Last month: ${Number(lastMonthMetrics.bookings || 0)}`}
+                  </p>
                 </div>
               </div>
             </div>
