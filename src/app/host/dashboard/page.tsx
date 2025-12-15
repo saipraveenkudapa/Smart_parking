@@ -79,9 +79,10 @@ const getMonthOverMonthChangePct = (current: number, previous: number) => {
     return ((safeCurrent - safePrevious) / safePrevious) * 100
   }
 
-  // Avoid division by zero. If last month was 0 and this month has a value,
-  // treat it as a +100% increase for display purposes.
-  return safeCurrent > 0 ? 100 : 0
+  // Avoid division by zero.
+  // If last month was 0 and this month has a value, show current*100.
+  // Example: 2 bookings => +200.00%
+  return safeCurrent > 0 ? safeCurrent * 100 : 0
 }
 
 export default function HostDashboard() {
