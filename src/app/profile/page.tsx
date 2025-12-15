@@ -117,34 +117,22 @@ export default function ProfilePage() {
     }
 
     const normalizeStatus = (status: any) => (typeof status === 'string' ? status.toUpperCase() : '')
-    const isApproved = (status: string) =>
-      status === 'APPROVED' || status === 'COMPLETED' || status === 'CONFIRMED'
-    const isPending = (status: string) => status === 'PENDING'
+    const isApproved = (status: string) => status === 'COMPLETED' || status === 'CONFIRMED' || status === 'APPROVED'
 
-    const sourceBookings = renterBookings.length > 0 ? renterBookings : hostBookings
-    const useHostAmounts = renterBookings.length === 0 && hostBookings.length > 0
-
-    const filtered = sourceBookings.filter(inRange)
+    const filtered = hostBookings.filter(inRange)
 
     let totalSpending = 0
     let parkingsCount = 0
-    let pendingCharges = 0
-    let pendingCount = 0
     const cityCounts = new Map<string, number>()
 
     for (const booking of filtered) {
       const status = normalizeStatus(booking?.status)
-      const amount = useHostAmounts
-        ? safeNumber(booking?.ownerPayout ?? booking?.totalAmount)
-        : safeNumber(booking?.totalAmount)
+      const amount = safeNumber(booking?.ownerPayout ?? booking?.totalAmount)
       const city = (booking?.listing?.city || '').trim()
 
       if (isApproved(status)) {
         totalSpending += amount
         parkingsCount += 1
-      } else if (isPending(status)) {
-        pendingCharges += amount
-        pendingCount += 1
       }
 
       if (city) {
@@ -166,12 +154,10 @@ export default function ProfilePage() {
     return {
       totalSpending,
       parkingsCount,
-      pendingCharges,
-      pendingCount,
       avgParkingCost,
       mostUsedCity,
     }
-  }, [renterBookings, hostBookings, spendingRange])
+  }, [hostBookings, spendingRange])
 
   const fetchProfile = async () => {
     try {
@@ -490,8 +476,8 @@ export default function ProfilePage() {
         <div className="bg-white rounded-xl shadow-lg p-8 mt-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">My Parking Analytics</h2>
-              <p className="text-gray-600 text-sm mt-1">Track usage and spending by time range</p>
+              <h2 className="text-2xl font-bold text-gray-900">My Listing Analytics</h2>
+              <p className="text-gray-600 text-sm mt-1">Track your listings earnings by time range</p>
             </div>
 
             <div className="inline-flex flex-wrap gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2">
@@ -526,21 +512,15 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="bg-linear-to-br from-green-50 to-green-100 rounded-xl p-5 border border-green-200">
-              <p className="text-sm font-semibold text-gray-700">Total Spending</p>
+              <p className="text-sm font-semibold text-gray-700">Total Earnings</p>
               <p className="text-3xl font-bold text-green-700 mt-2">${parkingAnalytics.totalSpending.toFixed(2)}</p>
               <p className="text-sm text-gray-600 mt-1">{parkingAnalytics.parkingsCount} parkings</p>
             </div>
 
-            <div className="bg-linear-to-br from-yellow-50 to-yellow-100 rounded-xl p-5 border border-yellow-200">
-              <p className="text-sm font-semibold text-gray-700">Pending Charges</p>
-              <p className="text-3xl font-bold text-yellow-700 mt-2">${parkingAnalytics.pendingCharges.toFixed(2)}</p>
-              <p className="text-sm text-gray-600 mt-1">{parkingAnalytics.pendingCount} pending</p>
-            </div>
-
             <div className="bg-linear-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200">
-              <p className="text-sm font-semibold text-gray-700">Avg Parking Cost</p>
+              <p className="text-sm font-semibold text-gray-700">Avg earning</p>
               <p className="text-3xl font-bold text-blue-700 mt-2">${parkingAnalytics.avgParkingCost.toFixed(2)}</p>
               <p className="text-sm text-gray-600 mt-1">per booking</p>
             </div>
@@ -548,7 +528,6 @@ export default function ProfilePage() {
             <div className="bg-linear-to-br from-purple-50 to-purple-100 rounded-xl p-5 border border-purple-200">
               <p className="text-sm font-semibold text-gray-700">Most Used City</p>
               <p className="text-2xl font-bold text-purple-700 mt-2 break-words">{parkingAnalytics.mostUsedCity}</p>
-              <p className="text-sm text-gray-600 mt-1">favorite location</p>
             </div>
           </div>
 
