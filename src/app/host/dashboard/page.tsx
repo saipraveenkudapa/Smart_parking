@@ -90,6 +90,12 @@ export default function HostDashboard() {
     reviewCount: 0
   })
   const [twoWeeksMetricsLoading, setTwoWeeksMetricsLoading] = useState(true)
+  const [occupancyMetrics, setOccupancyMetrics] = useState({
+    occupancyPercentage: 0,
+    totalAvailableHours: 0,
+    totalBookedHours: 0
+  })
+  const [occupancyMetricsLoading, setOccupancyMetricsLoading] = useState(true)
   const [reviewsBySpace, setReviewsBySpace] = useState<Record<string, { avgRating: number; totalReviews: number }>>({})
 
   useEffect(() => {
@@ -102,8 +108,42 @@ export default function HostDashboard() {
     fetchMyListings()
     fetchBookings()
     fetchTwoWeeksMetrics()
+    fetchOccupancyMetrics()
     fetchReviewsBySpace()
   }, [])
+
+  const fetchOccupancyMetrics = async () => {
+    try {
+      setOccupancyMetricsLoading(true)
+      const token = localStorage.getItem('token')
+      if (!token) {
+        return
+      }
+
+      const endDate = new Date()
+      const startDate = new Date(endDate.getTime() - 14 * 24 * 60 * 60 * 1000)
+      const url = `/api/dashboard/host/occupancy?start=${encodeURIComponent(startDate.toISOString())}&end=${encodeURIComponent(endDate.toISOString())}`
+
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      const body = await res.json()
+      if (!res.ok) {
+        throw new Error(body?.error || 'Failed to fetch occupancy metrics')
+      }
+
+      setOccupancyMetrics({
+        occupancyPercentage: Number(body?.data?.occupancyPercentage) || 0,
+        totalAvailableHours: Number(body?.data?.totalAvailableHours) || 0,
+        totalBookedHours: Number(body?.data?.totalBookedHours) || 0
+      })
+    } catch (err: any) {
+      console.error('[Dashboard] Fetch occupancy metrics error:', err)
+    } finally {
+      setOccupancyMetricsLoading(false)
+    }
+  }
 
   const fetchReviewsBySpace = async () => {
     try {
@@ -435,7 +475,7 @@ export default function HostDashboard() {
           </div>
 
           {/* Last 2 Weeks Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             {/* Last 2 Weeks Earnings */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-3">
@@ -488,6 +528,26 @@ export default function HostDashboard() {
                       : (twoWeeksMetrics.reviewCount > 0
                           ? `${twoWeeksMetrics.reviewCount} review${twoWeeksMetrics.reviewCount !== 1 ? 's' : ''}`
                           : 'No reviews yet')}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Occupancy Rate */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-gray-600">Last 2 Weeks Occupancy Rate</h3>
+                <span className="text-2xl">📊</span>
+              </div>
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-3xl font-bold text-green-600">
+                    {occupancyMetricsLoading ? '—' : `${occupancyMetrics.occupancyPercentage.toFixed(2)}%`}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    {occupancyMetricsLoading
+                      ? ''
+                      : `${occupancyMetrics.totalBookedHours.toFixed(2)}h booked / ${occupancyMetrics.totalAvailableHours.toFixed(2)}h available`}
                   </p>
                 </div>
               </div>
