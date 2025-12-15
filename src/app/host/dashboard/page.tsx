@@ -71,6 +71,19 @@ const mapUiStatusToApi = (status: 'APPROVED' | 'REJECTED'): ApiBookingStatus => 
   return 'rejected'
 }
 
+const getMonthOverMonthChangePct = (current: number, previous: number) => {
+  const safeCurrent = Number.isFinite(current) ? current : 0
+  const safePrevious = Number.isFinite(previous) ? previous : 0
+
+  if (safePrevious > 0) {
+    return ((safeCurrent - safePrevious) / safePrevious) * 100
+  }
+
+  // Avoid division by zero. If last month was 0 and this month has a value,
+  // treat it as a +100% increase for display purposes.
+  return safeCurrent > 0 ? 100 : 0
+}
+
 export default function HostDashboard() {
   const router = useRouter()
   const [listings, setListings] = useState<Listing[]>([])
@@ -543,9 +556,17 @@ export default function HostDashboard() {
                   <p className="text-3xl font-bold text-green-600">
                     {monthMetricsLoading ? '—' : `$${monthMetrics.earnings.toFixed(2)}`}
                   </p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    {monthMetricsLoading ? '' : `Last month: $${Number(lastMonthMetrics.earnings || 0).toFixed(2)}`}
-                  </p>
+                  {!monthMetricsLoading && (() => {
+                    const changePct = getMonthOverMonthChangePct(monthMetrics.earnings, lastMonthMetrics.earnings)
+                    const changeClass = changePct > 0 ? 'text-green-600' : changePct < 0 ? 'text-red-600' : 'text-gray-600'
+                    const changeLabel = `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`
+
+                    return (
+                      <p className="text-sm text-gray-500 mt-2">
+                        vs last month: <span className={changeClass}>{changeLabel}</span>
+                      </p>
+                    )
+                  })()}
                 </div>
               </div>
             </div>
@@ -559,9 +580,17 @@ export default function HostDashboard() {
               <div className="flex items-end justify-between">
                 <div>
                   <p className="text-3xl font-bold text-blue-600">{monthMetricsLoading ? '—' : monthMetrics.bookings}</p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    {monthMetricsLoading ? '' : `Last month: ${Number(lastMonthMetrics.bookings || 0)}`}
-                  </p>
+                  {!monthMetricsLoading && (() => {
+                    const changePct = getMonthOverMonthChangePct(monthMetrics.bookings, lastMonthMetrics.bookings)
+                    const changeClass = changePct > 0 ? 'text-green-600' : changePct < 0 ? 'text-red-600' : 'text-gray-600'
+                    const changeLabel = `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`
+
+                    return (
+                      <p className="text-sm text-gray-500 mt-2">
+                        vs last month: <span className={changeClass}>{changeLabel}</span>
+                      </p>
+                    )
+                  })()}
                 </div>
               </div>
             </div>
