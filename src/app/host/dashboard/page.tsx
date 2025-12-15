@@ -90,12 +90,12 @@ export default function HostDashboard() {
     reviewCount: 0
   })
   const [twoWeeksMetricsLoading, setTwoWeeksMetricsLoading] = useState(true)
-  const [occupancyMetrics, setOccupancyMetrics] = useState({
+  const [thisMonthOccupancyMetrics, setThisMonthOccupancyMetrics] = useState({
     occupancyPercentage: 0,
     totalAvailableHours: 0,
     totalBookedHours: 0
   })
-  const [thisWeekOccupancyMetrics, setThisWeekOccupancyMetrics] = useState({
+  const [lastMonthOccupancyMetrics, setLastMonthOccupancyMetrics] = useState({
     occupancyPercentage: 0,
     totalAvailableHours: 0,
     totalBookedHours: 0
@@ -125,37 +125,45 @@ export default function HostDashboard() {
         return
       }
 
-      const endDate = new Date()
-      const twoWeeksStartDate = new Date(endDate.getTime() - 14 * 24 * 60 * 60 * 1000)
-      const thisWeekStartDate = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000)
+      const now = new Date()
+      const year = now.getUTCFullYear()
+      const monthIndex = now.getUTCMonth() // 0-11
 
-      const twoWeeksUrl = `/api/dashboard/host/occupancy?start=${encodeURIComponent(twoWeeksStartDate.toISOString())}&end=${encodeURIComponent(endDate.toISOString())}`
-      const thisWeekUrl = `/api/dashboard/host/occupancy?start=${encodeURIComponent(thisWeekStartDate.toISOString())}&end=${encodeURIComponent(endDate.toISOString())}`
+      const thisMonthStart = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0, 0))
+      const nextMonthStart = new Date(Date.UTC(year, monthIndex + 1, 1, 0, 0, 0, 0))
+      const lastMonthStart = new Date(Date.UTC(year, monthIndex - 1, 1, 0, 0, 0, 0))
 
-      const [twoWeeksRes, thisWeekRes] = await Promise.all([
-        fetch(twoWeeksUrl, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(thisWeekUrl, { headers: { Authorization: `Bearer ${token}` } })
+      // Last month: [lastMonthStart, thisMonthStart)
+      const lastMonthUrl = `/api/dashboard/host/occupancy?start=${encodeURIComponent(lastMonthStart.toISOString())}&end=${encodeURIComponent(thisMonthStart.toISOString())}`
+
+      // This month so far: [thisMonthStart, now]
+      // (If you ever want full-month projection, use nextMonthStart instead of now.)
+      const thisMonthUrl = `/api/dashboard/host/occupancy?start=${encodeURIComponent(thisMonthStart.toISOString())}&end=${encodeURIComponent(now.toISOString())}`
+
+      const [lastMonthRes, thisMonthRes] = await Promise.all([
+        fetch(lastMonthUrl, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(thisMonthUrl, { headers: { Authorization: `Bearer ${token}` } })
       ])
 
-      const [twoWeeksBody, thisWeekBody] = await Promise.all([twoWeeksRes.json(), thisWeekRes.json()])
+      const [lastMonthBody, thisMonthBody] = await Promise.all([lastMonthRes.json(), thisMonthRes.json()])
 
-      if (!twoWeeksRes.ok) {
-        throw new Error(twoWeeksBody?.error || 'Failed to fetch 2 weeks occupancy metrics')
+      if (!lastMonthRes.ok) {
+        throw new Error(lastMonthBody?.error || 'Failed to fetch last month occupancy metrics')
       }
-      if (!thisWeekRes.ok) {
-        throw new Error(thisWeekBody?.error || 'Failed to fetch this week occupancy metrics')
+      if (!thisMonthRes.ok) {
+        throw new Error(thisMonthBody?.error || 'Failed to fetch this month occupancy metrics')
       }
 
-      setOccupancyMetrics({
-        occupancyPercentage: Number(twoWeeksBody?.data?.occupancyPercentage) || 0,
-        totalAvailableHours: Number(twoWeeksBody?.data?.totalAvailableHours) || 0,
-        totalBookedHours: Number(twoWeeksBody?.data?.totalBookedHours) || 0
+      setLastMonthOccupancyMetrics({
+        occupancyPercentage: Number(lastMonthBody?.data?.occupancyPercentage) || 0,
+        totalAvailableHours: Number(lastMonthBody?.data?.totalAvailableHours) || 0,
+        totalBookedHours: Number(lastMonthBody?.data?.totalBookedHours) || 0
       })
 
-      setThisWeekOccupancyMetrics({
-        occupancyPercentage: Number(thisWeekBody?.data?.occupancyPercentage) || 0,
-        totalAvailableHours: Number(thisWeekBody?.data?.totalAvailableHours) || 0,
-        totalBookedHours: Number(thisWeekBody?.data?.totalBookedHours) || 0
+      setThisMonthOccupancyMetrics({
+        occupancyPercentage: Number(thisMonthBody?.data?.occupancyPercentage) || 0,
+        totalAvailableHours: Number(thisMonthBody?.data?.totalAvailableHours) || 0,
+        totalBookedHours: Number(thisMonthBody?.data?.totalBookedHours) || 0
       })
     } catch (err: any) {
       console.error('[Dashboard] Fetch occupancy metrics error:', err)
@@ -555,22 +563,22 @@ export default function HostDashboard() {
             {/* Occupancy Rate */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium text-gray-600">Last 2 Weeks Occupancy Rate</h3>
+                <h3 className="text-sm font-medium text-gray-600">Monthly Occupancy Rate</h3>
                 <span className="text-2xl">📊</span>
               </div>
               <div className="flex items-end justify-between">
                 <div>
                   <p className="text-3xl font-bold text-green-600">
-                    {occupancyMetricsLoading ? '—' : `${occupancyMetrics.occupancyPercentage.toFixed(2)}%`}
+                    {occupancyMetricsLoading ? '—' : `${thisMonthOccupancyMetrics.occupancyPercentage.toFixed(2)}%`}
                   </p>
                   <p className="text-sm text-gray-500 mt-2">
                     {occupancyMetricsLoading
                       ? ''
-                      : `${occupancyMetrics.totalBookedHours.toFixed(2)}h booked / ${occupancyMetrics.totalAvailableHours.toFixed(2)}h available`}
+                      : `${thisMonthOccupancyMetrics.totalBookedHours.toFixed(2)}h booked / ${thisMonthOccupancyMetrics.totalAvailableHours.toFixed(2)}h available`}
                   </p>
                   {!occupancyMetricsLoading && (() => {
-                    const baseline = occupancyMetrics.occupancyPercentage
-                    const current = thisWeekOccupancyMetrics.occupancyPercentage
+                    const baseline = lastMonthOccupancyMetrics.occupancyPercentage
+                    const current = thisMonthOccupancyMetrics.occupancyPercentage
                     const hasBaseline = Number.isFinite(baseline) && baseline > 0
 
                     if (!Number.isFinite(current)) {
@@ -580,7 +588,7 @@ export default function HostDashboard() {
                     if (!hasBaseline) {
                       return (
                         <p className="text-sm text-gray-500 mt-1">
-                          This week: {current.toFixed(2)}% (change: N/A)
+                          Last month: {baseline.toFixed(2)}% (change: N/A)
                         </p>
                       )
                     }
@@ -591,7 +599,7 @@ export default function HostDashboard() {
 
                     return (
                       <p className="text-sm text-gray-500 mt-1">
-                        This week: {current.toFixed(2)}% (<span className={changeClass}>{changeLabel}</span>)
+                        Last month: {baseline.toFixed(2)}% (<span className={changeClass}>{changeLabel}</span>)
                       </p>
                     )
                   })()}
