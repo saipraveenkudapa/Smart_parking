@@ -486,18 +486,6 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Reviews Section */}
-        {user && (
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <Reviews 
-              targetId={user.userId} 
-              targetType="USER"
-              allowNewReview={false}
-            />
-          </div>
-        )}
-
-
         {/* Parking Analytics Summary */}
         <div className="bg-white rounded-xl shadow-lg p-8 mt-8">
           <h2 className="text-2xl font-bold mb-4">📊 My Parking Analytics</h2>
@@ -577,6 +565,17 @@ export default function ProfilePage() {
             <p className="text-sm text-red-600 mt-4">{hostBookingsError}</p>
           )}
         </div>
+
+        {/* Reviews Section */}
+        {user && (
+          <div className="bg-white rounded-xl shadow-lg p-8 mt-8">
+            <Reviews 
+              targetId={user.userId} 
+              targetType="USER"
+              allowNewReview={false}
+            />
+          </div>
+        )}
       </main>
 
       <footer className="bg-gray-900 text-white py-8 mt-16">
