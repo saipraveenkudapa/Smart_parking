@@ -488,81 +488,78 @@ export default function ProfilePage() {
 
         {/* Parking Analytics Summary */}
         <div className="bg-white rounded-xl shadow-lg p-8 mt-8">
-          <h2 className="text-2xl font-bold mb-4">📊 My Parking Analytics</h2>
-
-          <div className="flex flex-wrap gap-3 mb-6">
-            <button
-              type="button"
-              onClick={() => setSpendingRange('last7')}
-              className={`px-4 py-2 rounded-lg border font-semibold transition ${spendingRange === 'last7' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-900 border-gray-300 hover:bg-gray-50'}`}
-            >
-              Last 7 Days
-            </button>
-            <button
-              type="button"
-              onClick={() => setSpendingRange('last30')}
-              className={`px-4 py-2 rounded-lg border font-semibold transition ${spendingRange === 'last30' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-900 border-gray-300 hover:bg-gray-50'}`}
-            >
-              Last 30 Days
-            </button>
-            <button
-              type="button"
-              onClick={() => setSpendingRange('thisMonth')}
-              className={`px-4 py-2 rounded-lg border font-semibold transition ${spendingRange === 'thisMonth' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-900 border-gray-300 hover:bg-gray-50'}`}
-            >
-              This Month
-            </button>
-            <button
-              type="button"
-              onClick={() => setSpendingRange('allTime')}
-              className={`px-4 py-2 rounded-lg border font-semibold transition ${spendingRange === 'allTime' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-900 border-gray-300 hover:bg-gray-50'}`}
-            >
-              All Time
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-600 text-sm">Total Spending</span>
-              </div>
-              <p className="text-3xl font-bold text-gray-900">${parkingAnalytics.totalSpending.toFixed(2)}</p>
-              <p className="text-sm text-gray-600">{parkingAnalytics.parkingsCount} parkings</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">My Parking Analytics</h2>
+              <p className="text-gray-600 text-sm mt-1">Track usage and spending by time range</p>
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-600 text-sm">Pending Charges</span>
-              </div>
-              <p className="text-3xl font-bold text-gray-900">${parkingAnalytics.pendingCharges.toFixed(2)}</p>
-              <p className="text-sm text-gray-600">{parkingAnalytics.pendingCount} pending</p>
-            </div>
-
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-600 text-sm">Avg Parking Cost</span>
-              </div>
-              <p className="text-3xl font-bold text-gray-900">${parkingAnalytics.avgParkingCost.toFixed(2)}</p>
-              <p className="text-sm text-gray-600">per booking</p>
-            </div>
-
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-600 text-sm">Most Used City</span>
-              </div>
-              <p className="text-3xl font-bold text-gray-900">{parkingAnalytics.mostUsedCity}</p>
-              <p className="text-sm text-gray-600">favorite location</p>
+            <div className="inline-flex flex-wrap gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2">
+              <button
+                type="button"
+                onClick={() => setSpendingRange('last7')}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${spendingRange === 'last7' ? 'bg-green-600 text-white' : 'text-gray-700 hover:bg-white'}`}
+              >
+                Last 7 Days
+              </button>
+              <button
+                type="button"
+                onClick={() => setSpendingRange('last30')}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${spendingRange === 'last30' ? 'bg-green-600 text-white' : 'text-gray-700 hover:bg-white'}`}
+              >
+                Last 30 Days
+              </button>
+              <button
+                type="button"
+                onClick={() => setSpendingRange('thisMonth')}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${spendingRange === 'thisMonth' ? 'bg-green-600 text-white' : 'text-gray-700 hover:bg-white'}`}
+              >
+                This Month
+              </button>
+              <button
+                type="button"
+                onClick={() => setSpendingRange('allTime')}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${spendingRange === 'allTime' ? 'bg-green-600 text-white' : 'text-gray-700 hover:bg-white'}`}
+              >
+                All Time
+              </button>
             </div>
           </div>
 
-          {renterBookingsLoading && (
-            <p className="text-sm text-gray-600 mt-4">Loading analytics...</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-linear-to-br from-green-50 to-green-100 rounded-xl p-5 border border-green-200">
+              <p className="text-sm font-semibold text-gray-700">Total Spending</p>
+              <p className="text-3xl font-bold text-green-700 mt-2">${parkingAnalytics.totalSpending.toFixed(2)}</p>
+              <p className="text-sm text-gray-600 mt-1">{parkingAnalytics.parkingsCount} parkings</p>
+            </div>
+
+            <div className="bg-linear-to-br from-yellow-50 to-yellow-100 rounded-xl p-5 border border-yellow-200">
+              <p className="text-sm font-semibold text-gray-700">Pending Charges</p>
+              <p className="text-3xl font-bold text-yellow-700 mt-2">${parkingAnalytics.pendingCharges.toFixed(2)}</p>
+              <p className="text-sm text-gray-600 mt-1">{parkingAnalytics.pendingCount} pending</p>
+            </div>
+
+            <div className="bg-linear-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200">
+              <p className="text-sm font-semibold text-gray-700">Avg Parking Cost</p>
+              <p className="text-3xl font-bold text-blue-700 mt-2">${parkingAnalytics.avgParkingCost.toFixed(2)}</p>
+              <p className="text-sm text-gray-600 mt-1">per booking</p>
+            </div>
+
+            <div className="bg-linear-to-br from-purple-50 to-purple-100 rounded-xl p-5 border border-purple-200">
+              <p className="text-sm font-semibold text-gray-700">Most Used City</p>
+              <p className="text-2xl font-bold text-purple-700 mt-2 break-words">{parkingAnalytics.mostUsedCity}</p>
+              <p className="text-sm text-gray-600 mt-1">favorite location</p>
+            </div>
+          </div>
+
+          {(renterBookingsLoading || hostBookingsLoading) && (
+            <p className="text-sm text-gray-600 mt-5">Loading analytics...</p>
           )}
           {!renterBookingsLoading && renterBookingsError && (
-            <p className="text-sm text-red-600 mt-4">{renterBookingsError}</p>
+            <p className="text-sm text-red-600 mt-5">{renterBookingsError}</p>
           )}
           {!hostBookingsLoading && !renterBookingsLoading && !renterBookingsError && hostBookingsError && (
-            <p className="text-sm text-red-600 mt-4">{hostBookingsError}</p>
+            <p className="text-sm text-red-600 mt-5">{hostBookingsError}</p>
           )}
         </div>
 
