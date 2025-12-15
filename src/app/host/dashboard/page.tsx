@@ -92,13 +92,13 @@ export default function HostDashboard() {
   const [twoWeeksMetricsLoading, setTwoWeeksMetricsLoading] = useState(true)
   const [thisMonthOccupancyMetrics, setThisMonthOccupancyMetrics] = useState({
     occupancyPercentage: 0,
-    totalAvailableHours: 0,
-    totalBookedHours: 0
+    totalDays: 0,
+    bookedDays: 0
   })
   const [lastMonthOccupancyMetrics, setLastMonthOccupancyMetrics] = useState({
     occupancyPercentage: 0,
-    totalAvailableHours: 0,
-    totalBookedHours: 0
+    totalDays: 0,
+    bookedDays: 0
   })
   const [occupancyMetricsLoading, setOccupancyMetricsLoading] = useState(true)
   const [reviewsBySpace, setReviewsBySpace] = useState<Record<string, { avgRating: number; totalReviews: number }>>({})
@@ -156,14 +156,14 @@ export default function HostDashboard() {
 
       setLastMonthOccupancyMetrics({
         occupancyPercentage: Number(lastMonthBody?.data?.occupancyPercentage) || 0,
-        totalAvailableHours: Number(lastMonthBody?.data?.totalAvailableHours) || 0,
-        totalBookedHours: Number(lastMonthBody?.data?.totalBookedHours) || 0
+        totalDays: Number(lastMonthBody?.data?.totalDays) || 0,
+        bookedDays: Number(lastMonthBody?.data?.bookedDays) || 0
       })
 
       setThisMonthOccupancyMetrics({
         occupancyPercentage: Number(thisMonthBody?.data?.occupancyPercentage) || 0,
-        totalAvailableHours: Number(thisMonthBody?.data?.totalAvailableHours) || 0,
-        totalBookedHours: Number(thisMonthBody?.data?.totalBookedHours) || 0
+        totalDays: Number(thisMonthBody?.data?.totalDays) || 0,
+        bookedDays: Number(thisMonthBody?.data?.bookedDays) || 0
       })
     } catch (err: any) {
       console.error('[Dashboard] Fetch occupancy metrics error:', err)
@@ -574,7 +574,7 @@ export default function HostDashboard() {
                   <p className="text-sm text-gray-500 mt-2">
                     {occupancyMetricsLoading
                       ? ''
-                      : `${thisMonthOccupancyMetrics.totalBookedHours.toFixed(2)}h booked / ${thisMonthOccupancyMetrics.totalAvailableHours.toFixed(2)}h available`}
+                      : `${thisMonthOccupancyMetrics.bookedDays} day${thisMonthOccupancyMetrics.bookedDays === 1 ? '' : 's'} booked / ${thisMonthOccupancyMetrics.totalDays} day${thisMonthOccupancyMetrics.totalDays === 1 ? '' : 's'}`}
                   </p>
                   {!occupancyMetricsLoading && (() => {
                     const baseline = lastMonthOccupancyMetrics.occupancyPercentage
@@ -582,11 +582,14 @@ export default function HostDashboard() {
                     const safeBaseline = Number.isFinite(baseline) ? baseline : 0
                     const safeCurrent = Number.isFinite(current) ? current : 0
 
-                    // Special rule requested: if last month is 0% and this month is X%, show +X*100%.
-                    // Example: 0% -> 3% displays +300%.
+                    // Day-based special rule: if last month had 0 booked days and this month has N booked days,
+                    // show +N*100% (example: 3 booked days => +300%).
+                    const lastMonthBookedDays = Number(lastMonthOccupancyMetrics.bookedDays) || 0
+                    const thisMonthBookedDays = Number(thisMonthOccupancyMetrics.bookedDays) || 0
+
                     const changePct = safeBaseline > 0
                       ? ((safeCurrent - safeBaseline) / safeBaseline) * 100
-                      : (safeCurrent > 0 ? safeCurrent * 100 : 0)
+                      : (thisMonthBookedDays > 0 && lastMonthBookedDays === 0 ? thisMonthBookedDays * 100 : 0)
 
                     const changeClass = changePct > 0 ? 'text-green-600' : changePct < 0 ? 'text-red-600' : 'text-gray-600'
                     const changeLabel = `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`

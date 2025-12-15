@@ -3,40 +3,52 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 
-type Interval = { startMs: number; endMs: number }
-
 type BookingWindowRow = {
   start_time: Date
   end_time: Date
 }
 
-type AvailabilityWindowRow = {
-  available_start: Date | null
-  available_end: Date | null
-}
-
-const mergeIntervals = (intervals: Interval[]) => {
-  const sorted = intervals
-    .filter((i) => Number.isFinite(i.startMs) && Number.isFinite(i.endMs) && i.endMs > i.startMs)
-    .sort((a, b) => a.startMs - b.startMs)
-
-  const merged: Interval[] = []
-  for (const interval of sorted) {
-    const last = merged[merged.length - 1]
-    if (!last || interval.startMs > last.endMs) {
-      merged.push({ ...interval })
-      continue
-    }
-    last.endMs = Math.max(last.endMs, interval.endMs)
-  }
-  return merged
-}
-
-const sumIntervalsMs = (intervals: Interval[]) => {
-  return intervals.reduce((total, i) => total + (i.endMs - i.startMs), 0)
-}
-
 const round2 = (n: number) => Math.round(n * 100) / 100
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+const floorToUtcDayMs = (ms: number) => {
+  const d = new Date(ms)
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0)
+}
+
+const countDaysInRangeInclusive = (rangeStartMs: number, rangeEndMs: number) => {
+  if (!Number.isFinite(rangeStartMs) || !Number.isFinite(rangeEndMs) || rangeEndMs <= rangeStartMs) {
+    return 0
+  }
+
+  const endInclusiveMs = Math.max(rangeStartMs, rangeEndMs - 1)
+  const startDayMs = floorToUtcDayMs(rangeStartMs)
+  const endDayMs = floorToUtcDayMs(endInclusiveMs)
+  return Math.floor((endDayMs - startDayMs) / DAY_MS) + 1
+}
+
+const getBookedDayCount = (bookingRows: BookingWindowRow[], rangeStartMs: number, rangeEndMs: number) => {
+  const bookedDays = new Set<number>()
+
+  for (const row of bookingRows) {
+    const rawStartMs = row.start_time.getTime()
+    const rawEndMs = row.end_time.getTime()
+
+    const startMs = Math.max(rawStartMs, rangeStartMs)
+    const endMs = Math.min(rawEndMs, rangeEndMs)
+    if (endMs <= startMs) continue
+
+    const startDayMs = floorToUtcDayMs(startMs)
+    const endDayMs = floorToUtcDayMs(endMs - 1)
+
+    for (let dayMs = startDayMs; dayMs <= endDayMs; dayMs += DAY_MS) {
+      bookedDays.add(dayMs)
+    }
+  }
+
+  return bookedDays.size
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -81,40 +93,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid listingId' }, { status: 400 })
     }
 
-    // Availability windows (unioned)
-    const availabilityRows = await prisma.$queryRaw<AvailabilityWindowRow[]>`
-      SELECT
-        a.available_start,
-        a.available_end
-      FROM park_connect.availability a
-      WHERE
-        a.owner_id = ${ownerId}
-        AND a.is_available = TRUE
-        ${listingId ? Prisma.sql`AND a.space_id = ${listingId}` : Prisma.empty}
-    `
-
-    const availabilityIntervals = availabilityRows
-      .map((row) => {
-        const startMs = Math.max((row.available_start?.getTime() ?? rangeStartMs), rangeStartMs)
-        const endMs = Math.min((row.available_end?.getTime() ?? rangeEndMs), rangeEndMs)
-        return { startMs, endMs }
-      })
-      .filter((i) => i.endMs > i.startMs)
-
-    const mergedAvailability = mergeIntervals(availabilityIntervals)
-    const totalAvailableMs = sumIntervalsMs(mergedAvailability)
-
-    if (totalAvailableMs <= 0) {
-      return NextResponse.json({
-        data: {
-          occupancyPercentage: 0,
-          totalAvailableHours: 0,
-          totalBookedHours: 0,
-        },
-      })
-    }
-
-    // Booked windows (confirmed + completed only), unioned and clamped to range
+    // Day-based occupancy: if a booking touches a day, that day counts as occupied.
+    // Occupancy % = bookedDays / totalDaysInRange * 100.
     const bookingRows = await prisma.$queryRaw<BookingWindowRow[]>`
       SELECT
         b.start_time,
@@ -130,27 +110,16 @@ export async function GET(request: NextRequest) {
         AND b.end_time > ${startDate}
     `
 
-    const bookingIntervals = bookingRows
-      .map((row) => {
-        const startMs = Math.max(row.start_time.getTime(), rangeStartMs)
-        const endMs = Math.min(row.end_time.getTime(), rangeEndMs)
-        return { startMs, endMs }
-      })
-      .filter((i) => i.endMs > i.startMs)
+    const totalDays = countDaysInRangeInclusive(rangeStartMs, rangeEndMs)
+    const bookedDays = getBookedDayCount(bookingRows, rangeStartMs, rangeEndMs)
 
-    const mergedBookings = mergeIntervals(bookingIntervals)
-    const totalBookedMs = sumIntervalsMs(mergedBookings)
-
-    const totalAvailableHours = totalAvailableMs / (1000 * 60 * 60)
-    const totalBookedHours = totalBookedMs / (1000 * 60 * 60)
-
-    const occupancyPercentage = round2((totalBookedMs / totalAvailableMs) * 100)
+    const occupancyPercentage = totalDays > 0 ? round2((bookedDays / totalDays) * 100) : 0
 
     return NextResponse.json({
       data: {
         occupancyPercentage,
-        totalAvailableHours: round2(totalAvailableHours),
-        totalBookedHours: round2(totalBookedHours),
+        totalDays,
+        bookedDays,
       },
     })
   } catch (error) {
