@@ -635,11 +635,6 @@ export default function HostDashboard() {
                   <p className="text-3xl font-bold text-green-600">
                     {occupancyMetricsLoading ? '—' : `${thisMonthOccupancyMetrics.occupancyPercentage.toFixed(2)}%`}
                   </p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    {occupancyMetricsLoading
-                      ? ''
-                      : `${thisMonthOccupancyMetrics.bookedDays} day${thisMonthOccupancyMetrics.bookedDays === 1 ? '' : 's'} booked / ${thisMonthOccupancyMetrics.totalDays} day${thisMonthOccupancyMetrics.totalDays === 1 ? '' : 's'}`}
-                  </p>
                   {!occupancyMetricsLoading && (() => {
                     const baseline = lastMonthOccupancyMetrics.occupancyPercentage
                     const current = thisMonthOccupancyMetrics.occupancyPercentage

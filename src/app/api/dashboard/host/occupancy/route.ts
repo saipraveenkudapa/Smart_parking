@@ -4,18 +4,10 @@ import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 
 type BookingWindowRow = {
-  start_time: Date
-  end_time: Date
+  booking_id: number
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
-
-const DAY_MS = 24 * 60 * 60 * 1000
-
-const floorToUtcDayMs = (ms: number) => {
-  const d = new Date(ms)
-  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0)
-}
 
 const countDaysInRangeInclusive = (rangeStartMs: number, rangeEndMs: number) => {
   if (!Number.isFinite(rangeStartMs) || !Number.isFinite(rangeEndMs) || rangeEndMs <= rangeStartMs) {
@@ -23,31 +15,12 @@ const countDaysInRangeInclusive = (rangeStartMs: number, rangeEndMs: number) => 
   }
 
   const endInclusiveMs = Math.max(rangeStartMs, rangeEndMs - 1)
-  const startDayMs = floorToUtcDayMs(rangeStartMs)
-  const endDayMs = floorToUtcDayMs(endInclusiveMs)
-  return Math.floor((endDayMs - startDayMs) / DAY_MS) + 1
-}
+  const start = new Date(rangeStartMs)
+  const endInclusive = new Date(endInclusiveMs)
 
-const getBookedDayCount = (bookingRows: BookingWindowRow[], rangeStartMs: number, rangeEndMs: number) => {
-  const bookedDays = new Set<number>()
-
-  for (const row of bookingRows) {
-    const rawStartMs = row.start_time.getTime()
-    const rawEndMs = row.end_time.getTime()
-
-    const startMs = Math.max(rawStartMs, rangeStartMs)
-    const endMs = Math.min(rawEndMs, rangeEndMs)
-    if (endMs <= startMs) continue
-
-    const startDayMs = floorToUtcDayMs(startMs)
-    const endDayMs = floorToUtcDayMs(endMs - 1)
-
-    for (let dayMs = startDayMs; dayMs <= endDayMs; dayMs += DAY_MS) {
-      bookedDays.add(dayMs)
-    }
-  }
-
-  return bookedDays.size
+  const startDayMs = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate(), 0, 0, 0, 0)
+  const endDayMs = Date.UTC(endInclusive.getUTCFullYear(), endInclusive.getUTCMonth(), endInclusive.getUTCDate(), 0, 0, 0, 0)
+  return Math.floor((endDayMs - startDayMs) / (24 * 60 * 60 * 1000)) + 1
 }
 
 export async function GET(request: NextRequest) {
@@ -93,12 +66,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid listingId' }, { status: 400 })
     }
 
-    // Day-based occupancy: if a booking touches a day, that day counts as occupied.
-    // Occupancy % = bookedDays / totalDaysInRange * 100.
+    // Day-based occupancy (per booking): treat each booking as one occupied day unit.
+    // This matches the product expectation: 3 bookings in the month => 3 / totalDays.
     const bookingRows = await prisma.$queryRaw<BookingWindowRow[]>`
       SELECT
-        b.start_time,
-        b.end_time
+        DISTINCT b.booking_id
       FROM park_connect.bookings b
       JOIN park_connect.availability a
         ON a.availability_id = b.availability_id
@@ -111,7 +83,7 @@ export async function GET(request: NextRequest) {
     `
 
     const totalDays = countDaysInRangeInclusive(rangeStartMs, rangeEndMs)
-    const bookedDays = getBookedDayCount(bookingRows, rangeStartMs, rangeEndMs)
+    const bookedDays = bookingRows.length
 
     const occupancyPercentage = totalDays > 0 ? round2((bookedDays / totalDays) * 100) : 0
 
