@@ -579,27 +579,21 @@ export default function HostDashboard() {
                   {!occupancyMetricsLoading && (() => {
                     const baseline = lastMonthOccupancyMetrics.occupancyPercentage
                     const current = thisMonthOccupancyMetrics.occupancyPercentage
-                    const hasBaseline = Number.isFinite(baseline) && baseline > 0
+                    const safeBaseline = Number.isFinite(baseline) ? baseline : 0
+                    const safeCurrent = Number.isFinite(current) ? current : 0
 
-                    if (!Number.isFinite(current)) {
-                      return null
-                    }
+                    // Special rule requested: if last month is 0% and this month is X%, show +X*100%.
+                    // Example: 0% -> 3% displays +300%.
+                    const changePct = safeBaseline > 0
+                      ? ((safeCurrent - safeBaseline) / safeBaseline) * 100
+                      : (safeCurrent > 0 ? safeCurrent * 100 : 0)
 
-                    if (!hasBaseline) {
-                      return (
-                        <p className="text-sm text-gray-500 mt-1">
-                          Last month: {baseline.toFixed(2)}% (change: N/A)
-                        </p>
-                      )
-                    }
-
-                    const changePct = ((current - baseline) / baseline) * 100
                     const changeClass = changePct > 0 ? 'text-green-600' : changePct < 0 ? 'text-red-600' : 'text-gray-600'
                     const changeLabel = `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`
 
                     return (
                       <p className="text-sm text-gray-500 mt-1">
-                        Last month: {baseline.toFixed(2)}% (<span className={changeClass}>{changeLabel}</span>)
+                        Last month: {safeBaseline.toFixed(2)}% (<span className={changeClass}>{changeLabel}</span>)
                       </p>
                     )
                   })()}
