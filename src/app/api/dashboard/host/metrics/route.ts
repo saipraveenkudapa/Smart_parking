@@ -71,8 +71,8 @@ export async function GET(request: NextRequest) {
         WHERE
           r.reviewee_id = ${ownerId}
           AND UPPER(COALESCE(r.review_type, 'USER')) = 'USER'
-          AND r.created_at >= ${startDate}
-          AND r.created_at < ${endDate};
+          AND r.review_date >= ${startDate}
+          AND r.review_date < ${endDate};
       `
     ])
 
