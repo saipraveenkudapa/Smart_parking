@@ -15,6 +15,11 @@ export default function ProfilePage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [spendingRange, setSpendingRange] = useState<'last7' | 'last30' | 'thisMonth' | 'allTime'>('last7')
+  const [selectedMonthKey, setSelectedMonthKey] = useState(() => {
+    const now = new Date()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    return `${now.getFullYear()}-${month}`
+  })
   const [renterBookings, setRenterBookings] = useState<any[]>([])
   const [renterBookingsLoading, setRenterBookingsLoading] = useState(true)
   const [renterBookingsError, setRenterBookingsError] = useState('')
@@ -96,6 +101,17 @@ export default function ProfilePage() {
     const now = new Date()
     let rangeStart: Date | null = null
     let rangeEnd: Date | null = null
+    let isRangeEndExclusive = false
+
+    const parseMonthKey = (key: string) => {
+      const [yearStr, monthStr] = key.split('-')
+      const year = Number(yearStr)
+      const monthIndex = Number(monthStr) - 1
+      if (!Number.isFinite(year) || !Number.isFinite(monthIndex) || monthIndex < 0 || monthIndex > 11) {
+        return new Date(now.getFullYear(), now.getMonth(), 1)
+      }
+      return new Date(year, monthIndex, 1)
+    }
 
     if (spendingRange === 'last7') {
       rangeStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
@@ -104,15 +120,23 @@ export default function ProfilePage() {
       rangeStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
       rangeEnd = now
     } else if (spendingRange === 'thisMonth') {
-      rangeStart = new Date(now.getFullYear(), now.getMonth(), 1)
-      rangeEnd = now
+      const selectedMonthStart = parseMonthKey(selectedMonthKey)
+      rangeStart = selectedMonthStart
+      rangeEnd = new Date(selectedMonthStart.getFullYear(), selectedMonthStart.getMonth() + 1, 1)
+      isRangeEndExclusive = true
     }
 
     const inRange = (booking: any) => {
       const start = booking?.startDate ? new Date(booking.startDate) : null
       if (!start || Number.isNaN(start.getTime())) return false
       if (rangeStart && start < rangeStart) return false
-      if (rangeEnd && start > rangeEnd) return false
+      if (rangeEnd) {
+        if (isRangeEndExclusive) {
+          if (start >= rangeEnd) return false
+        } else {
+          if (start > rangeEnd) return false
+        }
+      }
       return true
     }
 
@@ -157,7 +181,7 @@ export default function ProfilePage() {
       avgParkingCost,
       mostUsedCity,
     }
-  }, [hostBookings, spendingRange])
+  }, [hostBookings, spendingRange, selectedMonthKey])
 
   const fetchProfile = async () => {
     try {
@@ -245,6 +269,28 @@ export default function ProfilePage() {
         </div>
       </div>
     )
+            {spendingRange === 'thisMonth' && (
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-semibold text-gray-700">Month</label>
+                <select
+                  value={selectedMonthKey}
+                  onChange={(e) => setSelectedMonthKey(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-900"
+                >
+                  {Array.from({ length: 12 }).map((_, i) => {
+                    const now = new Date()
+                    const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
+                    const key = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`
+                    const label = monthStart.toLocaleString(undefined, { month: 'short', year: 'numeric' })
+                    return (
+                      <option key={key} value={key}>
+                        {label}
+                      </option>
+                    )
+                  })}
+                </select>
+              </div>
+            )}
   }
 
   return (
