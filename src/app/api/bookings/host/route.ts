@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
       startDate: booking.start_time,
       endDate: booking.end_time,
       totalAmount: Number(booking.total_amount),
+      ownerPayout: Number(booking.owner_payout),
       vehicleDetails: 'Vehicle details unavailable',
       status: (booking.booking_status || '').toUpperCase(),
       createdAt: booking.start_time,
@@ -76,6 +77,8 @@ export async function GET(req: NextRequest) {
         id: booking.availability?.space_id?.toString() || '',
         title: booking.availability?.parking_spaces?.title || 'Parking Space',
         address: booking.availability?.parking_spaces?.space_location?.address || 'Address unavailable',
+        city: booking.availability?.parking_spaces?.space_location?.city || '',
+        state: booking.availability?.parking_spaces?.space_location?.state || '',
       },
     }))
 

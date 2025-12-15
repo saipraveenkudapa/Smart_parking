@@ -18,6 +18,9 @@ export default function ProfilePage() {
   const [renterBookings, setRenterBookings] = useState<any[]>([])
   const [renterBookingsLoading, setRenterBookingsLoading] = useState(true)
   const [renterBookingsError, setRenterBookingsError] = useState('')
+  const [hostBookings, setHostBookings] = useState<any[]>([])
+  const [hostBookingsLoading, setHostBookingsLoading] = useState(true)
+  const [hostBookingsError, setHostBookingsError] = useState('')
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -36,6 +39,7 @@ export default function ProfilePage() {
 
     fetchProfile()
     fetchRenterBookings()
+    fetchHostBookings()
   }, [router])
 
   const fetchRenterBookings = async () => {
@@ -58,6 +62,28 @@ export default function ProfilePage() {
       setRenterBookingsError(err instanceof Error ? err.message : 'Failed to fetch bookings')
     } finally {
       setRenterBookingsLoading(false)
+    }
+  }
+
+  const fetchHostBookings = async () => {
+    try {
+      setHostBookingsError('')
+      const token = localStorage.getItem('token')
+      const headers: Record<string, string> = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
+      const response = await fetch('/api/bookings/host', { headers })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data?.error || 'Failed to fetch host bookings')
+      if (!Array.isArray(data.bookings)) throw new Error('Invalid host bookings response')
+
+      setHostBookings(data.bookings)
+    } catch (err) {
+      console.error('Fetch host bookings error:', err)
+      setHostBookings([])
+      setHostBookingsError(err instanceof Error ? err.message : 'Failed to fetch host bookings')
+    } finally {
+      setHostBookingsLoading(false)
     }
   }
 
@@ -91,10 +117,14 @@ export default function ProfilePage() {
     }
 
     const normalizeStatus = (status: any) => (typeof status === 'string' ? status.toUpperCase() : '')
-    const isApproved = (status: string) => status === 'APPROVED' || status === 'COMPLETED'
+    const isApproved = (status: string) =>
+      status === 'APPROVED' || status === 'COMPLETED' || status === 'CONFIRMED'
     const isPending = (status: string) => status === 'PENDING'
 
-    const filtered = renterBookings.filter(inRange)
+    const sourceBookings = renterBookings.length > 0 ? renterBookings : hostBookings
+    const useHostAmounts = renterBookings.length === 0 && hostBookings.length > 0
+
+    const filtered = sourceBookings.filter(inRange)
 
     let totalSpending = 0
     let parkingsCount = 0
@@ -104,7 +134,9 @@ export default function ProfilePage() {
 
     for (const booking of filtered) {
       const status = normalizeStatus(booking?.status)
-      const amount = safeNumber(booking?.totalAmount)
+      const amount = useHostAmounts
+        ? safeNumber(booking?.ownerPayout ?? booking?.totalAmount)
+        : safeNumber(booking?.totalAmount)
       const city = (booking?.listing?.city || '').trim()
 
       if (isApproved(status)) {
@@ -139,7 +171,7 @@ export default function ProfilePage() {
       avgParkingCost,
       mostUsedCity,
     }
-  }, [renterBookings, spendingRange])
+  }, [renterBookings, hostBookings, spendingRange])
 
   const fetchProfile = async () => {
     try {
@@ -540,6 +572,9 @@ export default function ProfilePage() {
           )}
           {!renterBookingsLoading && renterBookingsError && (
             <p className="text-sm text-red-600 mt-4">{renterBookingsError}</p>
+          )}
+          {!hostBookingsLoading && !renterBookingsLoading && !renterBookingsError && hostBookingsError && (
+            <p className="text-sm text-red-600 mt-4">{hostBookingsError}</p>
           )}
         </div>
       </main>
