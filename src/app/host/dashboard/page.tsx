@@ -136,9 +136,9 @@ export default function HostDashboard() {
       // Last month: [lastMonthStart, thisMonthStart)
       const lastMonthUrl = `/api/dashboard/host/occupancy?start=${encodeURIComponent(lastMonthStart.toISOString())}&end=${encodeURIComponent(thisMonthStart.toISOString())}`
 
-      // This month so far: [thisMonthStart, now]
-      // (If you ever want full-month projection, use nextMonthStart instead of now.)
-      const thisMonthUrl = `/api/dashboard/host/occupancy?start=${encodeURIComponent(thisMonthStart.toISOString())}&end=${encodeURIComponent(now.toISOString())}`
+      // This month (full month): [thisMonthStart, nextMonthStart)
+      // This makes the denominator the full month days (e.g., 30/31), not days elapsed so far.
+      const thisMonthUrl = `/api/dashboard/host/occupancy?start=${encodeURIComponent(thisMonthStart.toISOString())}&end=${encodeURIComponent(nextMonthStart.toISOString())}`
 
       const [lastMonthRes, thisMonthRes] = await Promise.all([
         fetch(lastMonthUrl, { headers: { Authorization: `Bearer ${token}` } }),
