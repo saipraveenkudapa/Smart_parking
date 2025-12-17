@@ -41,15 +41,45 @@ A Next.js web application that connects individuals with unused parking spaces (
 
 ## 🛠️ Tech Stack
 
-- **Framework:** Next.js 14 (App Router)
-- **Language:** TypeScript
-- **Database:** Supabase PostgreSQL with Prisma ORM
-- **Authentication:** JWT + bcrypt
-- **Styling:** Tailwind CSS
-- **Map:** Leaflet (for search results)
+### Frontend
+- **Framework:** Next.js (App Router, Next 15.x)
+- **UI:** React 19
+- **Language:** TypeScript (strict)
+- **Styling:** Tailwind CSS v4 + PostCSS
+- **Icons:** lucide-react
+
+### Backend (API)
+- **API style:** Next.js Route Handlers (`src/app/api/**`)
+- **Validation:** Zod (request/body validation where used)
+- **Auth:** JWT (Bearer token; some routes also accept cookie token)
+- **Password security:** bcryptjs
+
+### Database
+- **Database:** PostgreSQL (project uses the `park_connect` schema)
+- **ORM:** Prisma Client + Prisma CLI
+
+### Analytics & Visualization
+- **Charts:** Recharts
+- **Date utilities:** date-fns
+
+### Maps / Location
+- **Maps:** Leaflet + React-Leaflet
+
+### Messaging / Notifications
 - **Email:** Nodemailer (SMTP)
-- **SMS:** Twilio (optional, console-based for demo)
-- **Payments:** Stripe (to be integrated)
+- **SMS OTP:** Twilio (falls back to console output if not configured)
+
+### Supabase (optional / supporting)
+- **SDK:** `@supabase/supabase-js`
+- Used for Supabase connections and RPC-style analytics helpers (see `src/lib/supabase.ts`)
+
+### Tooling & DX
+- **Linting:** ESLint (Next.js config)
+- **Build:** `next build` + `prisma generate`
+- **Package manager:** npm
+
+### Deployment
+- **Recommended:** Vercel (see `VERCEL_ENV_SETUP.md`)
 
 ---
 
